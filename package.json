@@ -1,0 +1,21 @@
+{
+  "name": "atlas-derslik-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "turbo lint",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\""
+  },
+  "devDependencies": {
+    "turbo": "latest",
+    "prettier": "latest",
+    "typescript": "latest",
+    "@types/node": "latest"
+  },
+  "packageManager": "pnpm@10.2.0",
+  "engines": {
+    "node": ">=18"
+  }
+}
