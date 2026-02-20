@@ -23,7 +23,10 @@ export class Submission {
     @Prop()
     feedback: string; // Teacher feedback
 
-    @Prop({ default: new Date() })
+    @Prop({ default: false })
+    isLate: boolean;
+
+    @Prop({ default: Date.now })
     submittedAt: Date;
 }
 

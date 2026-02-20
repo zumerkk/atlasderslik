@@ -34,8 +34,8 @@ export default function StudentVideosPage() {
             const res = await apiGet("/education/student/dashboard");
             if (res.ok) {
                 const data = await res.json();
-                const videoList = (data.videos || []).filter((v: VideoItem) => v.videoUrl && v.videoUrl.trim() !== "");
-                setVideos(videoList);
+                // Show all videos — don't silently filter out empty URLs
+                setVideos(data.videos || []);
             } else {
                 setError(true);
             }

@@ -182,6 +182,13 @@ export class EducationController {
         return this.educationService.getVideos(query);
     }
 
+    @Patch('videos/:id')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.TEACHER, UserRole.ADMIN)
+    updateVideo(@Param('id') id: string, @Body() body: any) {
+        return this.educationService.updateVideo(id, body);
+    }
+
     @Delete('videos/:id')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.TEACHER, UserRole.ADMIN)
@@ -202,6 +209,13 @@ export class EducationController {
     @Roles(UserRole.TEACHER, UserRole.STUDENT, UserRole.ADMIN)
     getAssignments(@Query() query) {
         return this.educationService.getAssignments(query);
+    }
+
+    @Patch('assignments/:id')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.TEACHER, UserRole.ADMIN)
+    updateAssignment(@Param('id') id: string, @Body() body: any) {
+        return this.educationService.updateAssignment(id, body);
     }
 
     @Delete('assignments/:id')

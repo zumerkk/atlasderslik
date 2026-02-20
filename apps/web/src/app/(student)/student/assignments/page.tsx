@@ -20,6 +20,9 @@ interface Assignment {
     title: string;
     description: string;
     dueDate: string;
+    dueDateISO?: string;
+    isExpired?: boolean;
+    canSubmit?: boolean;
     subjectId: { _id: string; name: string };
     gradeLevel: number;
     teacherId: { firstName: string; lastName: string };
@@ -134,28 +137,39 @@ export default function StudentAssignmentsPage() {
             return { label: "Teslim Edildi", variant: "info", canSubmit: false, isLate: false };
         }
 
-        // Not submitted — check deadline
+        // Not submitted — check deadline using server flags if available
         const assign = assignments.find(x => x._id === assignmentId);
-        if (!assign || !assign.dueDate) {
-            // No deadline specified — allow submission
+        if (!assign) {
             return { label: "Bekliyor", variant: "warning", canSubmit: true, isLate: false };
         }
 
-        const deadline = new Date(assign.dueDate);
-        // Guard against invalid date
-        if (isNaN(deadline.getTime())) {
-            return { label: "Bekliyor", variant: "warning", canSubmit: true, isLate: false };
+        // Prefer server-computed isExpired flag
+        let expired = false;
+        if (assign.isExpired !== undefined) {
+            expired = assign.isExpired;
+        } else if (assign.dueDate) {
+            // Client-side fallback: use end-of-day to prevent TZ issues
+            const deadline = new Date(assign.dueDate);
+            if (!isNaN(deadline.getTime())) {
+                deadline.setHours(23, 59, 59, 999);
+                expired = isPast(deadline);
+            }
         }
 
-        if (isPast(deadline)) {
+        if (expired) {
             // Deadline passed — still allow late submission
             return { label: "Süresi Doldu", variant: "destructive", canSubmit: true, isLate: true };
         }
 
         // Active — can submit
-        const daysLeft = differenceInDays(deadline, new Date());
-        if (daysLeft <= 2) {
-            return { label: `Son ${daysLeft + 1} gün`, variant: "warning", canSubmit: true, isLate: false };
+        if (assign.dueDate) {
+            const deadline = new Date(assign.dueDate);
+            if (!isNaN(deadline.getTime())) {
+                const daysLeft = differenceInDays(deadline, new Date());
+                if (daysLeft <= 2) {
+                    return { label: `Son ${daysLeft + 1} gün`, variant: "warning", canSubmit: true, isLate: false };
+                }
+            }
         }
         return { label: "Bekliyor", variant: "warning", canSubmit: true, isLate: false };
     };

@@ -7,11 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Video as VideoIcon, Plus, Trash2, ExternalLink, PlayCircle, Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { Video as VideoIcon, Plus, Trash2, ExternalLink, PlayCircle, Loader2, CheckCircle, AlertCircle, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
-import { apiGet, apiPost, apiDelete } from "@/lib/api";
+import { apiGet, apiPost, apiDelete, apiPatch } from "@/lib/api";
 import { useRouter } from "next/navigation";
 
 interface TeacherAssignment {
@@ -42,6 +42,9 @@ export default function TeacherVideosPage() {
     const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
     const [formData, setFormData] = useState({ title: "", description: "", videoUrl: "", assignmentId: "" });
+    const [editDialogOpen, setEditDialogOpen] = useState(false);
+    const [editTarget, setEditTarget] = useState<Video | null>(null);
+    const [editFormData, setEditFormData] = useState({ title: "", description: "", videoUrl: "" });
 
     useEffect(() => { fetchVideos(); fetchAssignments(); }, []);
     useEffect(() => { if (feedback) { const t = setTimeout(() => setFeedback(null), 3000); return () => clearTimeout(t); } }, [feedback]);
@@ -95,6 +98,34 @@ export default function TeacherVideosPage() {
         finally { setSubmitting(false); }
     };
 
+    const openEditDialog = (vid: Video) => {
+        setEditTarget(vid);
+        setEditFormData({ title: vid.title, description: vid.description || "", videoUrl: vid.videoUrl });
+        setEditDialogOpen(true);
+    };
+
+    const handleEdit = async () => {
+        if (!editTarget) return;
+        if (!editFormData.videoUrl.trim()) {
+            setFeedback({ type: "error", message: "Video URL boş olamaz." });
+            return;
+        }
+        setSubmitting(true);
+        try {
+            const res = await apiPatch(`/education/videos/${editTarget._id}`, editFormData);
+            if (res.ok) {
+                setEditDialogOpen(false);
+                setEditTarget(null);
+                fetchVideos();
+                setFeedback({ type: "success", message: "Video güncellendi!" });
+            } else {
+                const err = await res.json().catch(() => ({}));
+                setFeedback({ type: "error", message: err.message || "Güncelleme başarısız." });
+            }
+        } catch { setFeedback({ type: "error", message: "Bir hata oluştu." }); }
+        finally { setSubmitting(false); }
+    };
+
     return (
         <div className="space-y-6 animate-fade-in">
             <PageHeader title="Video Kütüphanesi" description="Ders anlatım videolarınızı yönetin.">
@@ -136,9 +167,14 @@ export default function TeacherVideosPage() {
                                 <p className="text-sm text-muted-foreground truncate">{vid.description || "Açıklama yok"}</p>
                             </CardContent>
                             <CardFooter className="flex justify-between border-t pt-4">
-                                <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => { setDeleteTarget(vid); setDeleteDialogOpen(true); }}>
-                                    <Trash2 className="h-4 w-4" />
-                                </Button>
+                                <div className="flex gap-1">
+                                    <Button variant="ghost" size="sm" onClick={() => openEditDialog(vid)}>
+                                        <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => { setDeleteTarget(vid); setDeleteDialogOpen(true); }}>
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </div>
                                 <Button size="sm" variant="outline" asChild>
                                     <a href={vid.videoUrl} target="_blank">İzle <ExternalLink className="ml-1.5 h-3.5 w-3.5" /></a>
                                 </Button>
@@ -203,6 +239,36 @@ export default function TeacherVideosPage() {
                         <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>İptal</Button>
                         <Button variant="destructive" onClick={handleDelete} disabled={submitting}>
                             {submitting && <Loader2 className="h-4 w-4 animate-spin" />} Sil
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Edit Dialog */}
+            <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Video Düzenle</DialogTitle>
+                        <DialogDescription>Video bilgilerini güncelleyin.</DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label>Video Başlığı</Label>
+                            <Input value={editFormData.title} onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })} />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label>Video URL</Label>
+                            <Input value={editFormData.videoUrl} onChange={(e) => setEditFormData({ ...editFormData, videoUrl: e.target.value })} />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label>Açıklama</Label>
+                            <Input value={editFormData.description} onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })} />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditDialogOpen(false)}>İptal</Button>
+                        <Button onClick={handleEdit} disabled={submitting || !editFormData.videoUrl.trim()}>
+                            {submitting && <Loader2 className="h-4 w-4 animate-spin" />} Güncelle
                         </Button>
                     </DialogFooter>
                 </DialogContent>

@@ -151,6 +151,24 @@ export class EducationService {
             .sort({ createdAt: -1 })
             .exec();
     }
+    async updateVideo(id: string, data: any) {
+        const update: any = {};
+        if (data.title !== undefined) update.title = data.title;
+        if (data.description !== undefined) update.description = data.description;
+        if (data.videoUrl !== undefined) {
+            const url = (data.videoUrl || '').trim();
+            if (!url) {
+                throw new Error('Video URL boş olamaz.');
+            }
+            // Normalize: add https:// if no protocol
+            update.videoUrl = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+        }
+        if (data.durationMinutes !== undefined) update.durationMinutes = data.durationMinutes;
+        return this.videoModel.findByIdAndUpdate(id, update, { new: true })
+            .populate('subjectId', 'name')
+            .populate('teacherId', 'firstName lastName')
+            .exec();
+    }
     async deleteVideo(id: string) {
         return this.videoModel.findByIdAndDelete(id).exec();
     }
@@ -169,13 +187,35 @@ export class EducationService {
             .sort({ dueDate: 1 })
             .exec();
     }
+    async updateAssignment(id: string, data: any) {
+        const update: any = {};
+        if (data.title !== undefined) update.title = data.title;
+        if (data.description !== undefined) update.description = data.description;
+        if (data.dueDate !== undefined) update.dueDate = new Date(data.dueDate);
+        if (data.instructions !== undefined) update.instructions = data.instructions;
+        if (data.maxScore !== undefined) update.maxScore = data.maxScore;
+        return this.assignmentModel.findByIdAndUpdate(id, update, { new: true })
+            .populate('subjectId', 'name')
+            .populate('teacherId', 'firstName lastName')
+            .exec();
+    }
     async deleteAssignment(id: string) {
         return this.assignmentModel.findByIdAndDelete(id).exec();
     }
     async submitAssignment(data: any) {
+        // Check deadline and mark late submissions
+        const assignment = await this.assignmentModel.findById(data.assignmentId).exec();
+        let isLate = false;
+        if (assignment?.dueDate) {
+            // Set deadline to end of day (23:59:59.999) to avoid timezone issues
+            const deadline = new Date(assignment.dueDate);
+            deadline.setHours(23, 59, 59, 999);
+            isLate = new Date() > deadline;
+        }
+
         return this.submissionModel.findOneAndUpdate(
             { assignmentId: new Types.ObjectId(data.assignmentId), studentId: new Types.ObjectId(data.studentId) },
-            { ...data, submittedAt: new Date() },
+            { ...data, submittedAt: new Date(), isLate },
             { new: true, upsert: true }
         );
     }
@@ -232,7 +272,7 @@ export class EducationService {
             };
         }
 
-        const [courses, liveClasses, videos, assignments, submissions] = await Promise.all([
+        const [courses, liveClasses, videos, rawAssignments, submissions] = await Promise.all([
             // Courses = teacher assignments for this grade (use raw ObjectId)
             this.teacherAssignmentModel.find({ gradeId: gradeOid })
                 .populate('gradeId', 'level')
@@ -263,6 +303,30 @@ export class EducationService {
                 .sort({ submittedAt: -1 })
                 .exec(),
         ]);
+
+        // Enrich assignments with server-computed isExpired / canSubmit flags
+        const now = new Date();
+        const submissionMap = new Map<string, any>();
+        submissions.forEach((s: any) => {
+            const aId = s.assignmentId?._id?.toString() || s.assignmentId?.toString();
+            if (aId) submissionMap.set(aId, s);
+        });
+
+        const assignments = rawAssignments.map((a: any) => {
+            const obj = a.toObject ? a.toObject() : { ...a };
+            const hasSubmission = submissionMap.has(obj._id.toString());
+            let isExpired = false;
+            if (obj.dueDate) {
+                const deadline = new Date(obj.dueDate);
+                deadline.setHours(23, 59, 59, 999);
+                isExpired = now > deadline;
+            }
+            // canSubmit: not yet submitted (allow late submissions too)
+            obj.isExpired = isExpired;
+            obj.canSubmit = !hasSubmission;
+            obj.dueDateISO = obj.dueDate ? new Date(obj.dueDate).toISOString() : null;
+            return obj;
+        });
 
         return { enrolled: true, gradeLevel, courses, liveClasses, videos, assignments, submissions };
     }
