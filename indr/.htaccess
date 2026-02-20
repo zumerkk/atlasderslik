@@ -1,0 +1,51 @@
+# Atlas Derslik - Production .htaccess (cPanel uyumlu)
+# Bu dosyayı public_html köküne koyun.
+
+# HTTPS ve www yönlendirmeleri
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # HTTPS'e zorla
+  RewriteCond %{HTTPS} !=on
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+  # www'yi non-www'ye yönlendir
+  RewriteCond %{HTTP_HOST} ^www\.(.+)$ [NC]
+  RewriteRule ^ https://%1%{REQUEST_URI} [L,R=301]
+
+  # SPA yönlendirme (API hariç)
+  RewriteCond %{REQUEST_URI} !^/api/
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+# Statik varlıklar için cache ve güvenlik headers
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+  <FilesMatch "\.(ico|jpg|jpeg|png|gif|svg|js|css|woff|woff2|ttf|eot)$">
+    Header set Cache-Control "max-age=31536000, public, immutable"
+  </FilesMatch>
+
+  <FilesMatch "\.(html|htm)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+</IfModule>
+
+# Gzip Sıkıştırma
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json application/xml
+</IfModule>
+
+# Dizin listelemeyi kapat
+Options -Indexes
+
+# Hata sayfaları
+ErrorDocument 404 /index.html
+ErrorDocument 500 /index.html

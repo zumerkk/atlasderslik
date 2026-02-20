@@ -1,0 +1,22 @@
+{
+  "name": "atlas-derslik-frontend",
+  "version": "1.0.0",
+  "description": "Atlas Derslik Eğitim Platformu - Frontend",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "vite"
+  },
+  "keywords": [
+    "education",
+    "learning",
+    "platform"
+  ],
+  "author": "Atlas Derslik",
+  "license": "MIT",
+  "devDependencies": {
+    "http-server": "^14.1.1",
+    "vite": "^7.2.2"
+  }
+}

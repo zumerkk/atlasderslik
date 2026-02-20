@@ -1,26 +1,398 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* ===================================
+   DESIGN TOKENS
+   =================================== */
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+    /* --- Brand Colors --- */
+    --color-primary: hsl(221 83% 53%);
+    --color-primary-foreground: hsl(210 40% 98%);
+    --color-secondary: hsl(220 14% 96%);
+    --color-secondary-foreground: hsl(220 9% 20%);
+    --color-accent: hsl(220 14% 96%);
+    --color-accent-foreground: hsl(220 9% 20%);
+    --color-destructive: hsl(0 72% 51%);
+    --color-destructive-foreground: hsl(0 0% 100%);
+
+    /* --- Neutral Scale --- */
+    --color-background: hsl(0 0% 100%);
+    --color-foreground: hsl(224 71% 4%);
+    --color-muted: hsl(220 14% 96%);
+    --color-muted-foreground: hsl(220 9% 46%);
+    --color-card: hsl(0 0% 100%);
+    --color-card-foreground: hsl(224 71% 4%);
+    --color-popover: hsl(0 0% 100%);
+    --color-popover-foreground: hsl(224 71% 4%);
+    --color-border: hsl(220 13% 91%);
+    --color-input: hsl(220 13% 91%);
+    --color-ring: hsl(221 83% 53%);
+
+    /* --- Radius --- */
+    --radius: 0.75rem;
+
+    /* --- Sidebar --- */
+    --color-sidebar: hsl(224 71% 4%);
+    --color-sidebar-foreground: hsl(213 31% 91%);
+    --color-sidebar-primary: hsl(0 0% 100%);
+    --color-sidebar-primary-foreground: hsl(224 71% 4%);
+    --color-sidebar-accent: hsl(216 34% 17%);
+    --color-sidebar-accent-foreground: hsl(0 0% 100%);
+    --color-sidebar-border: hsl(216 34% 17%);
+    --color-sidebar-ring: hsl(221 83% 53%);
+    --color-sidebar-muted: hsl(215 28% 17%);
+
+    /* --- Atlas Brand --- */
+    --color-atlas-blue: #2563eb;
+    --color-atlas-blue-dark: #1d4ed8;
+    --color-atlas-blue-light: #dbeafe;
+    --color-atlas-indigo: #4f46e5;
+    --color-atlas-indigo-light: #e0e7ff;
+    --color-atlas-emerald: #059669;
+    --color-atlas-emerald-light: #d1fae5;
+    --color-atlas-amber: #d97706;
+    --color-atlas-amber-light: #fef3c7;
+    --color-atlas-rose: #e11d48;
+    --color-atlas-rose-light: #ffe4e6;
+    --color-atlas-cyan: #0891b2;
+    --color-atlas-cyan-light: #cffafe;
+    --color-atlas-violet: #7c3aed;
+    --color-atlas-violet-light: #ede9fe;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ===================================
+   BASE
+   =================================== */
+
+html {
+    scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+    font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    color: var(--color-foreground);
+    background: var(--color-background);
+}
+
+/* ===================================
+   TYPOGRAPHY UTILITIES
+   =================================== */
+
+.text-display {
+    font-size: 2.25rem;
+    line-height: 2.5rem;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+}
+
+.text-heading-lg {
+    font-size: 1.5rem;
+    line-height: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+}
+
+.text-heading {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.text-heading-sm {
+    font-size: 1rem;
+    line-height: 1.5rem;
+    font-weight: 600;
+}
+
+.text-body {
+    font-size: 0.875rem;
+    line-height: 1.375rem;
+}
+
+.text-caption {
+    font-size: 0.75rem;
+    line-height: 1rem;
+    color: var(--color-muted-foreground);
+}
+
+/* ===================================
+   ANIMATIONS
+   =================================== */
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fade-in-up {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slide-in-left {
+    from {
+        opacity: 0;
+        transform: translateX(-16px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes slide-in-right {
+    from {
+        opacity: 0;
+        transform: translateX(16px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes scale-in {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes float {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-12px);
+    }
+}
+
+@keyframes pulse-soft {
+
+    0%,
+    100% {
+        opacity: 0.6;
+    }
+
+    50% {
+        opacity: 0.3;
+    }
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+@keyframes toast-in {
+    from {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.96);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes toast-out {
+    from {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.96);
+    }
+}
+
+.animate-fade-in {
+    animation: fade-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-fade-in-up {
+    animation: fade-in-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-float {
+    animation: float 6s ease-in-out infinite;
+}
+
+.animate-pulse-soft {
+    animation: pulse-soft 3s ease-in-out infinite;
+}
+
+.animate-slide-in-left {
+    animation: slide-in-left 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-slide-in-right {
+    animation: slide-in-right 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-scale-in {
+    animation: scale-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-toast-in {
+    animation: toast-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-toast-out {
+    animation: toast-out 0.2s ease-in both;
+}
+
+/* Staggered delays */
+.delay-75 {
+    animation-delay: 75ms;
+}
+
+.delay-100 {
+    animation-delay: 100ms;
+}
+
+.delay-150 {
+    animation-delay: 150ms;
+}
+
+.delay-200 {
+    animation-delay: 200ms;
+}
+
+.delay-300 {
+    animation-delay: 300ms;
+}
+
+.delay-400 {
+    animation-delay: 400ms;
+}
+
+.delay-500 {
+    animation-delay: 500ms;
+}
+
+/* ===================================
+   SKELETON LOADER
+   =================================== */
+
+.skeleton {
+    background: linear-gradient(90deg,
+            hsl(220 14% 96%) 25%,
+            hsl(220 14% 92%) 50%,
+            hsl(220 14% 96%) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+    border-radius: var(--radius);
+}
+
+.skeleton-text {
+    height: 0.875rem;
+    width: 100%;
+    border-radius: 0.375rem;
+}
+
+.skeleton-title {
+    height: 1.5rem;
+    width: 60%;
+    border-radius: 0.5rem;
+}
+
+.skeleton-avatar {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 9999px;
+}
+
+.skeleton-card {
+    height: 7rem;
+    border-radius: var(--radius);
+}
+
+.skeleton-stat {
+    height: 6.5rem;
+    border-radius: var(--radius);
+}
+
+/* ===================================
+   SCROLLBAR
+   =================================== */
+
+.scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+    background: hsl(220 9% 46% / 0.3);
+    border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: hsl(220 9% 46% / 0.5);
+}
+
+/* ===================================
+   FOCUS & ACCESSIBILITY
+   =================================== */
+
+*:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+    border-radius: var(--radius);
+}
+
+/* ===================================
+   TRANSITION UTILITIES
+   =================================== */
+
+.transition-default {
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.hover-lift {
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+        box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px -5px rgb(0 0 0 / 0.1),
+        0 4px 10px -6px rgb(0 0 0 / 0.1);
 }
