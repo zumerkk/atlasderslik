@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { PublicHeader } from "@/components/layout/public-header";
 import { PublicFooter } from "@/components/layout/public-footer";
 import { Button } from "@/components/ui/button";
@@ -91,48 +92,68 @@ export default function Home() {
           <div className="absolute bottom-10 right-10 w-96 h-96 rounded-full bg-indigo-400/10 blur-3xl animate-float delay-300" />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-white/3 blur-3xl" />
 
-          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white/90 text-sm font-medium mb-8 animate-fade-in">
-              <Sparkles className="h-4 w-4" />
-              <span>2024-2025 Eğitim Dönemi Kayıtları Açık!</span>
-            </div>
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
+              {/* Text Content */}
+              <div className="flex-1 text-center lg:text-left">
+                {/* Badge */}
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white/90 text-sm font-medium mb-8 animate-fade-in">
+                  <Sparkles className="h-4 w-4" />
+                  <span>2024-2025 Eğitim Dönemi Kayıtları Açık!</span>
+                </div>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight mb-6 animate-fade-in delay-100">
-              Derslerde Kaybolma,
-              <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-orange-400">
-                Atlas Derslik
-              </span>{" "}
-              Yanında!
-            </h1>
+                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight mb-6 animate-fade-in delay-100">
+                  Derslerde Kaybolma,
+                  <br />
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-orange-400">
+                    Atlas Derslik
+                  </span>{" "}
+                  Yanında!
+                </h1>
 
-            <p className="max-w-2xl mx-auto text-lg sm:text-xl text-white/80 leading-relaxed mb-10 animate-fade-in delay-200">
-              Ortaokul müfredatına ve LGS&apos;ye yönelik haftalık canlı grup derslerimizde,
-              uzman öğretmenlerle etkili öğrenme deneyimi yaşayın. Atlas Derslik ile
-              öğrenmek artık çok daha etkili ve keyifli.
-            </p>
+                <p className="max-w-2xl mx-auto lg:mx-0 text-lg sm:text-xl text-white/80 leading-relaxed mb-10 animate-fade-in delay-200">
+                  Ortaokul müfredatına ve LGS&apos;ye yönelik haftalık canlı grup derslerimizde,
+                  uzman öğretmenlerle etkili öğrenme deneyimi yaşayın. Atlas Derslik ile
+                  öğrenmek artık çok daha etkili ve keyifli.
+                </p>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in delay-300">
-              <Link href="/packages">
-                <Button
-                  size="lg"
-                  className="bg-atlas-orange hover:bg-atlas-orange-dark text-white shadow-lg hover:shadow-xl transition-all text-base px-8 py-6 font-semibold"
-                >
-                  <BookOpen className="mr-2 h-5 w-5" />
-                  Paketleri İncele
-                </Button>
-              </Link>
-              <Link href="/register">
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="border-2 border-white/30 text-white hover:bg-white hover:text-atlas-blue transition-all text-base px-8 py-6 font-semibold bg-white/5 backdrop-blur-sm"
-                >
-                  Hemen Başla
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-              </Link>
+                <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 animate-fade-in delay-300">
+                  <Link href="/packages">
+                    <Button
+                      size="lg"
+                      className="bg-atlas-orange hover:bg-atlas-orange-dark text-white shadow-lg hover:shadow-xl transition-all text-base px-8 py-6 font-semibold"
+                    >
+                      <BookOpen className="mr-2 h-5 w-5" />
+                      Paketleri İncele
+                    </Button>
+                  </Link>
+                  <Link href="/register">
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      className="border-2 border-white/30 text-white hover:bg-white hover:text-atlas-blue transition-all text-base px-8 py-6 font-semibold bg-white/5 backdrop-blur-sm"
+                    >
+                      Hemen Başla
+                      <ArrowRight className="ml-2 h-5 w-5" />
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+
+              {/* Mascot */}
+              <div className="hidden lg:block flex-shrink-0 animate-fade-in delay-300">
+                <div className="relative">
+                  <div className="absolute -inset-4 bg-white/10 rounded-full blur-2xl" />
+                  <Image
+                    src="/assets/images/deer-mascot.png"
+                    alt="Atlas Derslik Maskotu"
+                    width={320}
+                    height={400}
+                    className="relative drop-shadow-2xl hover:scale-105 transition-transform duration-500"
+                    priority
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -338,7 +359,14 @@ export default function Home() {
               <div className="absolute top-0 right-0 w-64 h-64 rounded-full bg-white/5 blur-2xl" />
               <div className="absolute bottom-0 left-0 w-48 h-48 rounded-full bg-indigo-400/10 blur-2xl" />
 
-              <div className="relative">
+              <div className="relative flex flex-col items-center">
+                <Image
+                  src="/assets/images/deer-mascot.png"
+                  alt="Atlas Derslik Maskotu"
+                  width={120}
+                  height={150}
+                  className="mb-6 drop-shadow-lg animate-bounce-slow"
+                />
                 <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
                   Hemen Başlayın!
                 </h2>
