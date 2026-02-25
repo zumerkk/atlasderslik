@@ -34,5 +34,7 @@ services:
         value: production
       - key: PORT
         value: 10000
+      - key: HOSTNAME
+        value: 0.0.0.0
       - key: NEXT_PUBLIC_API_URL
         sync: false  # Set to your API Render URL after deploy
