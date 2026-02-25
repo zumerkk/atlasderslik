@@ -27,7 +27,7 @@ services:
     region: frankfurt
     plan: free
     rootDir: apps/web
-    buildCommand: cd ../.. && npm install -g pnpm@10.2.0 && pnpm install --frozen-lockfile && pnpm --filter @repo/shared build && pnpm --filter @repo/ui build && pnpm --filter web build
+    buildCommand: cd ../.. && npm install -g pnpm@10.2.0 && pnpm install --frozen-lockfile && pnpm --filter @repo/shared build && pnpm --filter @repo/ui build && pnpm --filter web build && cp -r apps/web/.next/static apps/web/.next/standalone/apps/web/.next/static && cp -r apps/web/public apps/web/.next/standalone/apps/web/public
     startCommand: node .next/standalone/apps/web/server.js
     envVars:
       - key: NODE_ENV
