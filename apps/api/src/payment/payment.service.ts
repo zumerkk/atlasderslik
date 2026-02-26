@@ -5,11 +5,13 @@ import { Model } from 'mongoose';
 import { Order, OrderDocument, OrderStatus } from '../packages/schemas/order.schema';
 import { Package, PackageDocument } from '../packages/schemas/package.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
-import * as Iyzipay from 'iyzipay';
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const Iyzipay = require('iyzipay');
 
 @Injectable()
 export class PaymentService {
-    private iyzipay: Iyzipay;
+    private iyzipay: any;
 
     constructor(
         private configService: ConfigService,
@@ -45,13 +47,13 @@ export class PaymentService {
         const price = pkg.price.toFixed(2);
 
         const request = {
-            locale: Iyzipay.LOCALE.TR,
+            locale: 'tr',
             conversationId,
             price,
             paidPrice: price,
-            currency: Iyzipay.CURRENCY.TRY,
+            currency: 'TRY',
             basketId: `BASKET_${conversationId}`,
-            paymentGroup: Iyzipay.PAYMENT_GROUP.PRODUCT,
+            paymentGroup: 'PRODUCT',
             callbackUrl: `${frontendUrl}/payment/callback`,
             enabledInstallments: [1], // Taksitsiz tek ödeme
             buyer: {
@@ -88,7 +90,7 @@ export class PaymentService {
                     id: packageId,
                     name: pkg.name,
                     category1: 'Eğitim Paketi',
-                    itemType: Iyzipay.BASKET_ITEM_TYPE.VIRTUAL,
+                    itemType: 'VIRTUAL',
                     price,
                 },
             ],
@@ -126,7 +128,7 @@ export class PaymentService {
         return new Promise((resolve, reject) => {
             this.iyzipay.checkoutForm.retrieve(
                 {
-                    locale: Iyzipay.LOCALE.TR,
+                    locale: 'tr',
                     token,
                 },
                 async (err: any, result: any) => {
