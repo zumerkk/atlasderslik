@@ -44,6 +44,14 @@ function PaymentContent() {
                     }
                 );
 
+                if (res.status === 401) {
+                    // Token expired or invalid — redirect to login
+                    localStorage.removeItem("token");
+                    localStorage.removeItem("user");
+                    router.push(`/login?redirect=${encodeURIComponent(`/payment?packageId=${packageId}`)}`);
+                    return;
+                }
+
                 if (!res.ok) {
                     const data = await res.json();
                     throw new Error(data.message || "Ödeme başlatılamadı");
