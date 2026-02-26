@@ -437,7 +437,7 @@ export default function Home() {
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Adres</h3>
                 <p className="text-sm text-gray-500">
-                  Ankara, Türkiye
+                  Antalya/Gazipaşa
                 </p>
               </div>
             </div>

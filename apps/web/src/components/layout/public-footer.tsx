@@ -46,11 +46,11 @@ export function PublicFooter() {
                             </div>
                             <div className="flex items-center gap-3 text-sm">
                                 <Phone className="h-4 w-4 text-atlas-blue" />
-                                <span>+90 (555) 123 45 67</span>
+                                <span>+90 546 119 10 09</span>
                             </div>
                             <div className="flex items-center gap-3 text-sm">
                                 <MapPin className="h-4 w-4 text-atlas-blue" />
-                                <span>Ankara, Türkiye</span>
+                                <span>Antalya/Gazipaşa</span>
                             </div>
                         </div>
                     </div>

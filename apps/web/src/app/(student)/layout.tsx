@@ -10,6 +10,7 @@ import {
     GraduationCap,
     User,
     CalendarDays,
+    CreditCard,
 } from "lucide-react";
 
 const sidebarLinks = [
@@ -20,6 +21,7 @@ const sidebarLinks = [
     { title: "Konu Anlatımları", href: "/student/videos", icon: PlayCircle },
     { title: "Ödevlerim", href: "/student/assignments", icon: FileText },
     { title: "Sınavlarım", href: "/student/exams", icon: GraduationCap },
+    { title: "Paketlerim", href: "/student/packages", icon: CreditCard },
     { title: "Profilim", href: "/student/profile", icon: User },
 ];
 

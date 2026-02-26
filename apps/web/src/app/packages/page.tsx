@@ -147,12 +147,20 @@ export default function PackagesPublicPage() {
 
                                             {/* CTA */}
                                             <div className="px-6 pb-6">
-                                                <Link href="/register">
-                                                    <Button className={`w-full bg-gradient-to-r ${ci.color} hover:opacity-90 text-white py-5 font-semibold shadow-md hover:shadow-lg transition-all`}>
-                                                        Hemen Başla
-                                                        <ArrowRight className="ml-2 h-4 w-4" />
-                                                    </Button>
-                                                </Link>
+                                                <Button
+                                                    onClick={() => {
+                                                        const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+                                                        if (token) {
+                                                            window.location.href = `/payment?packageId=${pkg._id}`;
+                                                        } else {
+                                                            window.location.href = `/login?redirect=${encodeURIComponent(`/payment?packageId=${pkg._id}`)}`;
+                                                        }
+                                                    }}
+                                                    className={`w-full bg-gradient-to-r ${ci.color} hover:opacity-90 text-white py-5 font-semibold shadow-md hover:shadow-lg transition-all`}
+                                                >
+                                                    Satın Al
+                                                    <ArrowRight className="ml-2 h-4 w-4" />
+                                                </Button>
                                             </div>
                                         </div>
                                     );

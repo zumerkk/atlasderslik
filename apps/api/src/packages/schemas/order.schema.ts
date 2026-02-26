@@ -26,8 +26,18 @@ export class Order {
     @Prop({ required: true, enum: OrderStatus, default: OrderStatus.PENDING })
     status: OrderStatus;
 
-    @Prop() // E.g., Stripe Payment Intent ID
+    @Prop()
     paymentId: string;
+
+    @Prop()
+    iyzicoPaymentId: string;
+
+    @Prop()
+    iyzicoToken: string;
+
+    @Prop()
+    paidAt: Date;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);
+

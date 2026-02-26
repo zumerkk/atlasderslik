@@ -29,8 +29,22 @@ export class User {
     grade: number; // e.g. 5, 6, 7, 8
 
     // For Teachers
-    @Prop({ type: [{ type: String }], default: [] }) // Store Subject IDs as strings for now
+    @Prop({ type: [{ type: String }], default: [] })
     assignedSubjects: string[];
+
+    // For iyzico payment
+    @Prop({ default: '' })
+    phone: string;
+
+    @Prop({ default: 'Antalya/Gazipaşa' })
+    address: string;
+
+    @Prop({ default: 'Antalya' })
+    city: string;
+
+    @Prop({ default: '11111111111' })
+    identityNumber: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
+

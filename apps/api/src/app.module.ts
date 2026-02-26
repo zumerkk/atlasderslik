@@ -8,6 +8,7 @@ import { UsersModule } from './users/users.module';
 import { EducationModule } from './education/education.module';
 import { PackagesModule } from './packages/packages.module';
 import { StatisticsModule } from './statistics/statistics.module';
+import { PaymentModule } from './payment/payment.module';
 
 @Module({
   imports: [
@@ -30,8 +31,10 @@ import { StatisticsModule } from './statistics/statistics.module';
     EducationModule,
     PackagesModule,
     StatisticsModule,
+    PaymentModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule { }
+
