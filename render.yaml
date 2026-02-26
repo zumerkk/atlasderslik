@@ -8,6 +8,7 @@ services:
     rootDir: apps/api
     buildCommand: cd ../.. && npm install -g pnpm@10.2.0 && pnpm install --frozen-lockfile && pnpm --filter @repo/shared build && pnpm --filter api build
     startCommand: node dist/main.js
+    healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
@@ -29,6 +30,7 @@ services:
     rootDir: apps/web
     buildCommand: cd ../.. && npm install -g pnpm@10.2.0 && pnpm install --frozen-lockfile && pnpm --filter @repo/shared build && pnpm --filter @repo/ui build && pnpm --filter web build && cp -r apps/web/.next/static apps/web/.next/standalone/apps/web/.next/static && cp -r apps/web/public apps/web/.next/standalone/apps/web/public
     startCommand: node .next/standalone/apps/web/server.js
+    healthCheckPath: /
     envVars:
       - key: NODE_ENV
         value: production
@@ -38,3 +40,8 @@ services:
         value: 0.0.0.0
       - key: NEXT_PUBLIC_API_URL
         sync: false  # Set to your API Render URL after deploy
+
+  # ─── Keep-Warm ──────────────────────────────────────
+  # Handled externally via cron-job.org (every 15 min)
+  # API: https://atlasderslik-api.onrender.com/ping
+  # Web: https://atlasderslik-web.onrender.com/

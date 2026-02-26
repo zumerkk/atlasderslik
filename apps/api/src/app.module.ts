@@ -19,6 +19,9 @@ import { StatisticsModule } from './statistics/statistics.module';
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
         uri: configService.get<string>('MONGO_URI'),
+        serverSelectionTimeoutMS: 5000,
+        connectTimeoutMS: 10000,
+        socketTimeoutMS: 45000,
       }),
       inject: [ConfigService],
     }),

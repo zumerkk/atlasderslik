@@ -31,6 +31,9 @@ exports.AppModule = AppModule = __decorate([
                 imports: [config_1.ConfigModule],
                 useFactory: async (configService) => ({
                     uri: configService.get('MONGO_URI'),
+                    serverSelectionTimeoutMS: 5000,
+                    connectTimeoutMS: 10000,
+                    socketTimeoutMS: 45000,
                 }),
                 inject: [config_1.ConfigService],
             }),

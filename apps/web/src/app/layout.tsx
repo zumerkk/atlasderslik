@@ -12,6 +12,10 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
+// Extract just the origin (protocol + host) for preconnect
+const apiOrigin = API_URL ? new URL(API_URL).origin : "";
+
 export const metadata: Metadata = {
   title: {
     default: "Atlas Derslik | Eğitimin Dijital Atlası",
@@ -41,7 +45,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="tr">
+      <head>
+        {/* DNS prefetch & preconnect for API — reduces cold-start latency */}
+        {apiOrigin && (
+          <>
+            <link rel="dns-prefetch" href={apiOrigin} />
+            <link rel="preconnect" href={apiOrigin} crossOrigin="anonymous" />
+          </>
+        )}
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

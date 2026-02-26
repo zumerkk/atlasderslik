@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { PublicHeader } from "@/components/layout/public-header";
 import { PublicFooter } from "@/components/layout/public-footer";
 import { Button } from "@/components/ui/button";
+import { ApiStatus, PackageSkeleton } from "@/components/ui/api-status";
 import {
   GraduationCap,
   Laptop,
@@ -19,7 +20,6 @@ import {
   CheckCircle2,
   Sparkles,
   Crown,
-  Loader2,
 } from "lucide-react";
 
 const features = [
@@ -68,18 +68,96 @@ const BADGE_STYLES: Record<string, string> = {
   "En Popüler": "bg-gradient-to-r from-emerald-500 to-teal-500",
 };
 
+const PACKAGES_CACHE_KEY = "atlas_packages_cache";
+const PACKAGES_CACHE_TTL = 1000 * 60 * 30; // 30 minutes
+
+/** Read cached packages from localStorage */
+function getCachedPackages(): any[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(PACKAGES_CACHE_KEY);
+    if (!raw) return null;
+    const { data, ts } = JSON.parse(raw);
+    if (Date.now() - ts > PACKAGES_CACHE_TTL) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+/** Save packages to localStorage cache */
+function setCachedPackages(data: any[]) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(PACKAGES_CACHE_KEY, JSON.stringify({ data, ts: Date.now() }));
+  } catch { /* quota exceeded — ignore */ }
+}
+
 export default function Home() {
   const [homePackages, setHomePackages] = useState<any[]>([]);
   const [pkgLoading, setPkgLoading] = useState(true);
+  const [retryAttempt, setRetryAttempt] = useState(0);
+  const [fetchFailed, setFetchFailed] = useState(false);
+
+  const fetchPackages = useCallback(async () => {
+    setPkgLoading(true);
+    setFetchFailed(false);
+    setRetryAttempt(0);
+
+    // Show cached data immediately while fetching fresh
+    const cached = getCachedPackages();
+    if (cached && cached.length > 0) {
+      setHomePackages(cached);
+      setPkgLoading(false);
+    }
+
+    const maxRetries = 3;
+    const timeout = 15000;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/packages/active`,
+          { cache: "no-store", signal: controller.signal }
+        );
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          const data = await res.json();
+          const sliced = data.slice(0, 4);
+          setHomePackages(sliced);
+          setCachedPackages(sliced);
+          setPkgLoading(false);
+          setRetryAttempt(0);
+          setFetchFailed(false);
+          return;
+        }
+      } catch {
+        clearTimeout(timeoutId);
+      }
+
+      // Not the last attempt: wait with backoff and update retry UI
+      if (attempt < maxRetries) {
+        setRetryAttempt(attempt);
+        if (!cached || cached.length === 0) {
+          setPkgLoading(true);
+        }
+        await new Promise((r) => setTimeout(r, 2000 * Math.pow(2, attempt - 1)));
+      }
+    }
+
+    // All retries exhausted
+    setFetchFailed(true);
+    setPkgLoading(false);
+  }, []);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/packages/active`, { cache: "no-store" });
-        if (res.ok) { const data = await res.json(); setHomePackages(data.slice(0, 4)); }
-      } catch { } finally { setPkgLoading(false); }
-    })();
-  }, []);
+    fetchPackages();
+  }, [fetchPackages]);
+
   return (
     <div className="flex flex-col min-h-screen">
       <PublicHeader />
@@ -229,11 +307,26 @@ export default function Home() {
               </p>
             </div>
 
-            {pkgLoading ? (
-              <div className="flex items-center justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-blue-500" /></div>
-            ) : homePackages.length === 0 ? (
+            {/* Retry status indicator */}
+            {retryAttempt > 0 && homePackages.length === 0 && (
+              <ApiStatus retryAttempt={retryAttempt} maxRetries={3} />
+            )}
+
+            {/* Failed state with retry button */}
+            {fetchFailed && homePackages.length === 0 && (
+              <ApiStatus failed onRetry={fetchPackages} />
+            )}
+
+            {/* Loading skeleton — only when no cached data */}
+            {pkgLoading && homePackages.length === 0 && !fetchFailed && retryAttempt === 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+                {[...Array(4)].map((_, i) => (
+                  <PackageSkeleton key={i} />
+                ))}
+              </div>
+            ) : homePackages.length === 0 && !pkgLoading && !fetchFailed ? (
               <p className="text-center text-gray-400 py-16">Paketler yakında eklenecek.</p>
-            ) : (
+            ) : homePackages.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
                 {homePackages.map((pkg, idx) => {
                   const ci = COLORS[idx % COLORS.length];
@@ -291,7 +384,7 @@ export default function Home() {
                   );
                 })}
               </div>
-            )}
+            ) : null}
 
             <div className="text-center mt-10">
               <Link href="/packages">

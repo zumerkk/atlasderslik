@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
-import { GraduationCap, ArrowRight, Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
+import { GraduationCap, ArrowRight, Eye, EyeOff, Loader2, AlertCircle, RefreshCw, Wifi } from "lucide-react";
 
 export default function LoginPage() {
     const router = useRouter();
@@ -15,18 +15,27 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [showPassword, setShowPassword] = useState(false);
+    const [isColdStart, setIsColdStart] = useState(false);
 
-    const handleLogin = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleLogin = useCallback(async (e?: React.FormEvent) => {
+        e?.preventDefault();
         setLoading(true);
         setError("");
+        setIsColdStart(false);
+
+        const timeout = 15000;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeout);
 
         try {
             const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/auth/login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email, password }),
+                signal: controller.signal,
             });
+
+            clearTimeout(timeoutId);
 
             if (res.ok) {
                 const data = await res.json();
@@ -42,13 +51,19 @@ export default function LoginPage() {
             } else {
                 setError("Giriş başarısız. Lütfen bilgilerinizi kontrol edin.");
             }
-        } catch (err) {
-            console.error("Login error", err);
-            setError("Bir hata oluştu. Lütfen tekrar deneyin.");
+        } catch (err: any) {
+            clearTimeout(timeoutId);
+            if (err?.name === "AbortError") {
+                setIsColdStart(true);
+                setError("Sunucu uyanıyor, lütfen birkaç saniye bekleyip tekrar deneyin.");
+            } else {
+                setIsColdStart(true);
+                setError("Sunucuya bağlanılamadı. Sunucu şu anda başlatılıyor olabilir.");
+            }
         } finally {
             setLoading(false);
         }
-    };
+    }, [email, password, router]);
 
     return (
         <div className="flex min-h-screen">
@@ -156,9 +171,28 @@ export default function LoginPage() {
                             </div>
 
                             {error && (
-                                <div className="bg-rose-50 border border-rose-200 rounded-xl px-4 py-3 text-sm text-rose-700 flex items-center gap-2 animate-toast-in">
-                                    <AlertCircle className="h-4 w-4 shrink-0" />
-                                    <span>{error}</span>
+                                <div className={`rounded-xl px-4 py-3 text-sm flex items-start gap-2 animate-toast-in ${isColdStart
+                                        ? "bg-amber-50 border border-amber-200 text-amber-700"
+                                        : "bg-rose-50 border border-rose-200 text-rose-700"
+                                    }`}>
+                                    {isColdStart ? (
+                                        <Wifi className="h-4 w-4 shrink-0 mt-0.5 animate-pulse" />
+                                    ) : (
+                                        <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                                    )}
+                                    <div className="flex-1">
+                                        <span>{error}</span>
+                                        {isColdStart && (
+                                            <button
+                                                type="button"
+                                                onClick={() => handleLogin()}
+                                                className="mt-2 flex items-center gap-1.5 text-xs font-medium text-amber-800 hover:text-amber-900"
+                                            >
+                                                <RefreshCw className="h-3 w-3" />
+                                                Tekrar Dene
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             )}
 
