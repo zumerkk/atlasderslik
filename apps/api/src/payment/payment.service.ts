@@ -20,8 +20,8 @@ export class PaymentService {
         @InjectModel(User.name) private userModel: Model<UserDocument>,
     ) {
         this.iyzipay = new Iyzipay({
-            apiKey: this.configService.get<string>('IYZICO_API_KEY') || 'sandbox-api-key',
-            secretKey: this.configService.get<string>('IYZICO_SECRET_KEY') || 'sandbox-secret-key',
+            apiKey: this.configService.get<string>('IYZICO_API_KEY') || 'sandbox-Txl2ctiktW6BrNmFo10pZiPn8W67Ksob',
+            secretKey: this.configService.get<string>('IYZICO_SECRET_KEY') || 'sandbox-GdzIHrXly6gQkq7NWOgx9DmXG',
             uri: this.configService.get<string>('IYZICO_BASE_URL') || 'https://sandbox-api.iyzipay.com',
         });
     }
