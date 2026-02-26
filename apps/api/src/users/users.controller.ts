@@ -39,4 +39,48 @@ export class UsersController {
     remove(@Param('id') id: string) {
         return this.usersService.remove(id);
     }
+
+    // ─── Password Management (Admin Only) ─────────────────────
+
+    /**
+     * Generate a random password for a user.
+     * Returns the temporary password (plaintext) for admin to share.
+     */
+    @Post(':id/generate-password')
+    @Roles(UserRole.ADMIN)
+    async generatePassword(@Param('id') id: string) {
+        const result = await this.usersService.generatePassword(id);
+        return {
+            message: 'Şifre başarıyla oluşturuldu.',
+            temporaryPassword: result.temporaryPassword,
+            user: result.user,
+        };
+    }
+
+    /**
+     * Manually set a password for a user.
+     */
+    @Post(':id/set-password')
+    @Roles(UserRole.ADMIN)
+    async setPassword(@Param('id') id: string, @Body() body: { password: string }) {
+        const user = await this.usersService.setPassword(id, body.password);
+        return {
+            message: 'Şifre başarıyla güncellendi.',
+            user,
+        };
+    }
+
+    /**
+     * Reset password (alias for generate-password).
+     */
+    @Post(':id/reset-password')
+    @Roles(UserRole.ADMIN)
+    async resetPassword(@Param('id') id: string) {
+        const result = await this.usersService.generatePassword(id);
+        return {
+            message: 'Şifre başarıyla sıfırlandı.',
+            temporaryPassword: result.temporaryPassword,
+            user: result.user,
+        };
+    }
 }

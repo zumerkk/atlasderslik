@@ -14,6 +14,10 @@ export class AuthService {
         const user = await this.usersService.findOneByEmail(email);
 
         if (user) {
+            // Reject inactive users
+            if (!user.isActive) {
+                return null;
+            }
             const isMatch = await bcrypt.compare(pass, user.passwordHash);
             if (isMatch) {
                 const { passwordHash, ...result } = user.toObject();
