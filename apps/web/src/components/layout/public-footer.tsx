@@ -4,20 +4,20 @@ import { GraduationCap, Mail, Phone, MapPin } from "lucide-react";
 const footerLinks = {
     platform: [
         { label: "Paketler", href: "/packages" },
-        { label: "Canlı Dersler", href: "#" },
-        { label: "Video Kütüphanesi", href: "#" },
-        { label: "Soru Bankası", href: "#" },
+        { label: "Canlı Dersler", href: "/canli-dersler" },
+        { label: "Video Kütüphanesi", href: "/video-kutuphanesi" },
+        { label: "Soru Bankası", href: "/soru-bankasi" },
     ],
     company: [
-        { label: "Hakkımızda", href: "#about" },
-        { label: "Öğretmenler", href: "#" },
-        { label: "SSS", href: "#" },
-        { label: "Blog", href: "#" },
+        { label: "Hakkımızda", href: "/hakkimizda" },
+        { label: "Öğretmenler", href: "/ogretmenler" },
+        { label: "SSS", href: "/sss" },
+        { label: "Blog", href: "/blog" },
     ],
     legal: [
-        { label: "Gizlilik Politikası", href: "#" },
-        { label: "Kullanım Şartları", href: "#" },
-        { label: "KVKK", href: "#" },
+        { label: "Gizlilik Politikası", href: "/gizlilik-politikasi" },
+        { label: "Kullanım Şartları", href: "/kullanim-sartlari" },
+        { label: "KVKK", href: "/kvkk" },
     ],
 };
 

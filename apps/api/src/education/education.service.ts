@@ -347,12 +347,19 @@ export class EducationService {
 
     // ─── TEACHER ASSIGNMENTS ────────────────────────────
     async createTeacherAssignment(data: any) {
-        return this.teacherAssignmentModel.create({
-            gradeId: new Types.ObjectId(data.gradeId),
-            subjectId: new Types.ObjectId(data.subjectId),
-            teacherId: new Types.ObjectId(data.teacherId),
-            notes: data.notes || '',
-        });
+        try {
+            return await this.teacherAssignmentModel.create({
+                gradeId: new Types.ObjectId(data.gradeId),
+                subjectId: new Types.ObjectId(data.subjectId),
+                teacherId: new Types.ObjectId(data.teacherId),
+                notes: data.notes || '',
+            });
+        } catch (err: any) {
+            if (err?.code === 11000) {
+                throw new Error('Bu öğretmen zaten bu sınıf ve derse atanmış.');
+            }
+            throw err;
+        }
     }
     async getTeacherAssignments(query?: any) {
         const filter: any = {};

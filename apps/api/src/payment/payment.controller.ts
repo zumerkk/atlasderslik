@@ -1,6 +1,9 @@
-import { Controller, Post, Get, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Post, Get, Body, UseGuards, Request, Query } from '@nestjs/common';
 import { PaymentService } from './payment.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserRole } from '@repo/shared';
 
 @Controller('payment')
 export class PaymentController {
@@ -44,5 +47,15 @@ export class PaymentController {
     @UseGuards(JwtAuthGuard)
     async getActivePackage(@Request() req) {
         return this.paymentService.getActivePackage(req.user.userId);
+    }
+
+    /**
+     * Admin: list all orders (for reports)
+     */
+    @Get('admin/orders')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.ADMIN)
+    async getAllOrders(@Query('status') status?: string) {
+        return this.paymentService.getAllOrders(status);
     }
 }

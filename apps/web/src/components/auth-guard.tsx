@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { warmUpBackend } from "@/lib/api";
 
 interface AuthGuardProps {
     children: React.ReactNode;
@@ -16,6 +17,7 @@ export default function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
     const [checking, setChecking] = useState(true);
 
     useEffect(() => {
+        warmUpBackend(); // wake Render backend while checking auth
         const token = localStorage.getItem("token");
         const userStr = localStorage.getItem("user");
 

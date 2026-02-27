@@ -12,14 +12,12 @@ import {
   Laptop,
   BarChart3,
   Award,
-  Users,
   BookOpen,
-  Video,
-  Star,
   ArrowRight,
   CheckCircle2,
   Sparkles,
   Crown,
+  Star,
 } from "lucide-react";
 
 const features = [
@@ -49,12 +47,7 @@ const features = [
   },
 ];
 
-const stats = [
-  { value: "500+", label: "Aktif Öğrenci", icon: Users },
-  { value: "50+", label: "Uzman Öğretmen", icon: GraduationCap },
-  { value: "1000+", label: "Video İçerik", icon: Video },
-  { value: "4.9/5", label: "Memnuniyet", icon: Star },
-];
+
 
 const COLORS = [
   { color: "from-sky-500 to-blue-600" },
@@ -177,7 +170,7 @@ export default function Home() {
                 {/* Badge */}
                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white/90 text-sm font-medium mb-8 animate-fade-in">
                   <Sparkles className="h-4 w-4" />
-                  <span>2024-2025 Eğitim Dönemi Kayıtları Açık!</span>
+                  <span>2025-2026 Eğitim Dönemi Kayıtları Açık!</span>
                 </div>
 
                 <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight mb-6 animate-fade-in delay-100">
@@ -232,29 +225,6 @@ export default function Home() {
                   />
                 </div>
               </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ========== STATS BAR ========== */}
-        <section className="relative -mt-12 z-10">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-              {stats.map((stat, i) => {
-                const Icon = stat.icon;
-                return (
-                  <div
-                    key={stat.label}
-                    className={`bg-white rounded-2xl p-5 sm:p-6 shadow-lg border border-gray-100 text-center animate-fade-in-up delay-${(i + 1) * 100}`}
-                  >
-                    <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-blue-50 text-atlas-blue mb-3">
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <div className="text-2xl sm:text-3xl font-bold text-gray-900">{stat.value}</div>
-                    <div className="text-sm text-gray-500 mt-1">{stat.label}</div>
-                  </div>
-                );
-              })}
             </div>
           </div>
         </section>

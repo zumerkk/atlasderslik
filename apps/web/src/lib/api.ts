@@ -3,7 +3,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 interface ApiOptions extends RequestInit {
     /** Skip automatic auth token injection */
     skipAuth?: boolean;
-    /** Timeout in milliseconds (default: 15000) */
+    /** Timeout in milliseconds (default: 10000) */
     timeout?: number;
     /** Number of retry attempts (default: 0 = no retry) */
     retries?: number;
@@ -19,6 +19,57 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
+ * Fire-and-forget ping to wake up the Render backend during cold start.
+ * Call this early on app mount so the backend starts warming while the
+ * user is still looking at the UI shell / skeleton.
+ */
+let _warmupFired = false;
+export function warmUpBackend(): void {
+    if (_warmupFired || typeof window === "undefined") return;
+    _warmupFired = true;
+    fetch(`${API_BASE_URL}/ping`, { method: "GET", mode: "cors" }).catch(() => { });
+}
+
+/**
+ * Stale-while-revalidate GET helper.
+ * 1. Immediately returns cached data from sessionStorage (if any).
+ * 2. Fires a fresh API request in the background.
+ * 3. Calls `onFresh(data)` when the live response arrives.
+ *
+ * Returns the cached data (or null) synchronously-like via the returned promise.
+ */
+export async function cachedApiGet<T = any>(
+    endpoint: string,
+    onFresh: (data: T) => void,
+    options: ApiOptions = {},
+): Promise<T | null> {
+    const cacheKey = `api_cache:${endpoint}`;
+    let cached: T | null = null;
+
+    if (typeof window !== "undefined") {
+        try {
+            const raw = sessionStorage.getItem(cacheKey);
+            if (raw) cached = JSON.parse(raw);
+        } catch { }
+    }
+
+    // Fire background fetch
+    apiGet(endpoint, options)
+        .then(async (res) => {
+            if (res.ok) {
+                const data = await res.json();
+                if (typeof window !== "undefined") {
+                    try { sessionStorage.setItem(cacheKey, JSON.stringify(data)); } catch { }
+                }
+                onFresh(data);
+            }
+        })
+        .catch(() => { });
+
+    return cached;
+}
+
+/**
  * Centralized API fetch utility.
  * - Injects Authorization header from localStorage
  * - Handles common error codes (401 → login redirect, 403 → forbidden)
@@ -28,7 +79,7 @@ function sleep(ms: number): Promise<void> {
 export async function api(endpoint: string, options: ApiOptions = {}): Promise<Response> {
     const {
         skipAuth,
-        timeout = 15000,
+        timeout = 10000,
         retries = 0,
         onRetry,
         ...fetchOptions

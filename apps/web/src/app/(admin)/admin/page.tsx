@@ -19,57 +19,58 @@ import {
     Database,
     Video,
     TrendingUp,
+    RefreshCw,
+    WifiOff,
 } from "lucide-react";
+import { apiGet } from "@/lib/api";
 
 export default function AdminDashboard() {
     const [stats, setStats] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
     const [user, setUser] = useState<any>(null);
 
-    useEffect(() => {
-        const fetchStats = async () => {
-            try {
-                const userStr = localStorage.getItem("user");
-                if (userStr) setUser(JSON.parse(userStr));
+    const fetchStats = async () => {
+        setLoading(true);
+        setError(false);
+        try {
+            const userStr = localStorage.getItem("user");
+            if (userStr) setUser(JSON.parse(userStr));
 
-                const token = localStorage.getItem("token");
-                const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/statistics/admin", {
-                    headers: { Authorization: `Bearer ${token}` },
+            const res = await apiGet("/statistics/admin");
+
+            if (res.ok) {
+                const data = await res.json();
+                setStats({
+                    ...data,
+                    total_users: (data.totalStudents || 0) + (data.totalTeachers || 0),
+                    new_users_this_month: data.newUsersThisMonth || 0,
+                    total_revenue: data.totalRevenue || 0,
+                    revenue_this_month: data.revenue?.this_month || 0,
+                    total_packages: data.totalPackages || 0,
+                    active_subscriptions: data.activeSubscriptions || 0,
+                    total_classes: data.totalLiveClasses || 0,
+                    active_lessons_today: 0,
+                    system: {
+                        server_status: "operational",
+                        database_status: "operational",
+                        payment_status: "operational",
+                        video_status: "operational",
+                    },
+                    revenue: data.revenue || { this_month: 0, last_month: 0, this_year: 0 },
                 });
-
-                if (res.ok) {
-                    const data = await res.json();
-                    setStats({
-                        ...data,
-                        total_users: (data.totalStudents || 0) + (data.totalTeachers || 0),
-                        new_users_this_month: 12,
-                        total_revenue: 145000,
-                        revenue_this_month: 25000,
-                        total_packages: 5,
-                        active_subscriptions: 142,
-                        total_classes: data.totalLiveClasses || 0,
-                        active_lessons_today: 4,
-                        system: {
-                            server_status: "operational",
-                            database_status: "operational",
-                            payment_status: "operational",
-                            video_status: "operational",
-                        },
-                        revenue: {
-                            this_month: 25000,
-                            last_month: 22000,
-                            this_year: 245000,
-                        },
-                    });
-                }
-            } catch (error) {
-                console.error("Error fetching admin stats:", error);
-            } finally {
-                setLoading(false);
+            } else {
+                setError(true);
             }
-        };
-        fetchStats();
-    }, []);
+        } catch (err) {
+            console.error("Error fetching admin stats:", err);
+            setError(true);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => { fetchStats(); }, []);
 
     const statCards = [
         {
@@ -124,6 +125,25 @@ export default function AdminDashboard() {
                 title="Admin Dashboard"
                 description={user ? `Hoş geldin, ${user.firstName} ${user.lastName}!` : "Yükleniyor..."}
             />
+
+            {/* Connection Error Fallback */}
+            {error && !loading && (
+                <div className="flex flex-col items-center gap-4 py-12 text-center">
+                    <div className="w-16 h-16 rounded-2xl bg-amber-50 flex items-center justify-center">
+                        <WifiOff className="h-8 w-8 text-amber-500" />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-semibold text-gray-900">Sunucu Bağlantısı Bekleniyor</h3>
+                        <p className="text-sm text-gray-500 mt-1 max-w-sm">Sunucu hazırlanıyor, lütfen birkaç saniye bekleyin veya tekrar deneyin.</p>
+                    </div>
+                    <button
+                        onClick={fetchStats}
+                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
+                    >
+                        <RefreshCw className="h-4 w-4" /> Tekrar Dene
+                    </button>
+                </div>
+            )}
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

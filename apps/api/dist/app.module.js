@@ -17,6 +17,7 @@ const users_module_1 = require("./users/users.module");
 const education_module_1 = require("./education/education.module");
 const packages_module_1 = require("./packages/packages.module");
 const statistics_module_1 = require("./statistics/statistics.module");
+const payment_module_1 = require("./payment/payment.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -29,12 +30,17 @@ exports.AppModule = AppModule = __decorate([
             }),
             mongoose_1.MongooseModule.forRootAsync({
                 imports: [config_1.ConfigModule],
-                useFactory: async (configService) => ({
-                    uri: configService.get('MONGO_URI'),
-                    serverSelectionTimeoutMS: 5000,
-                    connectTimeoutMS: 10000,
-                    socketTimeoutMS: 45000,
-                }),
+                useFactory: async (configService) => {
+                    const isProd = configService.get('NODE_ENV') === 'production';
+                    return {
+                        uri: configService.get('MONGO_URI'),
+                        serverSelectionTimeoutMS: 3000,
+                        connectTimeoutMS: 10000,
+                        socketTimeoutMS: 45000,
+                        autoIndex: !isProd,
+                        bufferCommands: false,
+                    };
+                },
                 inject: [config_1.ConfigService],
             }),
             auth_module_1.AuthModule,
@@ -42,6 +48,7 @@ exports.AppModule = AppModule = __decorate([
             education_module_1.EducationModule,
             packages_module_1.PackagesModule,
             statistics_module_1.StatisticsModule,
+            payment_module_1.PaymentModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],

@@ -16,7 +16,9 @@ import {
     AtSign,
     BookOpen,
     Loader2,
+    RefreshCw,
 } from "lucide-react";
+import { cachedApiGet } from "@/lib/api";
 
 interface Pkg {
     _id: string; name: string; description: string; subtitle: string;
@@ -45,11 +47,26 @@ export default function PackagesPublicPage() {
     useEffect(() => {
         (async () => {
             try {
-                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/packages/active`, { cache: "no-store" });
-                if (res.ok) setPackages(await res.json());
-                else setError(true);
-            } catch { setError(true); }
-            finally { setLoading(false); }
+                // Stale-while-revalidate: show cached packages instantly, then fetch fresh
+                const cached = await cachedApiGet<Pkg[]>(
+                    "/packages/active",
+                    (freshData) => {
+                        setPackages(freshData);
+                        setLoading(false);
+                        setError(false);
+                    },
+                );
+                if (cached && cached.length > 0) {
+                    setPackages(cached);
+                    setLoading(false);
+                } else {
+                    // No cache, wait a bit then show loading
+                    setTimeout(() => setLoading((prev) => prev), 500);
+                }
+            } catch {
+                setError(true);
+                setLoading(false);
+            }
         })();
     }, []);
 

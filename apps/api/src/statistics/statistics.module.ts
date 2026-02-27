@@ -9,6 +9,8 @@ import { Assignment, AssignmentSchema } from '../education/schemas/assignment.sc
 import { TeacherAssignment, TeacherAssignmentSchema } from '../education/schemas/teacher-assignment.schema';
 import { StudentEnrollment, StudentEnrollmentSchema } from '../education/schemas/student-enrollment.schema';
 import { Question, QuestionSchema } from '../education/schemas/question.schema';
+import { Order, OrderSchema } from '../packages/schemas/order.schema';
+import { Package, PackageSchema } from '../packages/schemas/package.schema';
 
 @Module({
     imports: [
@@ -20,6 +22,8 @@ import { Question, QuestionSchema } from '../education/schemas/question.schema';
             { name: TeacherAssignment.name, schema: TeacherAssignmentSchema },
             { name: StudentEnrollment.name, schema: StudentEnrollmentSchema },
             { name: Question.name, schema: QuestionSchema },
+            { name: Order.name, schema: OrderSchema },
+            { name: Package.name, schema: PackageSchema },
         ])
     ],
     providers: [StatisticsService],

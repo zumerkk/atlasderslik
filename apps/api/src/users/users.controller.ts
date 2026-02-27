@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -18,8 +18,8 @@ export class UsersController {
 
     @Get()
     @Roles(UserRole.ADMIN)
-    findAll() {
-        return this.usersService.findAll();
+    findAll(@Query('role') role?: string) {
+        return this.usersService.findAll(role);
     }
 
     @Get(':id')

@@ -8,6 +8,8 @@ import { Assignment, AssignmentDocument } from '../education/schemas/assignment.
 import { TeacherAssignment, TeacherAssignmentDocument } from '../education/schemas/teacher-assignment.schema';
 import { StudentEnrollment, StudentEnrollmentDocument } from '../education/schemas/student-enrollment.schema';
 import { Question, QuestionDocument } from '../education/schemas/question.schema';
+import { Order, OrderDocument, OrderStatus } from '../packages/schemas/order.schema';
+import { Package, PackageDocument } from '../packages/schemas/package.schema';
 import { UserRole } from '@repo/shared';
 
 @Injectable()
@@ -20,9 +22,17 @@ export class StatisticsService {
         @InjectModel(TeacherAssignment.name) private teacherAssignmentModel: Model<TeacherAssignmentDocument>,
         @InjectModel(StudentEnrollment.name) private studentEnrollmentModel: Model<StudentEnrollmentDocument>,
         @InjectModel(Question.name) private questionModel: Model<QuestionDocument>,
+        @InjectModel(Order.name) private orderModel: Model<OrderDocument>,
+        @InjectModel(Package.name) private packageModel: Model<PackageDocument>,
     ) { }
 
     async getAdminStats() {
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+        const startOfYear = new Date(now.getFullYear(), 0, 1);
+
         const [
             totalStudents,
             totalTeachers,
@@ -31,6 +41,10 @@ export class StatisticsService {
             totalAssignments,
             totalEnrollments,
             totalTeacherAssignments,
+            totalPackages,
+            activeSubscriptions,
+            newUsersThisMonth,
+            revenueAgg,
         ] = await Promise.all([
             this.userModel.countDocuments({ role: UserRole.STUDENT }),
             this.userModel.countDocuments({ role: UserRole.TEACHER }),
@@ -39,7 +53,37 @@ export class StatisticsService {
             this.assignmentModel.countDocuments(),
             this.studentEnrollmentModel.countDocuments(),
             this.teacherAssignmentModel.countDocuments(),
+            this.packageModel.countDocuments(),
+            this.orderModel.countDocuments({ status: OrderStatus.COMPLETED }),
+            this.userModel.countDocuments({ createdAt: { $gte: startOfMonth } }),
+            // Revenue aggregation pipeline
+            this.orderModel.aggregate([
+                { $match: { status: OrderStatus.COMPLETED } },
+                {
+                    $facet: {
+                        total: [{ $group: { _id: null, sum: { $sum: '$amount' } } }],
+                        thisMonth: [
+                            { $match: { paidAt: { $gte: startOfMonth } } },
+                            { $group: { _id: null, sum: { $sum: '$amount' } } },
+                        ],
+                        lastMonth: [
+                            { $match: { paidAt: { $gte: startOfLastMonth, $lte: endOfLastMonth } } },
+                            { $group: { _id: null, sum: { $sum: '$amount' } } },
+                        ],
+                        thisYear: [
+                            { $match: { paidAt: { $gte: startOfYear } } },
+                            { $group: { _id: null, sum: { $sum: '$amount' } } },
+                        ],
+                    },
+                },
+            ]),
         ]);
+
+        const rev = revenueAgg[0] || {};
+        const totalRevenue = rev.total?.[0]?.sum || 0;
+        const revenueThisMonth = rev.thisMonth?.[0]?.sum || 0;
+        const revenueLastMonth = rev.lastMonth?.[0]?.sum || 0;
+        const revenueThisYear = rev.thisYear?.[0]?.sum || 0;
 
         return {
             totalStudents,
@@ -49,6 +93,15 @@ export class StatisticsService {
             totalAssignments,
             totalEnrollments,
             totalTeacherAssignments,
+            totalPackages,
+            activeSubscriptions,
+            newUsersThisMonth,
+            totalRevenue,
+            revenue: {
+                this_month: revenueThisMonth,
+                last_month: revenueLastMonth,
+                this_year: revenueThisYear,
+            },
         };
     }
 
@@ -117,3 +170,4 @@ export class StatisticsService {
         };
     }
 }
+

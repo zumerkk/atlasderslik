@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Link from "next/link";
-import { GraduationCap, ArrowRight, Eye, EyeOff, Loader2, Users, BookOpen, AlertCircle } from "lucide-react";
+import { GraduationCap, ArrowRight, Eye, EyeOff, Loader2, Users, AlertCircle } from "lucide-react";
 
 export default function RegisterPage() {
     const router = useRouter();
@@ -96,36 +96,6 @@ export default function RegisterPage() {
                         Eğitim yolculuğunuza bugün başlayın. Uzman öğretmenlerle LGS hedeflerinize ulaşın.
                     </p>
 
-                    {/* Feature highlights */}
-                    <div className="mt-12 space-y-4 w-full max-w-sm animate-fade-in delay-300">
-                        <div className="flex items-center gap-4 bg-white/10 rounded-xl px-5 py-4 backdrop-blur-sm">
-                            <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
-                                <GraduationCap className="h-5 w-5 text-white" />
-                            </div>
-                            <div>
-                                <div className="text-sm font-semibold text-white">Uzman Kadro</div>
-                                <div className="text-xs text-white/60">50+ deneyimli öğretmen</div>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-4 bg-white/10 rounded-xl px-5 py-4 backdrop-blur-sm">
-                            <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
-                                <BookOpen className="h-5 w-5 text-white" />
-                            </div>
-                            <div>
-                                <div className="text-sm font-semibold text-white">Zengin İçerik</div>
-                                <div className="text-xs text-white/60">1000+ video ders içeriği</div>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-4 bg-white/10 rounded-xl px-5 py-4 backdrop-blur-sm">
-                            <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
-                                <Users className="h-5 w-5 text-white" />
-                            </div>
-                            <div>
-                                <div className="text-sm font-semibold text-white">Topluluk</div>
-                                <div className="text-xs text-white/60">500+ mutlu öğrenci</div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
 

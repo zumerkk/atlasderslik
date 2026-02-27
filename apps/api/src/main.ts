@@ -6,7 +6,10 @@ async function bootstrap() {
   const startTime = Date.now();
   console.log('[STARTUP] Starting Atlas Derslik API...');
 
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger: ['error', 'warn', 'log'], // reduce verbose startup logs
+  });
+  console.log(`[STARTUP] NestFactory.create done in ${Date.now() - startTime}ms`);
 
   app.useGlobalPipes(new ValidationPipe({ transform: true }));
 
@@ -21,9 +24,12 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // Global response headers
+  // Global response headers — per-request timing
   app.use((_req: any, res: any, next: any) => {
-    res.setHeader('X-Response-Time', `${Date.now() - startTime}ms`);
+    const reqStart = Date.now();
+    res.on('finish', () => {
+      res.setHeader('X-Response-Time', `${Date.now() - reqStart}ms`);
+    });
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('Keep-Alive', 'timeout=65');
     next();

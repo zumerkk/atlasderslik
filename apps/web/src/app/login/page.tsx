@@ -83,20 +83,7 @@ export default function LoginPage() {
                     <p className="text-lg text-white/70 text-center max-w-md animate-fade-in delay-200">
                         Ortaokul ve LGS hazırlığında uzman öğretmenlerle etkili öğrenme deneyimi
                     </p>
-                    <div className="mt-12 grid grid-cols-3 gap-6 text-center animate-fade-in delay-300">
-                        <div>
-                            <div className="text-2xl font-bold text-white">500+</div>
-                            <div className="text-sm text-white/60 mt-1">Öğrenci</div>
-                        </div>
-                        <div>
-                            <div className="text-2xl font-bold text-white">50+</div>
-                            <div className="text-sm text-white/60 mt-1">Öğretmen</div>
-                        </div>
-                        <div>
-                            <div className="text-2xl font-bold text-white">1000+</div>
-                            <div className="text-sm text-white/60 mt-1">Video</div>
-                        </div>
-                    </div>
+
                 </div>
             </div>
 
@@ -172,8 +159,8 @@ export default function LoginPage() {
 
                             {error && (
                                 <div className={`rounded-xl px-4 py-3 text-sm flex items-start gap-2 animate-toast-in ${isColdStart
-                                        ? "bg-amber-50 border border-amber-200 text-amber-700"
-                                        : "bg-rose-50 border border-rose-200 text-rose-700"
+                                    ? "bg-amber-50 border border-amber-200 text-amber-700"
+                                    : "bg-rose-50 border border-rose-200 text-rose-700"
                                     }`}>
                                     {isColdStart ? (
                                         <Wifi className="h-4 w-4 shrink-0 mt-0.5 animate-pulse" />

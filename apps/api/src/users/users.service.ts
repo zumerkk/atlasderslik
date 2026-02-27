@@ -24,8 +24,10 @@ export class UsersService {
     async findOneByEmail(email: string): Promise<UserDocument | null> {
         return this.userModel.findOne({ email }).exec();
     }
-    async findAll(): Promise<User[]> {
-        return this.userModel.find().select('-passwordHash').exec();
+    async findAll(role?: string): Promise<User[]> {
+        const filter: any = {};
+        if (role) filter.role = role;
+        return this.userModel.find(filter).select('-passwordHash').exec();
     }
 
     async findOne(id: string): Promise<User | null> {

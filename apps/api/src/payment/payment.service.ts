@@ -193,4 +193,15 @@ export class PaymentService {
             package: latestOrder.package,
         };
     }
+
+    async getAllOrders(status?: string): Promise<Order[]> {
+        const filter: any = {};
+        if (status) filter.status = status;
+        return this.orderModel
+            .find(filter)
+            .populate('user', 'firstName lastName email')
+            .populate('package', 'name price period')
+            .sort({ createdAt: -1 })
+            .exec();
+    }
 }

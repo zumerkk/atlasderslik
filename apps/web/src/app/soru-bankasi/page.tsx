@@ -1,0 +1,57 @@
+import { PublicHeader } from "@/components/layout/public-header";
+import { PublicFooter } from "@/components/layout/public-footer";
+import { FileQuestion, BarChart3, Target, Layers } from "lucide-react";
+
+export default function SoruBankasiPage() {
+    return (
+        <div className="flex flex-col min-h-screen">
+            <PublicHeader />
+            <main className="flex-1">
+                <section className="bg-gradient-to-br from-atlas-blue via-blue-600 to-atlas-indigo pt-32 pb-16">
+                    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+                        <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4">Soru Bankası</h1>
+                        <p className="text-lg text-white/80 max-w-2xl mx-auto">
+                            Konu bazlı sorularla kendinizi test edin, eksiklerinizi tespit edin.
+                        </p>
+                    </div>
+                </section>
+
+                <section className="py-20">
+                    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm">
+                                <div className="w-12 h-12 rounded-xl bg-blue-100 text-atlas-blue flex items-center justify-center mb-4">
+                                    <FileQuestion className="h-6 w-6" />
+                                </div>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-2">Kapsamlı Sorular</h3>
+                                <p className="text-sm text-gray-500">Her konu ve ünite için özenle hazırlanmış sorular.</p>
+                            </div>
+                            <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm">
+                                <div className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center mb-4">
+                                    <BarChart3 className="h-6 w-6" />
+                                </div>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-2">Performans Takibi</h3>
+                                <p className="text-sm text-gray-500">Doğru/yanlış analizleri ile gelişiminizi takip edin.</p>
+                            </div>
+                            <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm">
+                                <div className="w-12 h-12 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center mb-4">
+                                    <Target className="h-6 w-6" />
+                                </div>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-2">LGS Formatı</h3>
+                                <p className="text-sm text-gray-500">LGS sınav formatına uygun hazırlanmış deneme soruları.</p>
+                            </div>
+                            <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm">
+                                <div className="w-12 h-12 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center mb-4">
+                                    <Layers className="h-6 w-6" />
+                                </div>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-2">Zorluk Seviyeleri</h3>
+                                <p className="text-sm text-gray-500">Kolay, orta ve zor seviye sorularla kademeli öğrenme.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </main>
+            <PublicFooter />
+        </div>
+    );
+}
