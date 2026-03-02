@@ -24,12 +24,8 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // Global response headers — per-request timing
+  // Global response headers — keep-alive
   app.use((_req: any, res: any, next: any) => {
-    const reqStart = Date.now();
-    res.on('finish', () => {
-      res.setHeader('X-Response-Time', `${Date.now() - reqStart}ms`);
-    });
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('Keep-Alive', 'timeout=65');
     next();
