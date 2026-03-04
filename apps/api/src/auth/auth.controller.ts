@@ -1,7 +1,8 @@
-import { Controller, Request, Post, UseGuards, Body, Get, Patch, UnauthorizedException } from '@nestjs/common';
+import { Controller, Request, Post, UseGuards, Body, Get, Patch, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { UsersService } from '../users/users.service';
+import { RegisterDto } from './dto/register.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 
@@ -23,8 +24,15 @@ export class AuthController {
     }
 
     @Post('register')
-    async register(@Body() createUserDto: any) {
-        return this.authService.register(createUserDto);
+    async register(@Body() createUserDto: RegisterDto) {
+        try {
+            return await this.authService.register(createUserDto);
+        } catch (err: any) {
+            if (err?.code === 11000 || err?.message?.includes('duplicate') || err?.message?.includes('E11000')) {
+                throw new ConflictException('Bu e-posta adresi zaten kayıtlı.');
+            }
+            throw err;
+        }
     }
 
     @UseGuards(JwtAuthGuard)

@@ -130,6 +130,7 @@ export default function LoginPage() {
                                     <button
                                         type="button"
                                         className="text-xs text-atlas-blue hover:underline font-medium"
+                                        onClick={() => alert("Şifre sıfırlama için okul yöneticinize veya destek ekibine başvurunuz.")}
                                     >
                                         Şifremi Unuttum
                                     </button>

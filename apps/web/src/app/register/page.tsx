@@ -28,8 +28,8 @@ export default function RegisterPage() {
         setLoading(true);
         setError("");
 
-        if (formData.password.length < 6) {
-            setError("Şifre en az 6 karakter olmalıdır.");
+        if (formData.password.length < 8) {
+            setError("Şifre en az 8 karakter olmalıdır.");
             setLoading(false);
             return;
         }

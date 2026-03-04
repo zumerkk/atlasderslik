@@ -1,21 +1,38 @@
-# Atlas Derslik — Eğitimin Dijital Atlası
+# Atlas Derslik — Online Eğitim Platformu
 
-Ortaokul öğrencileri için yeni nesil online eğitim platformu. Canlı dersler, video kütüphanesi, ödev takibi ve gelişim raporları ile kapsamlı eğitim hizmeti.
+Atlas Derslik, ortaokul (5–8. sınıf) ve LGS hazırlık sürecine yönelik kapsamlı bir online eğitim platformudur. Öğretmen, öğrenci, veli ve admin rollerini destekler.
 
-## Teknoloji
+## Teknoloji Stack
 
-| Katman | Teknoloji |
-|--------|-----------|
-| Frontend | Next.js 16, TailwindCSS 4, Radix UI, shadcn/ui |
-| Backend | NestJS 11, Mongoose, JWT Auth |
-| Veritabanı | MongoDB |
-| Monorepo | Turborepo, pnpm |
+| Katman      | Teknoloji                                        |
+|-------------|--------------------------------------------------|
+| **Frontend** | Next.js 16, React 19, Tailwind CSS 4, Radix UI |
+| **Backend**  | NestJS 11, Passport + JWT, Mongoose             |
+| **Veritabanı** | MongoDB (Atlas veya local)                    |
+| **Ödeme**    | Iyzico Checkout Form                            |
+| **Monorepo** | Turborepo + pnpm workspaces                     |
+| **Deploy**   | Render.com (render.yaml)                         |
 
-## Gereksinimler
+## Proje Yapısı
 
-- Node.js ≥ 18
-- pnpm ≥ 10
-- MongoDB (lokal veya Atlas)
+```
+atlas-derslik-monorepo/
+├── apps/
+│   ├── api/          # NestJS backend API
+│   └── web/          # Next.js frontend
+├── packages/
+│   ├── shared/       # Shared types & constants (UserRole, etc.)
+│   └── ui/           # Shared UI components
+├── render.yaml       # Render.com deployment config
+├── turbo.json        # Turborepo config
+└── pnpm-workspace.yaml
+```
+
+## Ön Gereksinimler
+
+- **Node.js** ≥ 18
+- **pnpm** 10.x (`npm install -g pnpm@10`)
+- **MongoDB** (local veya Atlas cloud)
 
 ## Kurulum
 
@@ -23,90 +40,100 @@ Ortaokul öğrencileri için yeni nesil online eğitim platformu. Canlı dersler
 # 1. Bağımlılıkları yükle
 pnpm install
 
-# 2. Backend env dosyasını oluştur
+# 2. API env dosyasını oluştur
 cp apps/api/.env.example apps/api/.env
-# .env içindeki MONGO_URI ve JWT_SECRET değerlerini düzenle
+# .env dosyasını düzenle: MONGO_URI, JWT_SECRET, vb.
 
-# 3. Frontend env dosyasını oluştur
-cp apps/web/.env.example apps/web/.env.local
-
-# 4. Veritabanını seed'le (tüm demo verileri)
-cd apps/api && npm run seed && cd ../..
-
-# 5. Geliştirme sunucusunu başlat
-pnpm dev
+# 3. Web env dosyasını oluştur
+cp apps/web/.env.example apps/web/.env
 ```
 
 ## Çalıştırma
 
-| Servis | Port | Komut |
-|--------|------|-------|
-| Frontend | 3000 | `pnpm --filter web dev` |
-| Backend | 3001 | `pnpm --filter api start:dev` |
-| Tümü | — | `pnpm dev` |
+```bash
+# Tüm uygulamaları geliştirme modunda başlat (turbo)
+pnpm dev
 
-## Test Kullanıcıları
-
-Seed çalıştırıldığında aşağıdaki kullanıcılar oluşturulur (tüm şifreler: `Password123!`):
-
-| Rol | Email | Açıklama |
-|-----|-------|----------|
-| Admin | admin@atlas.com | Tam yetki |
-| Öğretmen | teacher1@atlas.com | Ayşe Yılmaz — 5.Mat, 5.Fen, 6.Mat |
-| Öğretmen | teacher2@atlas.com | Mehmet Kaya — 6.Türkçe, 7.Mat, 7.Fen |
-| Öğrenci | student1@atlas.com .. student10@atlas.com | 5-7. sınıf |
-| Veli | parent1@atlas.com .. parent3@atlas.com | Öğrenci velileri |
-
-Seed ayrıca şunları oluşturur: 3 sınıf, 12 ders, 24 ünite, 72 konu, 6 öğretmen ataması, 10 öğrenci kaydı, 4 paket, 2 canlı ders, 3 video, 3 ödev, 10 soru.
-
-## Proje Yapısı
-
-```
-atlas-derslik-monorepo/
-├── apps/
-│   ├── api/          # NestJS Backend (Port 3001)
-│   │   ├── src/
-│   │   │   ├── auth/           # JWT Auth, Guards, Strategies
-│   │   │   ├── education/      # Grades, Subjects, Units, Topics, Videos, Assignments
-│   │   │   ├── packages/       # Eğitim Paketleri & Siparişler
-│   │   │   ├── users/          # Kullanıcı Yönetimi
-│   │   │   └── statistics/     # Dashboard İstatistikleri
-│   │   └── .env
-│   └── web/          # Next.js Frontend (Port 3000)
-│       ├── src/
-│       │   ├── app/
-│       │   │   ├── (admin)/    # Admin Paneli
-│       │   │   ├── (teacher)/  # Öğretmen Paneli
-│       │   │   ├── (student)/  # Öğrenci Paneli
-│       │   │   ├── (parent)/   # Veli Paneli
-│       │   │   ├── login/      # Giriş Sayfası
-│       │   │   └── register/   # Kayıt Sayfası
-│       │   ├── components/     # UI Bileşenleri
-│       │   └── lib/            # Yardımcı Fonksiyonlar
-│       └── .env.local
-└── packages/
-    ├── shared/       # Ortak tipler (UserRole enum)
-    └── ui/           # Ortak UI bileşenleri
+# Veya ayrı ayrı:
+cd apps/api && pnpm dev    # API: http://localhost:3001
+cd apps/web && pnpm dev    # Web: http://localhost:3000
 ```
 
 ## Build
 
 ```bash
-pnpm build
+pnpm build              # Tüm workspace'i derle
+cd apps/api && pnpm build   # Sadece API
+cd apps/web && pnpm build   # Sadece Web
 ```
 
 ## Ortam Değişkenleri
 
-### Backend (`apps/api/.env`)
+### API (`apps/api/.env`)
 
-| Değişken | Açıklama | Örnek |
-|----------|----------|-------|
-| MONGO_URI | MongoDB bağlantı adresi | mongodb://localhost:27017/atlas-derslik |
-| JWT_SECRET | JWT token imzalama anahtarı | (güçlü bir anahtar belirleyin) |
-| PORT | API sunucu portu | 3001 |
+| Değişken              | Açıklama                          | Zorunlu |
+|----------------------|-----------------------------------|---------|
+| `MONGO_URI`          | MongoDB bağlantı URI'si          | ✅      |
+| `JWT_SECRET`         | JWT imza anahtarı                | ✅      |
+| `PORT`               | API portu (default: 3001)        | ❌      |
+| `NODE_ENV`           | development / production         | ❌      |
+| `CORS_ORIGIN`        | İzinli originler (virgülle)      | ❌      |
+| `FRONTEND_URL`       | Frontend URL (ödeme callback)    | ❌      |
+| `IYZICO_API_KEY`     | Iyzico API anahtarı              | ❌*     |
+| `IYZICO_SECRET_KEY`  | Iyzico gizli anahtar             | ❌*     |
+| `IYZICO_BASE_URL`    | Iyzico API URL                   | ❌*     |
 
-### Frontend (`apps/web/.env.local`)
+*Ödeme özelliği kullanılacaksa zorunludur.*
 
-| Değişken | Açıklama | Örnek |
-|----------|----------|-------|
-| NEXT_PUBLIC_API_URL | Backend API adresi | http://localhost:3001 |
+### Web (`apps/web/.env`)
+
+| Değişken                | Açıklama               | Zorunlu |
+|------------------------|------------------------|---------|
+| `NEXT_PUBLIC_API_URL`  | Backend API URL'si     | ✅      |
+
+## Roller ve Yetkiler
+
+| Rol       | Açıklama                                     |
+|-----------|----------------------------------------------|
+| `ADMIN`   | Tüm sistem yönetimi, kullanıcı/ders/paket    |
+| `TEACHER` | Ders/ödev/video/soru yönetimi, kendi sınıfları |
+| `STUDENT` | Ders görüntüleme, ödev teslim, canlı ders     |
+| `PARENT`  | Öğrenci takibi (geliştirme aşamasında)        |
+
+## Deploy (Render.com)
+
+Proje `render.yaml` üzerinden Blueprint olarak deploy edilir:
+1. Render Dashboard → **Blueprint** → GitHub repo bağla
+2. `MONGO_URI` ve `JWT_SECRET` ortam değişkenlerini ayarla
+3. Web servisi için `NEXT_PUBLIC_API_URL`'yi API servisinin URL'si olarak ayarla
+
+## Bilinen Sınırlamalar
+
+- **Veli Paneli**: Şu an placeholder durumunda, aktif geliştirme sürecinde
+- **Şifre Sıfırlama**: Self-servis şifre sıfırlama yok; admin üzerinden yapılır
+- **E-posta Doğrulama**: Henüz implemente edilmemiş
+- **Dosya Yükleme**: Henüz yok; ödev teslimi metin tabanlı
+- **Bildirimler**: Push/e-posta bildirimi henüz yok
+
+## Son Değişiklikler (Audit — Mart 2026)
+
+### Güvenlik Düzeltmeleri
+- ✅ Register endpoint'inde ADMIN rol yükseltme açığı kapatıldı
+- ✅ Brute-force koruması eklendi (rate limiting)
+- ✅ Helmet güvenlik başlıkları eklendi
+- ✅ Hardcoded Iyzico sandbox anahtarları kaldırıldı
+- ✅ Kullanıcı güncelleme endpoint'inde mass-assignment koruması
+- ✅ Frontend JWT token süre kontrolü eklendi
+- ✅ Global exception filter ile standart hata formatı
+
+### İyileştirmeler
+- ✅ JWT süresi 60dk → 7 gün olarak uzatıldı
+- ✅ Health endpoint'e MongoDB durumu eklendi
+- ✅ "Şifremi Unuttum" butonu bilgilendirme mesajı gösteriyor
+- ✅ Register sayfasında şifre minimum 8 karakter
+- ✅ API 401 handler düzeltildi
+- ✅ Education service'de uygun NestJS exceptions
+
+## Lisans
+
+UNLICENSED — Özel proje

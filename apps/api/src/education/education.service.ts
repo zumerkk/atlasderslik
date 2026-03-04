@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ConflictException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Grade, GradeDocument } from './schemas/grade.schema';
@@ -158,7 +158,7 @@ export class EducationService {
         if (data.videoUrl !== undefined) {
             const url = (data.videoUrl || '').trim();
             if (!url) {
-                throw new Error('Video URL boş olamaz.');
+                throw new BadRequestException('Video URL boş olamaz.');
             }
             // Normalize: add https:// if no protocol
             update.videoUrl = /^https?:\/\//i.test(url) ? url : `https://${url}`;
@@ -356,7 +356,7 @@ export class EducationService {
             });
         } catch (err: any) {
             if (err?.code === 11000) {
-                throw new Error('Bu öğretmen zaten bu sınıf ve derse atanmış.');
+                throw new ConflictException('Bu öğretmen zaten bu sınıf ve derse atanmış.');
             }
             throw err;
         }

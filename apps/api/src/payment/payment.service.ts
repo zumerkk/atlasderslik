@@ -19,11 +19,13 @@ export class PaymentService {
         @InjectModel(Package.name) private packageModel: Model<PackageDocument>,
         @InjectModel(User.name) private userModel: Model<UserDocument>,
     ) {
-        this.iyzipay = new Iyzipay({
-            apiKey: this.configService.get<string>('IYZICO_API_KEY') || 'sandbox-Txl2ctiktW6BrNmFo10pZiPn8W67Ksob',
-            secretKey: this.configService.get<string>('IYZICO_SECRET_KEY') || 'sandbox-GdzIHrXly6gQkq7NWOgx9DmXG',
-            uri: this.configService.get<string>('IYZICO_BASE_URL') || 'https://sandbox-api.iyzipay.com',
-        });
+        const apiKey = this.configService.get<string>('IYZICO_API_KEY');
+        const secretKey = this.configService.get<string>('IYZICO_SECRET_KEY');
+        const uri = this.configService.get<string>('IYZICO_BASE_URL');
+        if (!apiKey || !secretKey || !uri) {
+            console.warn('[PaymentService] Iyzico credentials not configured. Payment features will not work.');
+        }
+        this.iyzipay = new Iyzipay({ apiKey: apiKey || '', secretKey: secretKey || '', uri: uri || '' });
     }
 
     async initializeCheckoutForm(userId: string, packageId: string): Promise<any> {

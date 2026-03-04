@@ -10,6 +10,31 @@ interface AuthGuardProps {
     allowedRoles: string[];
 }
 
+/**
+ * Decode JWT payload without a library (base64url → JSON).
+ * Returns null if the token is malformed.
+ */
+function decodeJwtPayload(token: string): Record<string, any> | null {
+    try {
+        const parts = token.split(".");
+        if (parts.length !== 3) return null;
+        const payload = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+        return JSON.parse(atob(payload));
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Returns true if the JWT token is expired (or invalid).
+ */
+function isTokenExpired(token: string): boolean {
+    const payload = decodeJwtPayload(token);
+    if (!payload?.exp) return true;
+    // exp is in seconds; add a 60-second buffer
+    return Date.now() >= (payload.exp - 60) * 1000;
+}
+
 export default function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
     const router = useRouter();
     const pathname = usePathname();
@@ -22,6 +47,14 @@ export default function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
         const userStr = localStorage.getItem("user");
 
         if (!token || !userStr) {
+            router.replace("/login");
+            return;
+        }
+
+        // Check JWT expiry
+        if (isTokenExpired(token)) {
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
             router.replace("/login");
             return;
         }
@@ -62,3 +95,4 @@ export default function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
 
     return <>{children}</>;
 }
+

@@ -1,6 +1,8 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { GlobalExceptionFilter } from './filters/http-exception.filter';
 
 async function bootstrap() {
   const startTime = Date.now();
@@ -11,7 +13,18 @@ async function bootstrap() {
   });
   console.log(`[STARTUP] NestFactory.create done in ${Date.now() - startTime}ms`);
 
-  app.useGlobalPipes(new ValidationPipe({ transform: true }));
+  // Security headers
+  app.use(helmet());
+
+  // Global validation pipe
+  app.useGlobalPipes(new ValidationPipe({
+    transform: true,
+    whitelist: true,           // strip unknown properties
+    forbidNonWhitelisted: true, // throw on unknown properties
+  }));
+
+  // Global exception filter
+  app.useGlobalFilters(new GlobalExceptionFilter());
 
   // CORS — support www and non-www
   const corsOrigins = process.env.CORS_ORIGIN?.split(',') || [
@@ -35,3 +48,4 @@ async function bootstrap() {
   console.log(`[STARTUP] API ready in ${Date.now() - startTime}ms on port ${process.env.PORT ?? 3001}`);
 }
 bootstrap();
+

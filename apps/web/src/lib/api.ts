@@ -117,6 +117,7 @@ export async function api(endpoint: string, options: ApiOptions = {}): Promise<R
                 localStorage.removeItem("token");
                 localStorage.removeItem("user");
                 window.location.href = "/login";
+                throw new Error("Oturum süresi doldu. Lütfen tekrar giriş yapın.");
             }
 
             return res;

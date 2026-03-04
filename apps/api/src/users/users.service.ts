@@ -39,12 +39,19 @@ export class UsersService {
     }
 
     async update(id: string, updateUserDto: any): Promise<User | null> {
-        if (updateUserDto.password) {
+        // Prevent mass-assignment of sensitive fields
+        const sanitized = { ...updateUserDto };
+        delete sanitized.role;
+        delete sanitized.isActive;
+        delete sanitized.passwordHash;
+        delete sanitized.email; // Email changes should go through a dedicated flow
+
+        if (sanitized.password) {
             const salt = await bcrypt.genSalt();
-            updateUserDto.passwordHash = await bcrypt.hash(updateUserDto.password, salt);
-            delete updateUserDto.password;
+            sanitized.passwordHash = await bcrypt.hash(sanitized.password, salt);
+            delete sanitized.password;
         }
-        return this.userModel.findByIdAndUpdate(id, updateUserDto, { new: true }).select('-passwordHash').exec();
+        return this.userModel.findByIdAndUpdate(id, sanitized, { new: true }).select('-passwordHash').exec();
     }
 
     // ─── Password Management ─────────────────────────────────
