@@ -2,9 +2,13 @@ import { IsNotEmpty, IsNumber, IsOptional, IsString, IsMongoId, Min, Max } from 
 
 export class CreateGradeDto {
     @IsNumber()
-    @Min(5)
-    @Max(8)
+    @Min(1)
+    @Max(12)
     level: number;
+
+    @IsOptional()
+    @IsString()
+    label?: string;
 }
 
 export class CreateSubjectDto {

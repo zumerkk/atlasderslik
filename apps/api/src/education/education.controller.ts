@@ -15,7 +15,7 @@ export class EducationController {
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.ADMIN)
     createGrade(@Body() createGradeDto: CreateGradeDto) {
-        return this.educationService.createGrade(createGradeDto.level);
+        return this.educationService.createGrade(createGradeDto.level, createGradeDto.label);
     }
 
     @Get('grades')

@@ -14,8 +14,8 @@ export class Schedule {
     @Prop({ type: Types.ObjectId, ref: 'User', required: true })
     teacherId: Types.ObjectId;
 
-    @Prop({ required: true, min: 1, max: 5 })
-    dayOfWeek: number; // 1=Pazartesi, 2=Salı, ..., 5=Cuma
+    @Prop({ required: true, min: 1, max: 7 })
+    dayOfWeek: number; // 1=Pazartesi ... 7=Pazar
 
     @Prop({ required: true })
     startTime: string; // "09:00"

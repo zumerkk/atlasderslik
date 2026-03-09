@@ -32,8 +32,8 @@ export class EducationService {
     ) { }
 
     // ─── GRADES ─────────────────────────────────────────
-    async createGrade(level: number) {
-        return this.gradeModel.create({ level });
+    async createGrade(level: number, label?: string) {
+        return this.gradeModel.create({ level, label: label || `${level}. Sınıf` });
     }
     async getGrades() {
         return this.gradeModel.find().sort({ level: 1 }).exec();
@@ -230,7 +230,7 @@ export class EducationService {
 
     async getStudentAssignments(studentId: string) {
         const enrollment = await this.studentEnrollmentModel.findOne({ studentId: new Types.ObjectId(studentId) })
-            .populate('gradeId', 'level')
+            .populate('gradeId', 'level label')
             .exec();
         if (!enrollment) return [];
         const gradeLevel = (enrollment.gradeId as any)?.level;
@@ -252,7 +252,7 @@ export class EducationService {
     async getStudentDashboard(studentId: string) {
         const sid = new Types.ObjectId(studentId);
         const enrollment = await this.studentEnrollmentModel.findOne({ studentId: sid })
-            .populate('gradeId', 'level')
+            .populate('gradeId', 'level label')
             .exec();
 
         if (!enrollment) {
@@ -275,7 +275,7 @@ export class EducationService {
         const [courses, liveClasses, videos, rawAssignments, submissions] = await Promise.all([
             // Courses = teacher assignments for this grade (use raw ObjectId)
             this.teacherAssignmentModel.find({ gradeId: gradeOid })
-                .populate('gradeId', 'level')
+                .populate('gradeId', 'level label')
                 .populate('subjectId', 'name gradeLevel description')
                 .populate('teacherId', 'firstName lastName email')
                 .exec(),
@@ -334,12 +334,12 @@ export class EducationService {
     async getStudentCourses(studentId: string) {
         const sid = new Types.ObjectId(studentId);
         const enrollment = await this.studentEnrollmentModel.findOne({ studentId: sid })
-            .populate('gradeId', 'level')
+            .populate('gradeId', 'level label')
             .exec();
         if (!enrollment) return [];
         const gradeOid = (enrollment.gradeId as any)?._id || enrollment.gradeId;
         return this.teacherAssignmentModel.find({ gradeId: gradeOid })
-            .populate('gradeId', 'level')
+            .populate('gradeId', 'level label')
             .populate('subjectId', 'name gradeLevel description')
             .populate('teacherId', 'firstName lastName email')
             .exec();
@@ -367,7 +367,7 @@ export class EducationService {
         if (query?.gradeId) filter.gradeId = new Types.ObjectId(query.gradeId);
         if (query?.subjectId) filter.subjectId = new Types.ObjectId(query.subjectId);
         return this.teacherAssignmentModel.find(filter)
-            .populate('gradeId', 'level')
+            .populate('gradeId', 'level label')
             .populate('subjectId', 'name gradeLevel')
             .populate('teacherId', 'firstName lastName email')
             .sort({ createdAt: -1 })
@@ -375,7 +375,7 @@ export class EducationService {
     }
     async getMyAssignments(teacherId: string) {
         return this.teacherAssignmentModel.find({ teacherId: new Types.ObjectId(teacherId) })
-            .populate('gradeId', 'level')
+            .populate('gradeId', 'level label')
             .populate('subjectId', 'name gradeLevel')
             .exec();
     }
@@ -402,14 +402,14 @@ export class EducationService {
         if (query?.studentId) filter.studentId = new Types.ObjectId(query.studentId);
         return this.studentEnrollmentModel.find(filter)
             .populate('studentId', 'firstName lastName email')
-            .populate('gradeId', 'level')
+            .populate('gradeId', 'level label')
             .populate('parentId', 'firstName lastName email')
             .sort({ enrollmentDate: -1 })
             .exec();
     }
     async getMyEnrollment(studentId: string) {
         return this.studentEnrollmentModel.findOne({ studentId: new Types.ObjectId(studentId) })
-            .populate('gradeId', 'level')
+            .populate('gradeId', 'level label')
             .exec();
     }
     async deleteStudentEnrollment(id: string) {
@@ -464,7 +464,7 @@ export class EducationService {
         if (query.teacherId) filter.teacherId = new Types.ObjectId(query.teacherId);
         if (query.dayOfWeek) filter.dayOfWeek = Number(query.dayOfWeek);
         return this.scheduleModel.find(filter)
-            .populate('gradeId', 'level')
+            .populate('gradeId', 'level label')
             .populate('subjectId', 'name gradeLevel')
             .populate('teacherId', 'firstName lastName email')
             .sort({ dayOfWeek: 1, startTime: 1 })
@@ -473,7 +473,7 @@ export class EducationService {
 
     async getTeacherSchedule(teacherId: string) {
         return this.scheduleModel.find({ teacherId: new Types.ObjectId(teacherId), isActive: true })
-            .populate('gradeId', 'level')
+            .populate('gradeId', 'level label')
             .populate('subjectId', 'name gradeLevel')
             .sort({ dayOfWeek: 1, startTime: 1 })
             .exec();
@@ -481,12 +481,12 @@ export class EducationService {
 
     async getStudentSchedule(studentId: string) {
         const enrollment = await this.studentEnrollmentModel.findOne({ studentId: new Types.ObjectId(studentId) })
-            .populate('gradeId', 'level')
+            .populate('gradeId', 'level label')
             .exec();
         if (!enrollment) return [];
         const gradeOid = (enrollment.gradeId as any)?._id || enrollment.gradeId;
         return this.scheduleModel.find({ gradeId: gradeOid, isActive: true })
-            .populate('gradeId', 'level')
+            .populate('gradeId', 'level label')
             .populate('subjectId', 'name gradeLevel')
             .populate('teacherId', 'firstName lastName')
             .sort({ dayOfWeek: 1, startTime: 1 })

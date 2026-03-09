@@ -5,8 +5,11 @@ export type GradeDocument = Grade & Document;
 
 @Schema({ timestamps: true })
 export class Grade {
-    @Prop({ required: true, unique: true, type: Number })
-    level: number; // 5, 6, 7, 8
+    @Prop({ required: true, type: Number })
+    level: number;
+
+    @Prop({ default: '' })
+    label: string;
 
     @Prop({ default: true })
     isActive: boolean;

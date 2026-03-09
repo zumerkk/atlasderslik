@@ -19,14 +19,8 @@ const DAYS = [
     { value: 3, label: "Çarşamba" },
     { value: 4, label: "Perşembe" },
     { value: 5, label: "Cuma" },
-];
-
-const TIME_SLOTS = [
-    { startTime: "09:00", endTime: "09:40" },
-    { startTime: "09:50", endTime: "10:30" },
-    { startTime: "10:40", endTime: "11:20" },
-    { startTime: "11:30", endTime: "12:10" },
-    { startTime: "13:00", endTime: "13:40" },
+    { value: 6, label: "Cumartesi" },
+    { value: 7, label: "Pazar" },
 ];
 
 const SUBJECT_COLORS: Record<string, string> = {
@@ -34,7 +28,15 @@ const SUBJECT_COLORS: Record<string, string> = {
     "Türkçe": "bg-rose-100 border-rose-300 text-rose-800",
     "Fen Bilimleri": "bg-emerald-100 border-emerald-300 text-emerald-800",
     "Sosyal Bilgiler": "bg-amber-100 border-amber-300 text-amber-800",
+    "İngilizce": "bg-violet-100 border-violet-300 text-violet-800",
+    "Din Kültürü": "bg-teal-100 border-teal-300 text-teal-800",
+    "Müzik": "bg-pink-100 border-pink-300 text-pink-800",
+    "Beden Eğitimi": "bg-orange-100 border-orange-300 text-orange-800",
 };
+
+function gradeLabel(g: any) {
+    return g?.label || `${g?.level}. Sınıf`;
+}
 
 export default function AdminSchedulePage() {
     const [grades, setGrades] = useState<any[]>([]);
@@ -89,16 +91,35 @@ export default function AdminSchedulePage() {
 
     const gradeLevel = grades.find(g => g._id === selectedGrade)?.level;
 
+    // ─── Dynamic time slots: derive from existing schedules + allow adding new ───
+    const timeSlots: { startTime: string; endTime: string }[] = [];
+    const seenSlots = new Set<string>();
+    schedules.forEach(s => {
+        const key = `${s.startTime}-${s.endTime}`;
+        if (!seenSlots.has(key)) {
+            seenSlots.add(key);
+            timeSlots.push({ startTime: s.startTime, endTime: s.endTime });
+        }
+    });
+    // Sort by startTime
+    timeSlots.sort((a, b) => a.startTime.localeCompare(b.startTime));
+
     const getSlot = (day: number, startTime: string) =>
         schedules.find(s => s.dayOfWeek === day && s.startTime === startTime);
 
-    const handleAddClick = (day: number, slot: typeof TIME_SLOTS[0]) => {
-        setForm({ subjectId: "", teacherId: "", dayOfWeek: String(day), startTime: slot.startTime, endTime: slot.endTime, room: "" });
+    const handleAddClick = (day?: number, slot?: { startTime: string; endTime: string }) => {
+        setForm({
+            subjectId: "", teacherId: "",
+            dayOfWeek: day ? String(day) : "",
+            startTime: slot?.startTime || "",
+            endTime: slot?.endTime || "",
+            room: ""
+        });
         setDialogOpen(true);
     };
 
     const handleSave = async () => {
-        if (!form.subjectId || !form.teacherId) return;
+        if (!form.subjectId || !form.teacherId || !form.dayOfWeek || !form.startTime || !form.endTime) return;
         setSaving(true);
         try {
             const res = await apiPost("/education/schedules", {
@@ -134,20 +155,32 @@ export default function AdminSchedulePage() {
 
     const gradeSubjects = subjects.filter(s => s.gradeLevel === gradeLevel);
 
+    // Determine which days have schedules (filter empty weekend columns)
+    const activeDays = DAYS.filter(d =>
+        d.value <= 5 || schedules.some(s => s.dayOfWeek === d.value)
+    );
+
     return (
         <div className="space-y-6 animate-fade-in">
             <PageHeader
                 title="Ders Programı"
                 description="Sınıflara göre haftalık ders programını yönetin."
             >
-                <Select value={selectedGrade} onValueChange={setSelectedGrade}>
-                    <SelectTrigger className="w-40"><SelectValue placeholder="Sınıf Seç" /></SelectTrigger>
-                    <SelectContent>
-                        {grades.map(g => (
-                            <SelectItem key={g._id} value={g._id}>{g.level}. Sınıf</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                <div className="flex items-center gap-3">
+                    <Select value={selectedGrade} onValueChange={setSelectedGrade}>
+                        <SelectTrigger className="w-48"><SelectValue placeholder="Sınıf Seç" /></SelectTrigger>
+                        <SelectContent>
+                            {grades.map(g => (
+                                <SelectItem key={g._id} value={g._id}>{gradeLabel(g)}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    {selectedGrade && (
+                        <Button onClick={() => handleAddClick()} size="sm">
+                            <Plus className="h-4 w-4" /> Ders Ekle
+                        </Button>
+                    )}
+                </div>
             </PageHeader>
 
             {feedback && (
@@ -160,6 +193,8 @@ export default function AdminSchedulePage() {
                 <div className="space-y-3">{[1, 2, 3, 4, 5].map(i => <div key={i} className="skeleton h-16 rounded-xl" />)}</div>
             ) : !selectedGrade ? (
                 <EmptyState icon={CalendarDays} title="Sınıf Seçin" description="Haftalık ders programını görüntülemek için bir sınıf seçin." />
+            ) : timeSlots.length === 0 ? (
+                <EmptyState icon={CalendarDays} title="Henüz ders eklenmemiş" description="'Ders Ekle' butonunu kullanarak ilk dersi ekleyin. Saatleri siz belirlersiniz." />
             ) : (
                 <Card>
                     <CardContent className="p-0">
@@ -170,7 +205,7 @@ export default function AdminSchedulePage() {
                                         <th className="p-3 text-left text-xs font-semibold text-muted-foreground w-24 bg-muted/30">
                                             <Clock className="h-4 w-4 inline mr-1" />Saat
                                         </th>
-                                        {DAYS.map(d => (
+                                        {activeDays.map(d => (
                                             <th key={d.value} className="p-3 text-center text-xs font-semibold text-muted-foreground bg-muted/30">
                                                 {d.label}
                                             </th>
@@ -178,14 +213,14 @@ export default function AdminSchedulePage() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {TIME_SLOTS.map((slot, si) => (
+                                    {timeSlots.map((slot, si) => (
                                         <tr key={si} className="border-b last:border-b-0">
                                             <td className="p-3 text-xs font-mono text-muted-foreground whitespace-nowrap bg-muted/10">
                                                 {slot.startTime}
                                                 <br />
                                                 <span className="text-[10px]">{slot.endTime}</span>
                                             </td>
-                                            {DAYS.map(day => {
+                                            {activeDays.map(day => {
                                                 const entry = getSlot(day.value, slot.startTime);
                                                 const subjectName = entry?.subjectId?.name || "";
                                                 const colorClass = SUBJECT_COLORS[subjectName] || "bg-gray-100 border-gray-300 text-gray-800";
@@ -244,11 +279,36 @@ export default function AdminSchedulePage() {
                         <div className="grid grid-cols-2 gap-4">
                             <div className="grid gap-2">
                                 <Label>Gün</Label>
-                                <Input value={DAYS.find(d => d.value === Number(form.dayOfWeek))?.label || ""} disabled />
+                                <Select value={form.dayOfWeek} onValueChange={v => setForm({ ...form, dayOfWeek: v })}>
+                                    <SelectTrigger><SelectValue placeholder="Gün seçin" /></SelectTrigger>
+                                    <SelectContent>
+                                        {DAYS.map(d => (
+                                            <SelectItem key={d.value} value={String(d.value)}>{d.label}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                             <div className="grid gap-2">
-                                <Label>Saat</Label>
-                                <Input value={`${form.startTime} - ${form.endTime}`} disabled />
+                                <Label>Sınıf/Salon (opsiyonel)</Label>
+                                <Input value={form.room} onChange={e => setForm({ ...form, room: e.target.value })} placeholder="Örn: A-101" />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="grid gap-2">
+                                <Label>Başlangıç Saati</Label>
+                                <Input
+                                    type="time"
+                                    value={form.startTime}
+                                    onChange={e => setForm({ ...form, startTime: e.target.value })}
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Bitiş Saati</Label>
+                                <Input
+                                    type="time"
+                                    value={form.endTime}
+                                    onChange={e => setForm({ ...form, endTime: e.target.value })}
+                                />
                             </div>
                         </div>
                         <div className="grid gap-2">
@@ -273,14 +333,10 @@ export default function AdminSchedulePage() {
                                 </SelectContent>
                             </Select>
                         </div>
-                        <div className="grid gap-2">
-                            <Label>Sınıf/Salon (opsiyonel)</Label>
-                            <Input value={form.room} onChange={e => setForm({ ...form, room: e.target.value })} placeholder="Örn: A-101" />
-                        </div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setDialogOpen(false)}>İptal</Button>
-                        <Button onClick={handleSave} disabled={saving || !form.subjectId || !form.teacherId}>
+                        <Button onClick={handleSave} disabled={saving || !form.subjectId || !form.teacherId || !form.dayOfWeek || !form.startTime || !form.endTime}>
                             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Ekle
                         </Button>
                     </DialogFooter>

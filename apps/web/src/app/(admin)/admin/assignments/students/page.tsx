@@ -10,12 +10,12 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Plus, Loader2, CheckCircle, AlertCircle, Trash2, GraduationCap } from "lucide-react";
 import { apiGet, apiPost, apiDelete } from "@/lib/api";
 
-interface Grade { _id: string; level: number; }
+interface Grade { _id: string; level: number; label?: string; }
 interface Student { _id: string; firstName: string; lastName: string; email: string; }
 interface Enrollment {
     _id: string;
     studentId: { _id: string; firstName: string; lastName: string; email: string };
-    gradeId: { _id: string; level: number };
+    gradeId: { _id: string; level: number; label?: string };
     enrollmentDate: string;
 }
 
@@ -124,7 +124,7 @@ export default function StudentEnrollmentsPage() {
                                 <TableCell className="font-semibold">{e.studentId?.firstName} {e.studentId?.lastName}</TableCell>
                                 <TableCell className="text-muted-foreground">{e.studentId?.email}</TableCell>
                                 <TableCell>
-                                    <Badge variant="info">{e.gradeId?.level}. Sınıf</Badge>
+                                    <Badge variant="info">{e.gradeId?.label || `${e.gradeId?.level}. Sınıf`}</Badge>
                                 </TableCell>
                                 <TableCell className="text-muted-foreground">{new Date(e.enrollmentDate).toLocaleDateString("tr-TR")}</TableCell>
                                 <TableCell className="text-right">
@@ -157,7 +157,7 @@ export default function StudentEnrollmentsPage() {
                             <label className="text-sm font-medium">Sınıf</label>
                             <select className={selectClass} value={selectedGrade} onChange={(e) => setSelectedGrade(e.target.value)}>
                                 <option value="">Sınıf Seçin</option>
-                                {grades.map(g => <option key={g._id} value={g._id}>{g.level}. Sınıf</option>)}
+                                {grades.map(g => <option key={g._id} value={g._id}>{g.label || `${g.level}. Sınıf`}</option>)}
                             </select>
                         </div>
                     </div>
