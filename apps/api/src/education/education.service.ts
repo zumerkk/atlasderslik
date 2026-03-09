@@ -45,15 +45,32 @@ export class EducationService implements OnModuleInit {
                 await collection.dropIndex(levelIndex.name);
                 this.logger.log('Dropped stale unique index on Grade.level');
             }
+            // Also sync indexes to ensure schema matches DB
+            await this.gradeModel.syncIndexes();
+            this.logger.log('Grade indexes synced');
         } catch (err) {
             // Index may already be dropped — safe to ignore
-            this.logger.debug('Grade index cleanup skipped: ' + (err as any)?.message);
+            this.logger.warn('Grade index cleanup issue: ' + (err as any)?.message);
         }
     }
 
     // ─── GRADES ─────────────────────────────────────────
     async createGrade(level: number, label?: string) {
-        return this.gradeModel.create({ level, label: label || `${level}. Sınıf` });
+        try {
+            return await this.gradeModel.create({ level, label: label || `${level}. Sınıf` });
+        } catch (err: any) {
+            if (err?.code === 11000) {
+                // Stale unique index — try to drop it and retry once
+                this.logger.warn('Duplicate key on Grade.level — attempting index cleanup and retry');
+                try {
+                    await this.gradeModel.collection.dropIndex('level_1');
+                    await this.gradeModel.syncIndexes();
+                } catch { /* index already gone */ }
+                // Retry the create
+                return this.gradeModel.create({ level, label: label || `${level}. Sınıf` });
+            }
+            throw err;
+        }
     }
     async getGrades() {
         return this.gradeModel.find().sort({ level: 1 }).exec();
