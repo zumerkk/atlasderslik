@@ -24,11 +24,15 @@ export class PaymentService {
         const uri = this.configService.get<string>('IYZICO_BASE_URL');
         if (!apiKey || !secretKey || !uri) {
             console.warn('[PaymentService] Iyzico credentials not configured. Payment features will not work.');
+            this.iyzipay = null;
+        } else {
+            this.iyzipay = new Iyzipay({ apiKey, secretKey, uri });
         }
-        this.iyzipay = new Iyzipay({ apiKey: apiKey || '', secretKey: secretKey || '', uri: uri || '' });
     }
 
     async initializeCheckoutForm(userId: string, packageId: string): Promise<any> {
+        if (!this.iyzipay) throw new BadRequestException('Ödeme sistemi yapılandırılmamış. Lütfen yöneticinize başvurun.');
+
         const user = await this.userModel.findById(userId);
         if (!user) throw new NotFoundException('Kullanıcı bulunamadı');
 
@@ -127,6 +131,8 @@ export class PaymentService {
     }
 
     async handleCallback(token: string): Promise<any> {
+        if (!this.iyzipay) throw new BadRequestException('Ödeme sistemi yapılandırılmamış.');
+
         return new Promise((resolve, reject) => {
             this.iyzipay.checkoutForm.retrieve(
                 {
