@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, BadRequestException } from '@nestjs/common';
+import { Injectable, ConflictException, BadRequestException, OnModuleInit, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Grade, GradeDocument } from './schemas/grade.schema';
@@ -15,7 +15,9 @@ import { Question, QuestionDocument } from './schemas/question.schema';
 import { Schedule, ScheduleDocument } from './schemas/schedule.schema';
 
 @Injectable()
-export class EducationService {
+export class EducationService implements OnModuleInit {
+    private readonly logger = new Logger(EducationService.name);
+
     constructor(
         @InjectModel(Grade.name) private gradeModel: Model<GradeDocument>,
         @InjectModel(Subject.name) private subjectModel: Model<SubjectDocument>,
@@ -30,6 +32,24 @@ export class EducationService {
         @InjectModel(Question.name) private questionModel: Model<QuestionDocument>,
         @InjectModel(Schedule.name) private scheduleModel: Model<ScheduleDocument>,
     ) { }
+
+    async onModuleInit() {
+        // Drop stale unique index on Grade.level (was unique: true in old schema)
+        try {
+            const collection = this.gradeModel.collection;
+            const indexes = await collection.indexes();
+            const levelIndex = indexes.find(
+                (idx: any) => idx.key?.level !== undefined && idx.unique === true,
+            );
+            if (levelIndex && levelIndex.name) {
+                await collection.dropIndex(levelIndex.name);
+                this.logger.log('Dropped stale unique index on Grade.level');
+            }
+        } catch (err) {
+            // Index may already be dropped — safe to ignore
+            this.logger.debug('Grade index cleanup skipped: ' + (err as any)?.message);
+        }
+    }
 
     // ─── GRADES ─────────────────────────────────────────
     async createGrade(level: number, label?: string) {
