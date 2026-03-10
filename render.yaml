@@ -43,5 +43,5 @@ services:
 
   # ─── Keep-Warm ──────────────────────────────────────
   # Handled externally via cron-job.org (every 15 min)
-  # API: https://atlasderslik-api.onrender.com/ping
+  # API: https://atlasderslik-api.onrender.com/health
   # Web: https://atlasderslik-web.onrender.com/
