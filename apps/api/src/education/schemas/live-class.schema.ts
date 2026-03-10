@@ -14,6 +14,15 @@ export class LiveClass {
     @Prop({ required: true })
     url: string; // The meeting link (Zoom, Google Meet, etc.)
 
+    @Prop({ default: 'OTHER' })
+    platform: string; // ZOOM, MEET, OTHER
+
+    @Prop()
+    meetingId: string; // Zoom Meeting ID
+
+    @Prop()
+    passcode: string; // Zoom Passcode
+
     @Prop({ required: true })
     startTime: Date;
 

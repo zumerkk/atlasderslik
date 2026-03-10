@@ -29,6 +29,9 @@ interface LiveClass {
     durationMinutes: number;
     subjectId: { _id: string; name: string };
     gradeLevel: number;
+    platform: string;
+    meetingId?: string;
+    passcode?: string;
 }
 
 export default function TeacherLiveClassesPage() {
@@ -44,6 +47,7 @@ export default function TeacherLiveClassesPage() {
 
     const [formData, setFormData] = useState({
         title: "", description: "", url: "", startTime: "", durationMinutes: "40", assignmentId: "",
+        platform: "ZOOM", meetingId: "", passcode: ""
     });
 
     useEffect(() => { fetchClasses(); fetchAssignments(); }, []);
@@ -74,11 +78,12 @@ export default function TeacherLiveClassesPage() {
                 title: formData.title, description: formData.description, url: formData.url,
                 startTime: new Date(formData.startTime), durationMinutes: Number(formData.durationMinutes),
                 subjectId: selectedAssignment.subjectId._id, gradeLevel: selectedAssignment.gradeId.level,
+                platform: formData.platform, meetingId: formData.meetingId, passcode: formData.passcode
             };
             const res = await apiPost("/education/live-classes", payload);
             if (res.ok) {
                 setIsDialogOpen(false); fetchClasses();
-                setFormData({ title: "", description: "", url: "", startTime: "", durationMinutes: "40", assignmentId: "" });
+                setFormData({ title: "", description: "", url: "", startTime: "", durationMinutes: "40", assignmentId: "", platform: "ZOOM", meetingId: "", passcode: "" });
                 setFeedback({ type: "success", message: "Canlı ders oluşturuldu!" });
             } else { setFeedback({ type: "error", message: "Ders oluşturulurken hata oluştu." }); }
         } catch { setFeedback({ type: "error", message: "Bir hata oluştu." }); }
@@ -152,6 +157,22 @@ export default function TeacherLiveClassesPage() {
                                     <Video className="h-4 w-4 shrink-0" />
                                     <a href={cls.url} target="_blank" className="hover:underline truncate">{cls.url}</a>
                                 </div>
+                                {cls.platform === "ZOOM" && (cls.meetingId || cls.passcode) && (
+                                    <div className="mt-3 p-3 bg-muted/30 rounded-lg text-sm space-y-1.5 border">
+                                        {cls.meetingId && (
+                                            <div className="flex justify-between">
+                                                <span className="text-muted-foreground">Meeting ID:</span>
+                                                <span className="font-mono font-medium">{cls.meetingId}</span>
+                                            </div>
+                                        )}
+                                        {cls.passcode && (
+                                            <div className="flex justify-between">
+                                                <span className="text-muted-foreground">Passcode:</span>
+                                                <span className="font-mono font-medium">{cls.passcode}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </CardContent>
                             <CardFooter className="flex justify-between border-t pt-4">
                                 <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => { setDeleteTarget(cls); setDeleteDialogOpen(true); }}>
@@ -193,9 +214,34 @@ export default function TeacherLiveClassesPage() {
                             <Input value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="Örn: Kareköklü İfadeler Soru Çözümü" />
                         </div>
                         <div className="grid gap-2">
-                            <Label>Ders Linki (URL)</Label>
-                            <Input value={formData.url} onChange={(e) => setFormData({ ...formData, url: e.target.value })} placeholder="https://zoom.us/j/..." />
+                            <Label>Platform</Label>
+                            <Select value={formData.platform} onValueChange={(val) => setFormData({ ...formData, platform: val })}>
+                                <SelectTrigger><SelectValue placeholder="Platform Seçin" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="ZOOM">Zoom</SelectItem>
+                                    <SelectItem value="MEET">Google Meet</SelectItem>
+                                    <SelectItem value="OTHER">Diğer</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
+                        <div className="grid gap-2">
+                            <Label>Ders Linki (URL)</Label>
+                            <Input value={formData.url} onChange={(e) => setFormData({ ...formData, url: e.target.value })} placeholder={formData.platform === "ZOOM" ? "https://zoom.us/j/..." : "https://meet.google.com/..."} />
+                        </div>
+
+                        {formData.platform === "ZOOM" && (
+                            <div className="grid grid-cols-2 gap-4 bg-muted/30 p-3 rounded-lg border">
+                                <div className="grid gap-2">
+                                    <Label>Meeting ID <span className="text-xs text-muted-foreground font-normal">(İsteğe bağlı)</span></Label>
+                                    <Input value={formData.meetingId} onChange={(e) => setFormData({ ...formData, meetingId: e.target.value })} placeholder="örn: 914 188 8169" />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>Passcode <span className="text-xs text-muted-foreground font-normal">(İsteğe bağlı)</span></Label>
+                                    <Input value={formData.passcode} onChange={(e) => setFormData({ ...formData, passcode: e.target.value })} placeholder="örn: 123456" />
+                                </div>
+                            </div>
+                        )}
+
                         <div className="grid grid-cols-2 gap-4">
                             <div className="grid gap-2">
                                 <Label>Başlangıç Tarihi/Saati</Label>
