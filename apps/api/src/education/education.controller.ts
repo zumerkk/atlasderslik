@@ -322,8 +322,8 @@ export class EducationController {
     @Get('student-enrollments/mine')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.STUDENT)
-    getMyEnrollment(@Req() req) {
-        return this.educationService.getMyEnrollment(req.user.userId);
+    getMyEnrollments(@Req() req) {
+        return this.educationService.getMyEnrollments(req.user.userId);
     }
 
     @Delete('student-enrollments/:id')
@@ -417,5 +417,13 @@ export class EducationController {
             query.startDate,
             query.endDate,
         );
+    }
+
+    // ─── PARENT DASHBOARD ────────────────────────────────
+    @Get('parent/dashboard')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.PARENT)
+    getParentDashboard(@Req() req) {
+        return this.educationService.getParentDashboard(req.user.userId);
     }
 }

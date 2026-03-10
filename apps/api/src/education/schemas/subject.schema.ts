@@ -16,6 +16,16 @@ export class Subject {
 
     @Prop({ default: true })
     isActive: boolean;
+
+    // Zoom meeting link fields
+    @Prop({ default: '' })
+    zoomUrl: string;
+
+    @Prop({ default: '' })
+    zoomMeetingId: string;
+
+    @Prop({ default: '' })
+    zoomPasscode: string;
 }
 
 export const SubjectSchema = SchemaFactory.createForClass(Subject);

@@ -45,12 +45,27 @@ export class EducationService implements OnModuleInit {
                 await collection.dropIndex(levelIndex.name);
                 this.logger.log('Dropped stale unique index on Grade.level');
             }
-            // Also sync indexes to ensure schema matches DB
             await this.gradeModel.syncIndexes();
             this.logger.log('Grade indexes synced');
         } catch (err) {
-            // Index may already be dropped — safe to ignore
             this.logger.warn('Grade index cleanup issue: ' + (err as any)?.message);
+        }
+
+        // Drop stale unique index on StudentEnrollment.studentId (was unique: true)
+        try {
+            const enrollCollection = this.studentEnrollmentModel.collection;
+            const enrollIndexes = await enrollCollection.indexes();
+            const studentIdIndex = enrollIndexes.find(
+                (idx: any) => idx.key?.studentId !== undefined && idx.unique === true && !idx.key?.gradeId,
+            );
+            if (studentIdIndex && studentIdIndex.name) {
+                await enrollCollection.dropIndex(studentIdIndex.name);
+                this.logger.log('Dropped stale unique index on StudentEnrollment.studentId');
+            }
+            await this.studentEnrollmentModel.syncIndexes();
+            this.logger.log('StudentEnrollment indexes synced');
+        } catch (err) {
+            this.logger.warn('StudentEnrollment index cleanup issue: ' + (err as any)?.message);
         }
     }
 
@@ -266,13 +281,13 @@ export class EducationService implements OnModuleInit {
     }
 
     async getStudentAssignments(studentId: string) {
-        const enrollment = await this.studentEnrollmentModel.findOne({ studentId: new Types.ObjectId(studentId) })
+        const enrollments = await this.studentEnrollmentModel.find({ studentId: new Types.ObjectId(studentId) })
             .populate('gradeId', 'level label')
             .exec();
-        if (!enrollment) return [];
-        const gradeLevel = (enrollment.gradeId as any)?.level;
-        if (!gradeLevel) return [];
-        return this.assignmentModel.find({ gradeLevel })
+        if (!enrollments.length) return [];
+        const gradeLevels = enrollments.map((e: any) => (e.gradeId as any)?.level).filter(Boolean);
+        if (!gradeLevels.length) return [];
+        return this.assignmentModel.find({ gradeLevel: { $in: gradeLevels } })
             .populate('subjectId', 'name')
             .sort({ dueDate: 1 })
             .exec();
@@ -288,48 +303,48 @@ export class EducationService implements OnModuleInit {
     // ─── STUDENT CONSOLIDATED ────────────────────────────
     async getStudentDashboard(studentId: string) {
         const sid = new Types.ObjectId(studentId);
-        const enrollment = await this.studentEnrollmentModel.findOne({ studentId: sid })
+        const enrollments = await this.studentEnrollmentModel.find({ studentId: sid })
             .populate('gradeId', 'level label')
             .exec();
 
-        if (!enrollment) {
+        if (!enrollments.length) {
             return {
-                enrolled: false, gradeLevel: null,
+                enrolled: false, gradeLevels: [],
                 courses: [], liveClasses: [], videos: [], assignments: [], submissions: [],
             };
         }
 
-        const gradeLevel = (enrollment.gradeId as any)?.level;
-        // Extract raw ObjectId from populated gradeId
-        const gradeOid = (enrollment.gradeId as any)?._id || enrollment.gradeId;
-        if (!gradeLevel) {
+        const gradeLevels = enrollments.map((e: any) => (e.gradeId as any)?.level).filter(Boolean);
+        const gradeOids = enrollments.map((e: any) => (e.gradeId as any)?._id || e.gradeId).filter(Boolean);
+
+        if (!gradeLevels.length) {
             return {
-                enrolled: true, gradeLevel: null,
+                enrolled: true, gradeLevels: [],
                 courses: [], liveClasses: [], videos: [], assignments: [], submissions: [],
             };
         }
 
         const [courses, liveClasses, videos, rawAssignments, submissions] = await Promise.all([
-            // Courses = teacher assignments for this grade (use raw ObjectId)
-            this.teacherAssignmentModel.find({ gradeId: gradeOid })
+            // Courses = teacher assignments for all enrolled grades
+            this.teacherAssignmentModel.find({ gradeId: { $in: gradeOids } })
                 .populate('gradeId', 'level label')
-                .populate('subjectId', 'name gradeLevel description')
+                .populate('subjectId', 'name gradeLevel description zoomUrl zoomMeetingId zoomPasscode')
                 .populate('teacherId', 'firstName lastName email')
                 .exec(),
-            // Live classes for this grade
-            this.liveClassModel.find({ gradeLevel })
+            // Live classes for all enrolled grades
+            this.liveClassModel.find({ gradeLevel: { $in: gradeLevels } })
                 .populate('subjectId', 'name')
                 .populate('teacherId', 'firstName lastName')
                 .sort({ startTime: 1 })
                 .exec(),
-            // Videos for this grade
-            this.videoModel.find({ gradeLevel })
+            // Videos for all enrolled grades
+            this.videoModel.find({ gradeLevel: { $in: gradeLevels } })
                 .populate('subjectId', 'name')
                 .populate('teacherId', 'firstName lastName')
                 .sort({ createdAt: -1 })
                 .exec(),
-            // Assignments for this grade
-            this.assignmentModel.find({ gradeLevel })
+            // Assignments for all enrolled grades
+            this.assignmentModel.find({ gradeLevel: { $in: gradeLevels } })
                 .populate('subjectId', 'name')
                 .populate('teacherId', 'firstName lastName')
                 .sort({ dueDate: 1 })
@@ -358,26 +373,25 @@ export class EducationService implements OnModuleInit {
                 deadline.setHours(23, 59, 59, 999);
                 isExpired = now > deadline;
             }
-            // canSubmit: not yet submitted (allow late submissions too)
             obj.isExpired = isExpired;
             obj.canSubmit = !hasSubmission;
             obj.dueDateISO = obj.dueDate ? new Date(obj.dueDate).toISOString() : null;
             return obj;
         });
 
-        return { enrolled: true, gradeLevel, courses, liveClasses, videos, assignments, submissions };
+        return { enrolled: true, gradeLevels, gradeLevel: gradeLevels[0], courses, liveClasses, videos, assignments, submissions };
     }
 
     async getStudentCourses(studentId: string) {
         const sid = new Types.ObjectId(studentId);
-        const enrollment = await this.studentEnrollmentModel.findOne({ studentId: sid })
+        const enrollments = await this.studentEnrollmentModel.find({ studentId: sid })
             .populate('gradeId', 'level label')
             .exec();
-        if (!enrollment) return [];
-        const gradeOid = (enrollment.gradeId as any)?._id || enrollment.gradeId;
-        return this.teacherAssignmentModel.find({ gradeId: gradeOid })
+        if (!enrollments.length) return [];
+        const gradeOids = enrollments.map((e: any) => (e.gradeId as any)?._id || e.gradeId).filter(Boolean);
+        return this.teacherAssignmentModel.find({ gradeId: { $in: gradeOids } })
             .populate('gradeId', 'level label')
-            .populate('subjectId', 'name gradeLevel description')
+            .populate('subjectId', 'name gradeLevel description zoomUrl zoomMeetingId zoomPasscode')
             .populate('teacherId', 'firstName lastName email')
             .exec();
     }
@@ -405,7 +419,7 @@ export class EducationService implements OnModuleInit {
         if (query?.subjectId) filter.subjectId = new Types.ObjectId(query.subjectId);
         return this.teacherAssignmentModel.find(filter)
             .populate('gradeId', 'level label')
-            .populate('subjectId', 'name gradeLevel')
+            .populate('subjectId', 'name gradeLevel zoomUrl zoomMeetingId zoomPasscode')
             .populate('teacherId', 'firstName lastName email')
             .sort({ createdAt: -1 })
             .exec();
@@ -413,7 +427,7 @@ export class EducationService implements OnModuleInit {
     async getMyAssignments(teacherId: string) {
         return this.teacherAssignmentModel.find({ teacherId: new Types.ObjectId(teacherId) })
             .populate('gradeId', 'level label')
-            .populate('subjectId', 'name gradeLevel')
+            .populate('subjectId', 'name gradeLevel zoomUrl zoomMeetingId zoomPasscode')
             .exec();
     }
     async deleteTeacherAssignment(id: string) {
@@ -422,16 +436,19 @@ export class EducationService implements OnModuleInit {
 
     // ─── STUDENT ENROLLMENTS ────────────────────────────
     async createStudentEnrollment(data: any) {
-        return this.studentEnrollmentModel.findOneAndUpdate(
-            { studentId: new Types.ObjectId(data.studentId) },
-            {
+        try {
+            return await this.studentEnrollmentModel.create({
                 studentId: new Types.ObjectId(data.studentId),
                 gradeId: new Types.ObjectId(data.gradeId),
                 parentId: data.parentId ? new Types.ObjectId(data.parentId) : undefined,
                 enrollmentDate: new Date(),
-            },
-            { new: true, upsert: true }
-        );
+            });
+        } catch (err: any) {
+            if (err?.code === 11000) {
+                throw new ConflictException('Bu öğrenci zaten bu sınıfa kayıtlı.');
+            }
+            throw err;
+        }
     }
     async getStudentEnrollments(query?: any) {
         const filter: any = {};
@@ -444,8 +461,8 @@ export class EducationService implements OnModuleInit {
             .sort({ enrollmentDate: -1 })
             .exec();
     }
-    async getMyEnrollment(studentId: string) {
-        return this.studentEnrollmentModel.findOne({ studentId: new Types.ObjectId(studentId) })
+    async getMyEnrollments(studentId: string) {
+        return this.studentEnrollmentModel.find({ studentId: new Types.ObjectId(studentId) })
             .populate('gradeId', 'level label')
             .exec();
     }
@@ -517,12 +534,12 @@ export class EducationService implements OnModuleInit {
     }
 
     async getStudentSchedule(studentId: string) {
-        const enrollment = await this.studentEnrollmentModel.findOne({ studentId: new Types.ObjectId(studentId) })
+        const enrollments = await this.studentEnrollmentModel.find({ studentId: new Types.ObjectId(studentId) })
             .populate('gradeId', 'level label')
             .exec();
-        if (!enrollment) return [];
-        const gradeOid = (enrollment.gradeId as any)?._id || enrollment.gradeId;
-        return this.scheduleModel.find({ gradeId: gradeOid, isActive: true })
+        if (!enrollments.length) return [];
+        const gradeOids = enrollments.map((e: any) => (e.gradeId as any)?._id || e.gradeId).filter(Boolean);
+        return this.scheduleModel.find({ gradeId: { $in: gradeOids }, isActive: true })
             .populate('gradeId', 'level label')
             .populate('subjectId', 'name gradeLevel')
             .populate('teacherId', 'firstName lastName')
@@ -572,5 +589,40 @@ export class EducationService implements OnModuleInit {
         ]);
 
         return { liveClasses, assignments };
+    }
+
+    // ─── PARENT DASHBOARD ──────────────────────────────
+    async getParentDashboard(parentId: string) {
+        const pid = new Types.ObjectId(parentId);
+        // Find all enrollments where this parent is linked
+        const enrollments = await this.studentEnrollmentModel.find({ parentId: pid })
+            .populate('studentId', 'firstName lastName email')
+            .populate('gradeId', 'level label')
+            .exec();
+
+        if (!enrollments.length) {
+            return { students: [] };
+        }
+
+        // For each enrolled student, gather courses
+        const students = await Promise.all(
+            enrollments.map(async (enrollment: any) => {
+                const gradeOid = enrollment.gradeId?._id || enrollment.gradeId;
+                const courses = await this.teacherAssignmentModel.find({ gradeId: gradeOid })
+                    .populate('gradeId', 'level label')
+                    .populate('subjectId', 'name gradeLevel zoomUrl zoomMeetingId zoomPasscode')
+                    .populate('teacherId', 'firstName lastName email')
+                    .exec();
+
+                return {
+                    student: enrollment.studentId,
+                    grade: enrollment.gradeId,
+                    courses,
+                    enrollmentDate: enrollment.enrollmentDate,
+                };
+            }),
+        );
+
+        return { students };
     }
 }

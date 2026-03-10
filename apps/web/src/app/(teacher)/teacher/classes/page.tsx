@@ -6,14 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Users, BookOpen } from "lucide-react";
+import { Users, BookOpen, Video, ExternalLink } from "lucide-react";
 import { apiGet } from "@/lib/api";
 import Link from "next/link";
 
 interface AssignmentData {
     _id: string;
-    gradeId: { _id: string; level: number };
-    subjectId: { _id: string; name: string; gradeLevel: number };
+    gradeId: { _id: string; level: number; label?: string };
+    subjectId: { _id: string; name: string; gradeLevel: number; zoomUrl?: string; zoomMeetingId?: string; zoomPasscode?: string };
 }
 
 export default function TeacherClassesPage() {
@@ -64,7 +64,7 @@ export default function TeacherClassesPage() {
                                     <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
                                         <BookOpen className="h-5 w-5 text-primary" />
                                     </div>
-                                    <Badge variant="info">{a.gradeId?.level}. Sınıf</Badge>
+                                    <Badge variant="info">{a.gradeId?.label || `${a.gradeId?.level}. Sınıf`}</Badge>
                                 </div>
                                 <CardTitle className="mt-3">{a.subjectId?.name}</CardTitle>
                                 <CardDescription className="flex items-center gap-1.5">
@@ -72,14 +72,44 @@ export default function TeacherClassesPage() {
                                     Atanmış Ders
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent className="flex-1" />
+                            <CardContent className="flex-1">
+                                {/* Zoom Meeting Info */}
+                                {a.subjectId?.zoomMeetingId && (
+                                    <div className="p-3 rounded-lg bg-blue-50/60 border border-blue-100 text-xs space-y-1">
+                                        <div className="flex items-center gap-1.5 text-blue-700 font-medium">
+                                            <Video className="h-3.5 w-3.5" />
+                                            Zoom Bilgileri
+                                        </div>
+                                        <div className="text-blue-600">
+                                            <span className="text-muted-foreground">ID:</span> {a.subjectId.zoomMeetingId}
+                                        </div>
+                                        {a.subjectId?.zoomPasscode && (
+                                            <div className="text-blue-600">
+                                                <span className="text-muted-foreground">Şifre:</span> {a.subjectId.zoomPasscode}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </CardContent>
                             <CardFooter className="flex gap-2 border-t pt-4">
-                                <Button className="w-full" variant="outline" size="sm" asChild>
-                                    <Link href="/teacher/assignments">Ödev Ver</Link>
-                                </Button>
-                                <Button className="w-full" size="sm" asChild>
-                                    <Link href="/teacher/live-classes">Canlı Ders</Link>
-                                </Button>
+                                {a.subjectId?.zoomUrl ? (
+                                    <Button className="w-full" size="sm" asChild>
+                                        <a href={a.subjectId.zoomUrl} target="_blank" rel="noopener noreferrer">
+                                            <Video className="h-4 w-4" />
+                                            Derse Katıl
+                                            <ExternalLink className="h-3 w-3 ml-1" />
+                                        </a>
+                                    </Button>
+                                ) : (
+                                    <>
+                                        <Button className="w-full" variant="outline" size="sm" asChild>
+                                            <Link href="/teacher/assignments">Ödev Ver</Link>
+                                        </Button>
+                                        <Button className="w-full" size="sm" asChild>
+                                            <Link href="/teacher/live-classes">Canlı Ders</Link>
+                                        </Button>
+                                    </>
+                                )}
                             </CardFooter>
                         </Card>
                     ))}

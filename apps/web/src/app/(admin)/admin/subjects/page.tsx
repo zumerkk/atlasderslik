@@ -12,7 +12,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Plus, Loader2, CheckCircle, AlertCircle, Pencil, Trash2, BookOpen } from "lucide-react";
 import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/api";
 
-interface Subject { _id: string; name: string; gradeLevel: number; isActive: boolean; }
+interface Subject { _id: string; name: string; gradeLevel: number; isActive: boolean; zoomUrl?: string; zoomMeetingId?: string; zoomPasscode?: string; }
 
 export default function SubjectsPage() {
     const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -24,6 +24,9 @@ export default function SubjectsPage() {
 
     const [editItem, setEditItem] = useState<Subject | null>(null);
     const [editName, setEditName] = useState("");
+    const [editZoomUrl, setEditZoomUrl] = useState("");
+    const [editZoomMeetingId, setEditZoomMeetingId] = useState("");
+    const [editZoomPasscode, setEditZoomPasscode] = useState("");
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [deleteItem, setDeleteItem] = useState<Subject | null>(null);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -56,7 +59,7 @@ export default function SubjectsPage() {
         if (!editItem) return;
         setSubmitting(true);
         try {
-            const res = await apiPatch(`/education/subjects/${editItem._id}`, { name: editName });
+            const res = await apiPatch(`/education/subjects/${editItem._id}`, { name: editName, zoomUrl: editZoomUrl, zoomMeetingId: editZoomMeetingId, zoomPasscode: editZoomPasscode });
             if (res.ok) { setFeedback({ type: "success", message: "Ders güncellendi!" }); setEditDialogOpen(false); fetchSubjects(selectedGrade); }
             else { setFeedback({ type: "error", message: "Güncelleme başarısız." }); }
         } catch { setFeedback({ type: "error", message: "Bir hata oluştu." }); }
@@ -130,6 +133,7 @@ export default function SubjectsPage() {
                         <TableRow>
                             <TableHead>Ders Adı</TableHead>
                             <TableHead>Sınıf</TableHead>
+                            <TableHead>Zoom</TableHead>
                             <TableHead>Durum</TableHead>
                             <TableHead className="text-right">İşlemler</TableHead>
                         </TableRow>
@@ -140,13 +144,22 @@ export default function SubjectsPage() {
                                 <TableCell className="font-semibold">{s.name}</TableCell>
                                 <TableCell>{s.gradeLevel}. Sınıf</TableCell>
                                 <TableCell>
+                                    {s.zoomUrl ? (
+                                        <a href={s.zoomUrl} target="_blank" rel="noopener noreferrer">
+                                            <Badge variant="info" className="cursor-pointer">🔗 Zoom</Badge>
+                                        </a>
+                                    ) : (
+                                        <Badge variant="warning">Link Yok</Badge>
+                                    )}
+                                </TableCell>
+                                <TableCell>
                                     <Badge variant={s.isActive !== false ? "success" : "destructive"}>
                                         {s.isActive !== false ? "Aktif" : "Pasif"}
                                     </Badge>
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <div className="flex items-center justify-end gap-1">
-                                        <Button variant="ghost" size="sm" onClick={() => { setEditItem(s); setEditName(s.name); setEditDialogOpen(true); }}>
+                                        <Button variant="ghost" size="sm" onClick={() => { setEditItem(s); setEditName(s.name); setEditZoomUrl(s.zoomUrl || ""); setEditZoomMeetingId(s.zoomMeetingId || ""); setEditZoomPasscode(s.zoomPasscode || ""); setEditDialogOpen(true); }}>
                                             <Pencil className="h-4 w-4" />
                                         </Button>
                                         <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => { setDeleteItem(s); setDeleteDialogOpen(true); }}>
@@ -163,9 +176,26 @@ export default function SubjectsPage() {
             {/* Edit Dialog */}
             <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
                 <DialogContent className="sm:max-w-md">
-                    <DialogHeader><DialogTitle>Ders Düzenle</DialogTitle><DialogDescription>Ders adını güncelleyin.</DialogDescription></DialogHeader>
+                    <DialogHeader><DialogTitle>Ders Düzenle</DialogTitle><DialogDescription>Ders bilgilerini ve Zoom linkini güncelleyin.</DialogDescription></DialogHeader>
                     <div className="grid gap-4 py-4">
-                        <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
+                        <div className="grid gap-2">
+                            <label className="text-sm font-medium">Ders Adı</label>
+                            <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
+                        </div>
+                        <div className="grid gap-2">
+                            <label className="text-sm font-medium">Zoom Link URL</label>
+                            <Input placeholder="https://zoom.us/j/..." value={editZoomUrl} onChange={(e) => setEditZoomUrl(e.target.value)} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="grid gap-2">
+                                <label className="text-sm font-medium">Toplantı Kimliği</label>
+                                <Input placeholder="914 188 8169" value={editZoomMeetingId} onChange={(e) => setEditZoomMeetingId(e.target.value)} />
+                            </div>
+                            <div className="grid gap-2">
+                                <label className="text-sm font-medium">Şifre</label>
+                                <Input placeholder="123456" value={editZoomPasscode} onChange={(e) => setEditZoomPasscode(e.target.value)} />
+                            </div>
+                        </div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setEditDialogOpen(false)}>İptal</Button>

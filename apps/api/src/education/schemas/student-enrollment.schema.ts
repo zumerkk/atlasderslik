@@ -5,7 +5,7 @@ export type StudentEnrollmentDocument = StudentEnrollment & Document;
 
 @Schema({ timestamps: true })
 export class StudentEnrollment {
-    @Prop({ type: Types.ObjectId, ref: 'User', required: true, unique: true })
+    @Prop({ type: Types.ObjectId, ref: 'User', required: true })
     studentId: Types.ObjectId;
 
     @Prop({ type: Types.ObjectId, ref: 'Grade', required: true })
@@ -19,3 +19,6 @@ export class StudentEnrollment {
 }
 
 export const StudentEnrollmentSchema = SchemaFactory.createForClass(StudentEnrollment);
+
+// Prevent duplicate: same student in same grade
+StudentEnrollmentSchema.index({ studentId: 1, gradeId: 1 }, { unique: true });
