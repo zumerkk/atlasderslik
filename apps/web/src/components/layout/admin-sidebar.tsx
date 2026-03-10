@@ -45,6 +45,16 @@ const sidebarItems = [
         icon: Users,
     },
     {
+        title: "Kayıtlar (Öğrenci)",
+        href: "/admin/assignments/students",
+        icon: Users,
+    },
+    {
+        title: "Atamalar (Öğretmen)",
+        href: "/admin/assignments/teachers",
+        icon: BookOpen,
+    },
+    {
         title: "Ayarlar",
         href: "/admin/settings",
         icon: Settings,
