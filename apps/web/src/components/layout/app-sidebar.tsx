@@ -1,10 +1,10 @@
 "use client"
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
 import {
-    GraduationCap,
     ChevronLeft,
     LogOut,
     type LucideIcon,
@@ -64,9 +64,13 @@ export function AppSidebar({
                 "flex items-center border-b border-sidebar-border h-16 px-4",
                 collapsed ? "justify-center" : "gap-3"
             )}>
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0">
-                    <GraduationCap className="h-5 w-5 text-white" />
-                </div>
+                <Image
+                    src="/assets/images/deer-logo.png"
+                    alt="Atlas Derslik Logo"
+                    width={36}
+                    height={36}
+                    className="shrink-0 drop-shadow-md"
+                />
                 {!collapsed && (
                     <div className="flex flex-col min-w-0">
                         <span className="text-sm font-bold text-sidebar-primary truncate">Atlas Derslik</span>

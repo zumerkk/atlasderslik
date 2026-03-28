@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { GraduationCap, Mail, Phone, MapPin } from "lucide-react";
+import Image from "next/image";
+import { Mail, Phone, MapPin } from "lucide-react";
 
 const footerLinks = {
     platform: [
@@ -30,9 +31,13 @@ export function PublicFooter() {
                     {/* Brand */}
                     <div className="lg:col-span-1">
                         <Link href="/" className="flex items-center gap-2.5 mb-4">
-                            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-atlas-blue to-atlas-indigo flex items-center justify-center">
-                                <GraduationCap className="h-5 w-5 text-white" />
-                            </div>
+                            <Image
+                                src="/assets/images/deer-logo.png"
+                                alt="Atlas Derslik Logo"
+                                width={36}
+                                height={36}
+                                className="drop-shadow-md"
+                            />
                             <span className="text-lg font-bold text-white">Atlas Derslik</span>
                         </Link>
                         <p className="text-sm text-gray-400 leading-relaxed mb-6">

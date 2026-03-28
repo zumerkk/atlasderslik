@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
-import { GraduationCap, ArrowRight, Eye, EyeOff, Loader2, AlertCircle, RefreshCw, Wifi } from "lucide-react";
+import Image from "next/image";
+import { ArrowRight, Eye, EyeOff, Loader2, AlertCircle, RefreshCw, Wifi } from "lucide-react";
 
 export default function LoginPage() {
     const router = useRouter();
@@ -74,9 +75,13 @@ export default function LoginPage() {
                 <div className="absolute bottom-20 right-10 w-96 h-96 rounded-full bg-indigo-400/10 blur-3xl animate-float delay-300" />
 
                 <div className="relative flex flex-col items-center justify-center w-full px-12">
-                    <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-sm flex items-center justify-center mb-8 animate-fade-in">
-                        <GraduationCap className="h-8 w-8 text-white" />
-                    </div>
+                    <Image
+                        src="/assets/images/deer-logo.png"
+                        alt="Atlas Derslik Logo"
+                        width={80}
+                        height={80}
+                        className="mb-8 animate-fade-in drop-shadow-lg"
+                    />
                     <h1 className="text-4xl font-bold text-white text-center mb-4 animate-fade-in delay-100">
                         Atlas Derslik
                     </h1>
@@ -92,9 +97,13 @@ export default function LoginPage() {
                 <div className="w-full max-w-md animate-fade-in">
                     {/* Mobile logo */}
                     <div className="lg:hidden flex items-center justify-center gap-2.5 mb-8">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-atlas-blue to-atlas-indigo flex items-center justify-center">
-                            <GraduationCap className="h-5 w-5 text-white" />
-                        </div>
+                        <Image
+                            src="/assets/images/deer-logo.png"
+                            alt="Atlas Derslik Logo"
+                            width={40}
+                            height={40}
+                            className="drop-shadow-md"
+                        />
                         <span className="text-xl font-bold text-gray-900">Atlas Derslik</span>
                     </div>
 

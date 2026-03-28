@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Home, User, Package2 } from "lucide-react";
+import { Home, User } from "lucide-react";
 
 const links = [
     { href: "/parent", label: "Dashboard", icon: Home },
@@ -15,7 +16,13 @@ export function ParentSidebar() {
         <div className="flex h-full max-h-screen flex-col gap-2">
             <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
                 <Link href="/parent" className="flex items-center gap-2 font-semibold">
-                    <Package2 className="h-6 w-6" />
+                    <Image
+                        src="/assets/images/deer-logo.png"
+                        alt="Atlas Derslik Logo"
+                        width={32}
+                        height={32}
+                        className="drop-shadow-md"
+                    />
                     <span>Atlas Derslik</span>
                 </Link>
             </div>

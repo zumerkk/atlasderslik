@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
 import {
@@ -68,6 +69,13 @@ export function AdminSidebar() {
         <div className="flex h-screen w-64 flex-col border-r bg-card text-card-foreground">
             <div className="flex h-14 items-center border-b px-4">
                 <Link href="/" className="flex items-center gap-2 font-semibold">
+                    <Image
+                        src="/assets/images/deer-logo.png"
+                        alt="Atlas Derslik Logo"
+                        width={32}
+                        height={32}
+                        className="drop-shadow-md"
+                    />
                     <span className="text-xl font-bold text-primary">Atlas Derslik</span>
                 </Link>
             </div>
