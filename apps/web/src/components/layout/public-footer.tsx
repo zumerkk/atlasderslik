@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import { Mail, Phone, MapPin } from "lucide-react";
 
 const footerLinks = {
@@ -30,14 +29,16 @@ export function PublicFooter() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
                     {/* Brand */}
                     <div className="lg:col-span-1">
-                        <Link href="/" className="flex items-center gap-3 mb-4">
-                            <Image
+                        <Link href="/" style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "12px", marginBottom: "16px", textDecoration: "none" }}>
+                            <img
                                 src="/assets/images/deer-logo.png"
                                 alt="Atlas Derslik Logo"
-                                width={44}
-                                height={44}
-                                style={{ filter: "brightness(0) invert(1)" }}
-                                className="drop-shadow-md"
+                                style={{
+                                    width: "44px",
+                                    height: "44px",
+                                    objectFit: "contain",
+                                    filter: "brightness(0) invert(1)",
+                                }}
                             />
                             <span className="text-xl font-bold text-white">Atlas Derslik</span>
                         </Link>

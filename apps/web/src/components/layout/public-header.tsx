@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Menu, X } from "lucide-react";
+import { Menu } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
@@ -31,18 +30,30 @@ export function PublicHeader() {
                 }`}
         >
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex h-16 lg:h-18 items-center justify-between">
-                    {/* Logo */}
-                    <Link href="/" className="flex flex-row items-center gap-2.5 group">
-                        <Image
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: "72px" }}>
+                    {/* Logo - solda, geyik + yazı yan yana */}
+                    <Link href="/" style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "10px", textDecoration: "none" }}>
+                        <img
                             src="/assets/images/deer-logo.png"
                             alt="Atlas Derslik Logo"
-                            width={40}
-                            height={40}
-                            style={scrolled ? {} : { filter: "brightness(0) invert(1)" }}
-                            className="group-hover:scale-110 transition-all duration-300 drop-shadow-md"
+                            style={{
+                                width: "44px",
+                                height: "44px",
+                                objectFit: "contain",
+                                filter: scrolled ? "none" : "brightness(0) invert(1)",
+                                transition: "filter 0.3s ease",
+                            }}
                         />
-                        <span className={`text-lg font-bold tracking-tight transition-colors ${scrolled ? "text-gray-900" : "text-white"}`}>
+                        <span
+                            style={{
+                                fontSize: "20px",
+                                fontWeight: 700,
+                                letterSpacing: "-0.02em",
+                                color: scrolled ? "#111827" : "#ffffff",
+                                transition: "color 0.3s ease",
+                                whiteSpace: "nowrap",
+                            }}
+                        >
                             Atlas Derslik
                         </span>
                     </Link>
@@ -97,14 +108,15 @@ export function PublicHeader() {
                         <SheetContent side="right" className="w-72 p-0">
                             <div className="flex flex-col h-full">
                                 <div className="p-6 border-b">
-                                    <div className="flex items-center gap-2.5">
-                                        <Image
+                                    <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "10px" }}>
+                                        <img
                                             src="/assets/images/deer-logo.png"
                                             alt="Atlas Derslik Logo"
-                                            width={40}
-                                            height={40}
+                                            style={{ width: "40px", height: "40px", objectFit: "contain" }}
                                         />
-                                        <span className="text-lg font-bold tracking-tight">Atlas Derslik</span>
+                                        <span style={{ fontSize: "18px", fontWeight: 700, letterSpacing: "-0.02em" }}>
+                                            Atlas Derslik
+                                        </span>
                                     </div>
                                 </div>
                                 <nav className="flex-1 p-4 space-y-1">
