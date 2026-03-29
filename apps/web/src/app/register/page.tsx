@@ -90,8 +90,8 @@ export default function RegisterPage() {
                     <Image
                         src="/assets/images/deer-logo.png"
                         alt="Atlas Derslik Logo"
-                        width={100}
-                        height={100}
+                        width={120}
+                        height={120}
                         className="mb-8 animate-fade-in drop-shadow-lg"
                     />
                     <h1 className="text-4xl font-bold text-white text-center mb-4 animate-fade-in delay-100">
@@ -108,15 +108,15 @@ export default function RegisterPage() {
             <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8 bg-gray-50">
                 <div className="w-full max-w-md animate-fade-in">
                     {/* Mobile logo */}
-                    <div className="lg:hidden flex items-center justify-center gap-2.5 mb-8">
+                    <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
                         <Image
                             src="/assets/images/deer-logo.png"
                             alt="Atlas Derslik Logo"
-                            width={52}
-                            height={52}
+                            width={60}
+                            height={60}
                             className="drop-shadow-md"
                         />
-                        <span className="text-xl font-bold text-gray-900">Atlas Derslik</span>
+                        <span className="text-2xl font-bold text-gray-900">Atlas Derslik</span>
                     </div>
 
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">

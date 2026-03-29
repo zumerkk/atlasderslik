@@ -31,17 +31,17 @@ export function PublicHeader() {
                 }`}
         >
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex h-16 lg:h-18 items-center justify-between">
+                <div className="flex h-16 lg:h-20 items-center justify-between">
                     {/* Logo */}
-                    <Link href="/" className="flex flex-col items-center group">
+                    <Link href="/" className="flex items-center gap-3 group">
                         <Image
                             src="/assets/images/deer-logo.png"
                             alt="Atlas Derslik Logo"
-                            width={48}
-                            height={48}
+                            width={56}
+                            height={56}
                             className="group-hover:scale-110 transition-transform drop-shadow-md"
                         />
-                        <span className={`text-xs font-bold tracking-wide transition-colors ${scrolled ? "text-gray-900" : "text-white"}`}>
+                        <span className={`text-lg font-bold tracking-wide transition-colors ${scrolled ? "text-gray-900" : "text-white"}`}>
                             Atlas Derslik
                         </span>
                     </Link>
@@ -96,14 +96,14 @@ export function PublicHeader() {
                         <SheetContent side="right" className="w-72 p-0">
                             <div className="flex flex-col h-full">
                                 <div className="p-6 border-b">
-                                    <div className="flex flex-col items-center">
+                                    <div className="flex items-center gap-3">
                                         <Image
                                             src="/assets/images/deer-logo.png"
                                             alt="Atlas Derslik Logo"
-                                            width={48}
-                                            height={48}
+                                            width={52}
+                                            height={52}
                                         />
-                                        <span className="text-sm font-bold tracking-wide mt-0.5">Atlas Derslik</span>
+                                        <span className="text-lg font-bold tracking-wide">Atlas Derslik</span>
                                     </div>
                                 </div>
                                 <nav className="flex-1 p-4 space-y-1">

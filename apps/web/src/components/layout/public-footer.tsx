@@ -30,15 +30,15 @@ export function PublicFooter() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
                     {/* Brand */}
                     <div className="lg:col-span-1">
-                        <Link href="/" className="flex items-center gap-2.5 mb-4">
+                        <Link href="/" className="flex items-center gap-3 mb-4">
                             <Image
                                 src="/assets/images/deer-logo.png"
                                 alt="Atlas Derslik Logo"
-                                width={48}
-                                height={48}
+                                width={56}
+                                height={56}
                                 className="drop-shadow-md"
                             />
-                            <span className="text-lg font-bold text-white">Atlas Derslik</span>
+                            <span className="text-xl font-bold text-white">Atlas Derslik</span>
                         </Link>
                         <p className="text-sm text-gray-400 leading-relaxed mb-6">
                             Ortaokul müfredatına ve LGS&apos;ye yönelik online eğitim platformu.
