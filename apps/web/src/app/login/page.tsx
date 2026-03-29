@@ -78,8 +78,8 @@ export default function LoginPage() {
                     <Image
                         src="/assets/images/deer-logo.png"
                         alt="Atlas Derslik Logo"
-                        width={120}
-                        height={120}
+                        width={96}
+                        height={96}
                         className="mb-8 animate-fade-in drop-shadow-lg"
                     />
                     <h1 className="text-4xl font-bold text-white text-center mb-4 animate-fade-in delay-100">
@@ -100,8 +100,8 @@ export default function LoginPage() {
                         <Image
                             src="/assets/images/deer-logo.png"
                             alt="Atlas Derslik Logo"
-                            width={60}
-                            height={60}
+                            width={48}
+                            height={48}
                             className="drop-shadow-md"
                         />
                         <span className="text-2xl font-bold text-gray-900">Atlas Derslik</span>

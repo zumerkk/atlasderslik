@@ -34,8 +34,8 @@ export function PublicFooter() {
                             <Image
                                 src="/assets/images/deer-logo.png"
                                 alt="Atlas Derslik Logo"
-                                width={56}
-                                height={56}
+                                width={44}
+                                height={44}
                                 className="drop-shadow-md"
                             />
                             <span className="text-xl font-bold text-white">Atlas Derslik</span>

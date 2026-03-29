@@ -68,15 +68,15 @@ export function AdminSidebar() {
     return (
         <div className="flex h-screen w-64 flex-col border-r bg-card text-card-foreground">
             <div className="flex h-16 items-center border-b px-4">
-                <Link href="/" className="flex items-center gap-3 font-semibold">
+                <Link href="/" className="flex items-center gap-2.5 font-semibold">
                     <Image
                         src="/assets/images/deer-logo.png"
                         alt="Atlas Derslik Logo"
-                        width={52}
-                        height={52}
+                        width={38}
+                        height={38}
                         className="drop-shadow-md"
                     />
-                    <span className="text-xl font-bold text-primary">Atlas Derslik</span>
+                    <span className="text-lg font-bold text-primary">Atlas Derslik</span>
                 </Link>
             </div>
             <div className="flex-1 overflow-auto py-4">
