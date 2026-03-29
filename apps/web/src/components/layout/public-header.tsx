@@ -30,25 +30,44 @@ export function PublicHeader() {
                 }`}
         >
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: "72px" }}>
-                    {/* Logo - solda, geyik + yazı yan yana */}
-                    <Link href="/" style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "10px", textDecoration: "none" }}>
+                <div
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        height: "76px",
+                    }}
+                >
+                    {/* Logo - geyik ikonu solda, "Atlas Derslik" yazısı sağında, aynı hizadalar */}
+                    <Link
+                        href="/"
+                        style={{
+                            display: "inline-flex",
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: "12px",
+                            textDecoration: "none",
+                        }}
+                    >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                             src="/assets/images/deer-logo.png"
-                            alt="Atlas Derslik Logo"
+                            alt="Atlas Derslik"
                             style={{
-                                width: "44px",
-                                height: "44px",
+                                width: "52px",
+                                height: "52px",
                                 objectFit: "contain",
+                                display: "block",
                                 filter: scrolled ? "none" : "brightness(0) invert(1)",
                                 transition: "filter 0.3s ease",
                             }}
                         />
                         <span
                             style={{
-                                fontSize: "20px",
-                                fontWeight: 700,
-                                letterSpacing: "-0.02em",
+                                fontSize: "22px",
+                                fontWeight: 800,
+                                letterSpacing: "-0.01em",
+                                lineHeight: 1,
                                 color: scrolled ? "#111827" : "#ffffff",
                                 transition: "color 0.3s ease",
                                 whiteSpace: "nowrap",
@@ -102,19 +121,39 @@ export function PublicHeader() {
                                 size="icon"
                                 className={`md:hidden ${scrolled ? "text-gray-700" : "text-white"}`}
                             >
-                                <Menu className="h-5 w-5" />
+                                <Menu className="h-6 w-6" />
                             </Button>
                         </SheetTrigger>
                         <SheetContent side="right" className="w-72 p-0">
                             <div className="flex flex-col h-full">
                                 <div className="p-6 border-b">
-                                    <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "10px" }}>
+                                    <div
+                                        style={{
+                                            display: "inline-flex",
+                                            flexDirection: "row",
+                                            alignItems: "center",
+                                            gap: "10px",
+                                        }}
+                                    >
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
                                         <img
                                             src="/assets/images/deer-logo.png"
-                                            alt="Atlas Derslik Logo"
-                                            style={{ width: "40px", height: "40px", objectFit: "contain" }}
+                                            alt="Atlas Derslik"
+                                            style={{
+                                                width: "44px",
+                                                height: "44px",
+                                                objectFit: "contain",
+                                                display: "block",
+                                            }}
                                         />
-                                        <span style={{ fontSize: "18px", fontWeight: 700, letterSpacing: "-0.02em" }}>
+                                        <span
+                                            style={{
+                                                fontSize: "20px",
+                                                fontWeight: 800,
+                                                letterSpacing: "-0.01em",
+                                                color: "#111827",
+                                            }}
+                                        >
                                             Atlas Derslik
                                         </span>
                                     </div>
