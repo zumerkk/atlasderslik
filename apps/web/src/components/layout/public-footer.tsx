@@ -36,6 +36,7 @@ export function PublicFooter() {
                                 alt="Atlas Derslik Logo"
                                 width={44}
                                 height={44}
+                                style={{ filter: "brightness(0) invert(1)" }}
                                 className="drop-shadow-md"
                             />
                             <span className="text-xl font-bold text-white">Atlas Derslik</span>

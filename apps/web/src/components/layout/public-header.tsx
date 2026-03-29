@@ -33,13 +33,14 @@ export function PublicHeader() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex h-16 lg:h-18 items-center justify-between">
                     {/* Logo */}
-                    <Link href="/" className="flex items-center gap-2.5 group">
+                    <Link href="/" className="flex flex-row items-center gap-2.5 group">
                         <Image
                             src="/assets/images/deer-logo.png"
                             alt="Atlas Derslik Logo"
-                            width={42}
-                            height={42}
-                            className="group-hover:scale-110 transition-transform drop-shadow-md"
+                            width={40}
+                            height={40}
+                            style={scrolled ? {} : { filter: "brightness(0) invert(1)" }}
+                            className="group-hover:scale-110 transition-all duration-300 drop-shadow-md"
                         />
                         <span className={`text-lg font-bold tracking-tight transition-colors ${scrolled ? "text-gray-900" : "text-white"}`}>
                             Atlas Derslik
