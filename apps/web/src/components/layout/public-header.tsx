@@ -37,11 +37,11 @@ export function PublicHeader() {
                         <Image
                             src="/assets/images/deer-logo.png"
                             alt="Atlas Derslik Logo"
-                            width={36}
-                            height={36}
+                            width={48}
+                            height={48}
                             className="group-hover:scale-110 transition-transform drop-shadow-md"
                         />
-                        <span className={`text-[10px] font-bold tracking-wide transition-colors ${scrolled ? "text-gray-900" : "text-white"}`}>
+                        <span className={`text-xs font-bold tracking-wide transition-colors ${scrolled ? "text-gray-900" : "text-white"}`}>
                             Atlas Derslik
                         </span>
                     </Link>
@@ -100,10 +100,10 @@ export function PublicHeader() {
                                         <Image
                                             src="/assets/images/deer-logo.png"
                                             alt="Atlas Derslik Logo"
-                                            width={36}
-                                            height={36}
+                                            width={48}
+                                            height={48}
                                         />
-                                        <span className="text-xs font-bold tracking-wide mt-0.5">Atlas Derslik</span>
+                                        <span className="text-sm font-bold tracking-wide mt-0.5">Atlas Derslik</span>
                                     </div>
                                 </div>
                                 <nav className="flex-1 p-4 space-y-1">

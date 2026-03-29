@@ -67,8 +67,8 @@ export function AppSidebar({
                 <Image
                     src="/assets/images/deer-logo.png"
                     alt="Atlas Derslik Logo"
-                    width={36}
-                    height={36}
+                    width={44}
+                    height={44}
                     className="shrink-0 drop-shadow-md"
                 />
                 {!collapsed && (

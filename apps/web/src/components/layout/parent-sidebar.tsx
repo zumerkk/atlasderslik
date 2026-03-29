@@ -19,8 +19,8 @@ export function ParentSidebar() {
                     <Image
                         src="/assets/images/deer-logo.png"
                         alt="Atlas Derslik Logo"
-                        width={32}
-                        height={32}
+                        width={44}
+                        height={44}
                         className="drop-shadow-md"
                     />
                     <span>Atlas Derslik</span>

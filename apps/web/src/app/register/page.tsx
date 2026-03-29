@@ -90,8 +90,8 @@ export default function RegisterPage() {
                     <Image
                         src="/assets/images/deer-logo.png"
                         alt="Atlas Derslik Logo"
-                        width={80}
-                        height={80}
+                        width={100}
+                        height={100}
                         className="mb-8 animate-fade-in drop-shadow-lg"
                     />
                     <h1 className="text-4xl font-bold text-white text-center mb-4 animate-fade-in delay-100">
@@ -112,8 +112,8 @@ export default function RegisterPage() {
                         <Image
                             src="/assets/images/deer-logo.png"
                             alt="Atlas Derslik Logo"
-                            width={40}
-                            height={40}
+                            width={52}
+                            height={52}
                             className="drop-shadow-md"
                         />
                         <span className="text-xl font-bold text-gray-900">Atlas Derslik</span>
