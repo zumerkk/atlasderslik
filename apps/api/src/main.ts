@@ -10,7 +10,14 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule, {
     logger: ['error', 'warn', 'log'], // reduce verbose startup logs
+    bodyParser: true,
   });
+  
+  // Increase body size limit for base64 image uploads
+  const bodyParser = require('body-parser');
+  app.use(bodyParser.json({ limit: '10mb' }));
+  app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
+  
   console.log(`[STARTUP] NestFactory.create done in ${Date.now() - startTime}ms`);
 
   // Security headers
@@ -19,8 +26,7 @@ async function bootstrap() {
   // Global validation pipe
   app.useGlobalPipes(new ValidationPipe({
     transform: true,
-    whitelist: true,           // strip unknown properties
-    forbidNonWhitelisted: true, // throw on unknown properties
+    whitelist: false, // allow extra fields for flexible DTOs
   }));
 
   // Global exception filter

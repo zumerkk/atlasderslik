@@ -31,6 +31,16 @@ export class Question {
 
     @Prop({ default: 'MEDIUM', enum: ['EASY', 'MEDIUM', 'HARD'] })
     difficulty: string;
+
+    // ─── Photo-based question fields ────────────────────────
+    @Prop({ default: '' })
+    imageUrl: string; // Question image URL (photo of the question)
+
+    @Prop({ default: 'TEXT', enum: ['TEXT', 'IMAGE'] })
+    type: string; // TEXT = text-based, IMAGE = photo-only question
+
+    @Prop({ type: [String], default: [] })
+    optionImages: string[]; // Option images [A_url, B_url, C_url, D_url]
 }
 
 export const QuestionSchema = SchemaFactory.createForClass(Question);

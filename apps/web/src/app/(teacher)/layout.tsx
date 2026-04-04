@@ -8,6 +8,7 @@ import {
     PlayCircle,
     CheckSquare,
     Database,
+    ClipboardList,
     User,
     CalendarDays,
 } from "lucide-react";
@@ -20,6 +21,7 @@ const sidebarLinks = [
     { title: "Video Kütüphanesi", href: "/teacher/videos", icon: PlayCircle },
     { title: "Ödevler", href: "/teacher/assignments", icon: CheckSquare },
     { title: "Soru Bankası", href: "/teacher/questions", icon: Database },
+    { title: "Testler", href: "/teacher/tests", icon: ClipboardList },
     { title: "Profilim", href: "/teacher/profile", icon: User },
 ];
 

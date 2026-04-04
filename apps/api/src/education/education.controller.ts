@@ -426,4 +426,56 @@ export class EducationController {
     getParentDashboard(@Req() req) {
         return this.educationService.getParentDashboard(req.user.userId);
     }
+
+    // ─── FILE UPLOAD (Base64) ────────────────────────────
+    @Post('upload')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.TEACHER, UserRole.ADMIN, UserRole.STUDENT)
+    async uploadFile(@Body() body: { file: string; filename: string }) {
+        // file is a base64 data URL (e.g., "data:image/png;base64,...")
+        if (!body.file || !body.file.startsWith('data:')) {
+            return { error: 'Geçersiz dosya formatı. Base64 data URL bekleniyor.' };
+        }
+        // Simply return the data URL — it will be stored directly in the document
+        return { url: body.file, filename: body.filename || 'upload' };
+    }
+
+    // ─── TESTS (Sınav/Test) ──────────────────────────────
+    @Post('tests')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.TEACHER, UserRole.ADMIN)
+    createTest(@Body() data: any, @Req() req) {
+        return this.educationService.createTest(data, req.user.userId);
+    }
+
+    @Get('tests')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.TEACHER, UserRole.ADMIN, UserRole.STUDENT)
+    getTests(@Query() query, @Req() req) {
+        if (req.user.role === UserRole.TEACHER) {
+            query.teacherId = req.user.userId;
+        }
+        return this.educationService.getTests(query);
+    }
+
+    @Get('tests/:id')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.TEACHER, UserRole.ADMIN, UserRole.STUDENT)
+    getTestById(@Param('id') id: string) {
+        return this.educationService.getTestById(id);
+    }
+
+    @Patch('tests/:id')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.TEACHER, UserRole.ADMIN)
+    updateTest(@Param('id') id: string, @Body() body: any) {
+        return this.educationService.updateTest(id, body);
+    }
+
+    @Delete('tests/:id')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.TEACHER, UserRole.ADMIN)
+    deleteTest(@Param('id') id: string) {
+        return this.educationService.deleteTest(id);
+    }
 }

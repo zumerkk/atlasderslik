@@ -13,6 +13,7 @@ import { TeacherAssignment, TeacherAssignmentDocument } from './schemas/teacher-
 import { StudentEnrollment, StudentEnrollmentDocument } from './schemas/student-enrollment.schema';
 import { Question, QuestionDocument } from './schemas/question.schema';
 import { Schedule, ScheduleDocument } from './schemas/schedule.schema';
+import { Test, TestDocument } from './schemas/test.schema';
 
 @Injectable()
 export class EducationService implements OnModuleInit {
@@ -31,6 +32,7 @@ export class EducationService implements OnModuleInit {
         @InjectModel(StudentEnrollment.name) private studentEnrollmentModel: Model<StudentEnrollmentDocument>,
         @InjectModel(Question.name) private questionModel: Model<QuestionDocument>,
         @InjectModel(Schedule.name) private scheduleModel: Model<ScheduleDocument>,
+        @InjectModel(Test.name) private testModel: Model<TestDocument>,
     ) { }
 
     async onModuleInit() {
@@ -624,5 +626,41 @@ export class EducationService implements OnModuleInit {
         );
 
         return { students };
+    }
+
+    // ─── TESTS (Sınav/Test Oluşturma) ───────────────────────
+    async createTest(data: any, teacherId: string) {
+        return this.testModel.create({ ...data, teacherId: new Types.ObjectId(teacherId) });
+    }
+
+    async getTests(query: any) {
+        const filter: any = {};
+        if (query.teacherId) filter.teacherId = new Types.ObjectId(query.teacherId);
+        if (query.gradeLevel) filter.gradeLevel = Number(query.gradeLevel);
+        if (query.subjectId) filter.subjectId = new Types.ObjectId(query.subjectId);
+        return this.testModel.find(filter)
+            .populate('subjectId', 'name')
+            .populate('teacherId', 'firstName lastName')
+            .populate('questionIds')
+            .sort({ createdAt: -1 })
+            .exec();
+    }
+
+    async getTestById(id: string) {
+        return this.testModel.findById(id)
+            .populate('subjectId', 'name')
+            .populate('teacherId', 'firstName lastName')
+            .populate('questionIds')
+            .exec();
+    }
+
+    async updateTest(id: string, data: any) {
+        return this.testModel.findByIdAndUpdate(id, data, { new: true })
+            .populate('questionIds')
+            .exec();
+    }
+
+    async deleteTest(id: string) {
+        return this.testModel.findByIdAndDelete(id).exec();
     }
 }

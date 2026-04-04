@@ -32,6 +32,9 @@ export class Assignment {
     // Optional: link to a specific LiveClass or Group if needed
     @Prop({ type: Types.ObjectId, ref: 'LiveClass' })
     classId: Types.ObjectId;
+
+    @Prop({ type: [String], default: [] })
+    attachments: string[]; // Öğretmenin eklediği dosyalar (resim/PDF URL)
 }
 
 export const AssignmentSchema = SchemaFactory.createForClass(Assignment);

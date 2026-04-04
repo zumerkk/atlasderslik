@@ -28,6 +28,9 @@ export class Submission {
 
     @Prop({ default: Date.now })
     submittedAt: Date;
+
+    @Prop({ type: [String], default: [] })
+    fileUrls: string[]; // Birden fazla dosya yükleme
 }
 
 export const SubmissionSchema = SchemaFactory.createForClass(Submission);
