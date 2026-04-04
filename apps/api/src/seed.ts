@@ -11,7 +11,7 @@ import * as bcrypt from 'bcrypt';
 
 const MONGO_URI =
     process.env.MONGO_URI ||
-    'mongodb+srv://AtlasDerslik:2002%2E2002Atlas@atlasderslik.6ziq4aa.mongodb.net/atlas-derslik?retryWrites=true&w=majority&appName=AtlasDerslik';
+    'mongodb+srv://atlasderslik:2002%2E2002@atlasderslik.7qapnxz.mongodb.net/atlas-derslik?retryWrites=true&w=majority&appName=atlasderslik';
 
 const PASSWORD = 'Password123!';
 
