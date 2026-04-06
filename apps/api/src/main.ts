@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
+import express from 'express';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './filters/http-exception.filter';
 
@@ -10,13 +11,12 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule, {
     logger: ['error', 'warn', 'log'], // reduce verbose startup logs
-    bodyParser: true,
+    bodyParser: false, // disable default so we can set custom limits
   });
   
   // Increase body size limit for base64 image uploads
-  const bodyParser = require('body-parser');
-  app.use(bodyParser.json({ limit: '10mb' }));
-  app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
+  app.use(express.json({ limit: '10mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
   
   console.log(`[STARTUP] NestFactory.create done in ${Date.now() - startTime}ms`);
 
