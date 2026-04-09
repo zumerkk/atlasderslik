@@ -4,7 +4,7 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { Home, User } from "lucide-react";
 
 const sidebarLinks = [
-    { title: "Dashboard", href: "/parent", icon: Home },
+    { title: "Ana Sayfa", href: "/parent", icon: Home },
     { title: "Profilim", href: "/parent/profile", icon: User },
 ];
 

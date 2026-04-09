@@ -14,8 +14,8 @@ async function bootstrap() {
   });
   
   // Increase body size limit for base64 image uploads
-  app.useBodyParser('json', { limit: '10mb' });
-  app.useBodyParser('urlencoded', { limit: '10mb' });
+  app.useBodyParser('json', { limit: '50mb' });
+  app.useBodyParser('urlencoded', { limit: '50mb' });
   
   console.log(`[STARTUP] NestFactory.create done in ${Date.now() - startTime}ms`);
 

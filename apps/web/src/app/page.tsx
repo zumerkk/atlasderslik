@@ -75,7 +75,7 @@ export default async function Home() {
               <div className="flex-1 text-center lg:text-left">
                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white/90 text-sm font-medium mb-8 animate-fade-in">
                   <Sparkles className="h-4 w-4" />
-                  <span>2025-2026 Eğitim Dönemi Kayıtları Açık!</span>
+                  <span>2026-2027 Eğitim Dönemi Kayıtları Açık!</span>
                 </div>
 
                 <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight mb-6 animate-fade-in delay-100">

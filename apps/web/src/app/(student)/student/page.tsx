@@ -104,7 +104,7 @@ export default function StudentDashboard() {
         <div className="space-y-6 animate-fade-in">
             {/* Header */}
             <PageHeader
-                title="Öğrenci Dashboard"
+                title="Öğrenci Paneli"
                 description={user ? `Hoş geldin, ${user.firstName} ${user.lastName}!` : "Yükleniyor..."}
             >
                 <Link href="/student/assignments">

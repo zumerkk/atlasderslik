@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 
 const sidebarLinks = [
-    { title: "Dashboard", href: "/admin", icon: Home },
+    { title: "Ana Sayfa", href: "/admin", icon: Home },
     { title: "Sınıflar", href: "/admin/grades", icon: GraduationCap },
     { title: "Dersler", href: "/admin/subjects", icon: BookOpen },
     { title: "Üniteler", href: "/admin/units", icon: Layers },

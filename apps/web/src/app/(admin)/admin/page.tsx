@@ -122,7 +122,7 @@ export default function AdminDashboard() {
         <div className="space-y-6 animate-fade-in">
             {/* Page Header */}
             <PageHeader
-                title="Admin Dashboard"
+                title="Yönetim Paneli"
                 description={user ? `Hoş geldin, ${user.firstName} ${user.lastName}!` : "Yükleniyor..."}
             />
 

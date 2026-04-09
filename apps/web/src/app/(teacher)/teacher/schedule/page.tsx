@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { apiGet } from "@/lib/api";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -8,15 +8,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { EmptyState } from "@/components/ui/empty-state";
 import { CalendarDays, Clock, User, Video, FileText, MapPin } from "lucide-react";
 
-const DAYS = [
+const ALL_DAYS = [
     { value: 1, label: "Pazartesi", short: "Pzt" },
     { value: 2, label: "Salı", short: "Sal" },
     { value: 3, label: "Çarşamba", short: "Çar" },
     { value: 4, label: "Perşembe", short: "Per" },
     { value: 5, label: "Cuma", short: "Cum" },
+    { value: 6, label: "Cumartesi", short: "Cmt" },
+    { value: 7, label: "Pazar", short: "Paz" },
 ];
-
-const TIME_SLOTS = ["09:00", "09:50", "10:40", "11:30", "13:00"];
 
 const SUBJECT_COLORS: Record<string, string> = {
     "Matematik": "bg-blue-100 border-blue-300 text-blue-800",
@@ -31,7 +31,20 @@ export default function TeacherSchedulePage() {
     const [loading, setLoading] = useState(true);
 
     const todayDow = new Date().getDay(); // 0=Sun, 1=Mon...
-    const todayMapped = todayDow === 0 ? 0 : todayDow; // 0 means weekend
+    const todayMapped = todayDow === 0 ? 7 : todayDow; // 7=Pazar, 1=Pazartesi
+
+    // Derive time slots and active days dynamically from backend data
+    const timeSlots = useMemo(() => {
+        if (!schedules.length) return [];
+        const slots = [...new Set(schedules.map((s: any) => s.startTime))];
+        return slots.sort();
+    }, [schedules]);
+
+    const DAYS = useMemo(() => {
+        if (!schedules.length) return ALL_DAYS.slice(0, 5);
+        const dayValues = new Set(schedules.map((s: any) => s.dayOfWeek));
+        return ALL_DAYS.filter(d => dayValues.has(d.value));
+    }, [schedules]);
 
     useEffect(() => {
         (async () => {
@@ -82,7 +95,7 @@ export default function TeacherSchedulePage() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {TIME_SLOTS.map((startTime, si) => (
+                                        {timeSlots.map((startTime, si) => (
                                             <tr key={si} className="border-b last:border-b-0">
                                                 <td className="p-3 text-xs font-mono text-muted-foreground bg-muted/10">{startTime}</td>
                                                 {DAYS.map(day => {

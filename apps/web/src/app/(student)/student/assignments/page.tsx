@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Calendar, FileText, Upload, CheckCircle, AlertCircle, Loader2, Clock, AlertTriangle } from "lucide-react";
+import { Calendar, FileText, Upload, CheckCircle, AlertCircle, Loader2, Clock, AlertTriangle, Link2, Image } from "lucide-react";
 import { format, isPast, differenceInDays } from "date-fns";
 import { tr } from "date-fns/locale";
 import { apiGet, apiPost } from "@/lib/api";
@@ -57,6 +57,65 @@ export default function StudentAssignmentsPage() {
     const [note, setNote] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+    const [submitMode, setSubmitMode] = useState<"LINK" | "FILE">("FILE");
+    const [uploadedFileData, setUploadedFileData] = useState<string>("");
+    const [uploadedFileName, setUploadedFileName] = useState<string>("");
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Compress image for base64 upload
+    const compressImage = (file: File, maxWidth = 1200, quality = 0.7): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const img = new window.Image();
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                img.onload = () => {
+                    const canvas = document.createElement("canvas");
+                    let w = img.width;
+                    let h = img.height;
+                    if (w > maxWidth) { h = Math.round((h * maxWidth) / w); w = maxWidth; }
+                    canvas.width = w;
+                    canvas.height = h;
+                    const ctx = canvas.getContext("2d");
+                    if (!ctx) { reject(new Error("Canvas error")); return; }
+                    ctx.drawImage(img, 0, 0, w, h);
+                    resolve(canvas.toDataURL("image/jpeg", quality));
+                };
+                img.onerror = () => reject(new Error("Image load error"));
+                img.src = ev.target?.result as string;
+            };
+            reader.onerror = () => reject(new Error("FileReader error"));
+            reader.readAsDataURL(file);
+        });
+    };
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (file.size > 10 * 1024 * 1024) {
+            setFeedback({ type: "error", message: "Dosya boyutu 10MB'dan küçük olmalıdır." });
+            return;
+        }
+        try {
+            setFeedback({ type: "success", message: "Dosya hazırlanıyor..." });
+            let dataUrl: string;
+            if (file.type.startsWith("image/")) {
+                dataUrl = await compressImage(file);
+            } else {
+                // Non-image files: read as base64 directly
+                dataUrl = await new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (ev) => resolve(ev.target?.result as string);
+                    reader.onerror = () => reject(new Error("Dosya okunamadı"));
+                    reader.readAsDataURL(file);
+                });
+            }
+            setUploadedFileData(dataUrl);
+            setUploadedFileName(file.name);
+            setFeedback(null);
+        } catch {
+            setFeedback({ type: "error", message: "Dosya yüklenirken hata oluştu." });
+        }
+    };
 
     useEffect(() => { fetchData(); }, []);
     useEffect(() => { if (feedback) { const t = setTimeout(() => setFeedback(null), 4000); return () => clearTimeout(t); } }, [feedback]);
@@ -77,27 +136,33 @@ export default function StudentAssignmentsPage() {
         setSelectedAssignment(assign);
         setFileUrl("");
         setNote("");
+        setUploadedFileData("");
+        setUploadedFileName("");
+        setSubmitMode("FILE");
         setDialogOpen(true);
     };
 
     const handleSubmit = async () => {
         if (!selectedAssignment) return;
-        if (!fileUrl.trim()) {
-            setFeedback({ type: "error", message: "Lütfen bir dosya linki girin." });
+        const finalFileUrl = submitMode === "FILE" ? uploadedFileData : fileUrl.trim();
+        if (!finalFileUrl) {
+            setFeedback({ type: "error", message: submitMode === "FILE" ? "Lütfen bir dosya yükleyin." : "Lütfen bir dosya linki girin." });
             return;
         }
         setSubmitting(true);
         try {
             const res = await apiPost("/education/assignments/submit", {
                 assignmentId: selectedAssignment._id,
-                fileUrl: fileUrl.trim(),
+                fileUrl: finalFileUrl,
                 note: note.trim() || "Öğrenci teslimi",
-            });
+            }, { timeout: 30000 });
             if (res.ok) {
                 setDialogOpen(false);
                 setSelectedAssignment(null);
                 setFileUrl("");
                 setNote("");
+                setUploadedFileData("");
+                setUploadedFileName("");
                 setFeedback({ type: "success", message: "Ödev başarıyla teslim edildi!" });
                 fetchData();
             } else {
@@ -270,7 +335,7 @@ export default function StudentAssignmentsPage() {
                     <DialogHeader>
                         <DialogTitle>Ödev Teslimi</DialogTitle>
                         <DialogDescription>
-                            <strong>{selectedAssignment?.title}</strong> — dosya linkini yapıştırın.
+                            <strong>{selectedAssignment?.title}</strong> — dosya yükleyin veya link yapıştırın.
                         </DialogDescription>
                     </DialogHeader>
                     {selectedAssignment && getStatus(selectedAssignment._id).isLate && (
@@ -279,17 +344,63 @@ export default function StudentAssignmentsPage() {
                             Son tarih geçmiş. Geç teslim olarak işaretlenecektir.
                         </div>
                     )}
+
+                    {/* Mode Tabs */}
+                    <div className="flex gap-1 bg-muted/50 rounded-lg p-1">
+                        <button
+                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium rounded-lg transition-all ${submitMode === "FILE" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}
+                            onClick={() => setSubmitMode("FILE")}
+                        >
+                            <Upload className="h-4 w-4" /> Dosya Yükle
+                        </button>
+                        <button
+                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium rounded-lg transition-all ${submitMode === "LINK" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}
+                            onClick={() => setSubmitMode("LINK")}
+                        >
+                            <Link2 className="h-4 w-4" /> Link Yapıştır
+                        </button>
+                    </div>
+
                     <div className="grid gap-4 py-2">
-                        <div className="grid gap-2">
-                            <Label>Dosya Linki <span className="text-destructive">*</span></Label>
-                            <Input
-                                value={fileUrl}
-                                onChange={(e) => setFileUrl(e.target.value)}
-                                placeholder="https://drive.google.com/..."
-                                autoFocus
-                            />
-                            <p className="text-xs text-muted-foreground">Google Drive, Dropbox veya başka bir paylaşım linki yapıştırın.</p>
-                        </div>
+                        {submitMode === "FILE" ? (
+                            <div className="grid gap-2">
+                                <Label>Dosya Yükle <span className="text-destructive">*</span></Label>
+                                <div
+                                    className="border-2 border-dashed rounded-xl p-6 text-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors"
+                                    onClick={() => fileInputRef.current?.click()}
+                                >
+                                    {uploadedFileName ? (
+                                        <div className="flex flex-col items-center gap-2">
+                                            {uploadedFileData.startsWith("data:image") ? (
+                                                <img src={uploadedFileData} alt="" className="max-h-32 rounded-lg object-contain" />
+                                            ) : (
+                                                <FileText className="h-10 w-10 text-primary opacity-60" />
+                                            )}
+                                            <p className="text-sm font-medium text-primary">{uploadedFileName}</p>
+                                            <p className="text-xs text-muted-foreground">Değiştirmek için tıklayın</p>
+                                        </div>
+                                    ) : (
+                                        <div className="text-muted-foreground">
+                                            <Upload className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                            <p className="text-sm font-medium">Dosya yüklemek için tıklayın</p>
+                                            <p className="text-xs mt-1">Resim, PDF — Max 10MB</p>
+                                        </div>
+                                    )}
+                                </div>
+                                <input ref={fileInputRef} type="file" accept="image/*,.pdf,.doc,.docx" className="hidden" onChange={handleFileUpload} />
+                            </div>
+                        ) : (
+                            <div className="grid gap-2">
+                                <Label>Dosya Linki <span className="text-destructive">*</span></Label>
+                                <Input
+                                    value={fileUrl}
+                                    onChange={(e) => setFileUrl(e.target.value)}
+                                    placeholder="https://drive.google.com/..."
+                                    autoFocus
+                                />
+                                <p className="text-xs text-muted-foreground">Google Drive, Dropbox veya başka bir paylaşım linki yapıştırın.</p>
+                            </div>
+                        )}
                         <div className="grid gap-2">
                             <Label>Not (opsiyonel)</Label>
                             <Textarea
@@ -304,7 +415,7 @@ export default function StudentAssignmentsPage() {
                         <Button variant="outline" onClick={() => setDialogOpen(false)}>İptal</Button>
                         <Button
                             onClick={handleSubmit}
-                            disabled={submitting || !fileUrl.trim()}
+                            disabled={submitting || (submitMode === "FILE" ? !uploadedFileData : !fileUrl.trim())}
                         >
                             {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
                             {submitting ? "Gönderiliyor..." : "Gönder"}

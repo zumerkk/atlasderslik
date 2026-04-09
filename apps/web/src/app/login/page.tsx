@@ -115,6 +115,12 @@ export default function LoginPage() {
                             </p>
                         </div>
 
+                        {/* Reminder for users */}
+                        <div className="flex items-start gap-2.5 bg-blue-50 border border-blue-200 text-blue-700 text-xs px-4 py-3 rounded-xl mb-5">
+                            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                            <p>Lütfen size verilen <strong>e-posta adresi</strong> ve <strong>şifre</strong> ile giriş yapın. Kişisel e-posta adresinizi değil, size iletilen hesap bilgilerini kullanın.</p>
+                        </div>
+
                         <form onSubmit={handleLogin} className="space-y-5">
                             <div className="space-y-2">
                                 <Label htmlFor="email" className="text-sm font-medium text-gray-700">

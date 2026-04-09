@@ -47,20 +47,52 @@ export default function TeacherQuestionsPage() {
         try { const res = await apiGet("/education/teacher-assignments/mine"); if (res.ok) { const a = await res.json(); const s = a.map((x: any) => x.subjectId).filter(Boolean); setSubjects(s.filter((v: any, i: number, arr: any[]) => arr.findIndex(x => x._id === v._id) === i)); } } catch (e) { console.error(e); }
     };
 
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Compress image using canvas to reduce base64 size
+    const compressImage = (file: File, maxWidth = 1200, quality = 0.7): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const img = new window.Image();
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                img.onload = () => {
+                    const canvas = document.createElement("canvas");
+                    let w = img.width;
+                    let h = img.height;
+                    if (w > maxWidth) {
+                        h = Math.round((h * maxWidth) / w);
+                        w = maxWidth;
+                    }
+                    canvas.width = w;
+                    canvas.height = h;
+                    const ctx = canvas.getContext("2d");
+                    if (!ctx) { reject(new Error("Canvas context error")); return; }
+                    ctx.drawImage(img, 0, 0, w, h);
+                    const dataUrl = canvas.toDataURL("image/jpeg", quality);
+                    resolve(dataUrl);
+                };
+                img.onerror = () => reject(new Error("Image load error"));
+                img.src = ev.target?.result as string;
+            };
+            reader.onerror = () => reject(new Error("FileReader error"));
+            reader.readAsDataURL(file);
+        });
+    };
+
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-        if (file.size > 5 * 1024 * 1024) {
-            setFeedback({ type: "error", message: "Dosya boyutu 5MB'dan küçük olmalıdır." });
+        if (file.size > 10 * 1024 * 1024) {
+            setFeedback({ type: "error", message: "Dosya boyutu 10MB'dan küçük olmalıdır." });
             return;
         }
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            const dataUrl = ev.target?.result as string;
-            setImagePreview(dataUrl);
-            setFormData(prev => ({ ...prev, imageUrl: dataUrl }));
-        };
-        reader.readAsDataURL(file);
+        try {
+            setFeedback({ type: "success", message: "Fotoğraf sıkıştırılıyor..." });
+            const compressed = await compressImage(file);
+            setImagePreview(compressed);
+            setFormData(prev => ({ ...prev, imageUrl: compressed }));
+            setFeedback(null);
+        } catch {
+            setFeedback({ type: "error", message: "Fotoğraf yüklenirken hata oluştu." });
+        }
     };
 
     const handleSubmit = async () => {
@@ -83,15 +115,16 @@ export default function TeacherQuestionsPage() {
 
         try {
             const res = editingQuestion
-                ? await apiPatch(`/education/questions/${editingQuestion._id}`, payload)
-                : await apiPost("/education/questions", payload);
+                ? await apiPatch(`/education/questions/${editingQuestion._id}`, payload, { timeout: 30000 })
+                : await apiPost("/education/questions", payload, { timeout: 30000 });
             if (res.ok) {
                 setDialogOpen(false); setEditingQuestion(null); resetForm(); fetchQuestions();
                 setFeedback({ type: "success", message: editingQuestion ? "Soru güncellendi!" : "Soru eklendi!" });
             } else {
-                setFeedback({ type: "error", message: "İşlem başarısız." });
+                const errData = await res.json().catch(() => ({}));
+                setFeedback({ type: "error", message: errData.message || "İşlem başarısız." });
             }
-        } catch { setFeedback({ type: "error", message: "Bir hata oluştu." }); } finally { setSubmitting(false); }
+        } catch (err: any) { setFeedback({ type: "error", message: err?.message || "Bir hata oluştu. Lütfen tekrar deneyin." }); } finally { setSubmitting(false); }
     };
 
     const handleDelete = async () => {

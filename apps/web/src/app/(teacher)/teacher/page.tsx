@@ -91,7 +91,7 @@ export default function TeacherDashboard() {
         <div className="space-y-6 animate-fade-in">
             {/* Header */}
             <PageHeader
-                title="Öğretmen Dashboard"
+                title="Öğretmen Paneli"
                 description={user ? `Hoş geldin, ${user.firstName} ${user.lastName}!` : "Yükleniyor..."}
             >
                 <Link href="/teacher/classes">
