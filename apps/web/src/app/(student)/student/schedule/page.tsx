@@ -23,6 +23,12 @@ const SUBJECT_COLORS: Record<string, string> = {
     "Türkçe": "bg-rose-100 border-rose-300 text-rose-800",
     "Fen Bilimleri": "bg-emerald-100 border-emerald-300 text-emerald-800",
     "Sosyal Bilgiler": "bg-amber-100 border-amber-300 text-amber-800",
+    "İngilizce": "bg-violet-100 border-violet-300 text-violet-800",
+    "Din Kültürü ve Ahlak Bilgisi": "bg-teal-100 border-teal-300 text-teal-800",
+    "Din Kültürü": "bg-teal-100 border-teal-300 text-teal-800",
+    "Hayat Bilgisi": "bg-orange-100 border-orange-300 text-orange-800",
+    "T.C. İnkılap Tarihi ve Atatürkçülük": "bg-indigo-100 border-indigo-300 text-indigo-800",
+    "T.C. İnkılap Tarihi": "bg-indigo-100 border-indigo-300 text-indigo-800",
 };
 
 export default function StudentSchedulePage() {

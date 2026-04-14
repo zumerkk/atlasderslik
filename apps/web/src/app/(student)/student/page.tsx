@@ -21,6 +21,7 @@ import {
     ArrowRight,
     Video,
     PlayCircle,
+    AlertTriangle,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -56,6 +57,7 @@ export default function StudentDashboard() {
     }, []);
 
     // Derived stats
+    const enrolled = data?.enrolled !== false;
     const gradeLevel = data?.gradeLevel;
     const courseCount = data?.courses
         ? [...new Set(data.courses.map((c: any) => c.subjectId?._id))].length
@@ -120,6 +122,17 @@ export default function StudentDashboard() {
                     </Button>
                 </Link>
             </PageHeader>
+
+            {/* Enrollment Warning */}
+            {!loading && !enrolled && (
+                <div className="flex items-start gap-3 px-4 py-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+                    <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
+                    <div>
+                        <p className="font-semibold">Sınıf kaydınız henüz yapılmamış</p>
+                        <p className="text-xs mt-0.5 text-amber-600">Ders, ödev ve canlı derslerinizi görebilmek için yöneticinizin sizi bir sınıfa kaydetmesi gerekmektedir.</p>
+                    </div>
+                </div>
+            )}
 
             {/* Stats */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
