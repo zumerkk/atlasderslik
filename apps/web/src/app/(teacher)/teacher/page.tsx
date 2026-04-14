@@ -33,18 +33,39 @@ export default function TeacherDashboard() {
                 if (userStr) setUser(JSON.parse(userStr));
 
                 const token = localStorage.getItem("token");
-                const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/statistics/teacher", {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
+                const [res, scheduleRes] = await Promise.all([
+                    fetch(process.env.NEXT_PUBLIC_API_URL + "/statistics/teacher", {
+                        headers: { Authorization: `Bearer ${token}` },
+                    }),
+                    fetch(process.env.NEXT_PUBLIC_API_URL + "/education/schedules/teacher", {
+                        headers: { Authorization: `Bearer ${token}` },
+                    })
+                ]);
 
                 if (res.ok) {
                     const data = await res.json();
+                    let mappedLessons: any[] = [];
+                    if (scheduleRes.ok) {
+                        const sData = await scheduleRes.json();
+                        const todayDow = new Date().getDay();
+                        const todayMapped = todayDow === 0 ? 7 : todayDow;
+                        mappedLessons = (Array.isArray(sData) ? sData : [])
+                            .filter((s: any) => s.dayOfWeek === todayMapped)
+                            .sort((a: any, b: any) => a.startTime.localeCompare(b.startTime))
+                            .map((s: any) => ({
+                                startTime: s.startTime,
+                                subject: s.subjectId?.name || "Bilinmeyen Ders",
+                                className: `${s.gradeId?.level}. Sınıf - ${(s.gradeId as any)?.label || ""}`,
+                                topic: s.room ? `Oda: ${s.room}` : "Belirtilmemiş",
+                            }));
+                    }
+
                     setStats({
                         total_students: data.myStudents || 0,
                         total_classes: data.myAssignedClasses || 0,
                         pending_assignments: data.myAssignments || 0,
                         weekly_lessons: data.myLiveClasses || 0,
-                        today_lessons: [],
+                        today_lessons: mappedLessons,
                     });
                 }
             } catch (error) {
@@ -72,7 +93,7 @@ export default function TeacherDashboard() {
             iconColor: "text-emerald-600",
         },
         {
-            title: "Bekleyen Ödev",
+            title: "Verilen Ödevler",
             value: stats?.pending_assignments || 0,
             icon: CheckCircle,
             iconBg: "bg-amber-50",

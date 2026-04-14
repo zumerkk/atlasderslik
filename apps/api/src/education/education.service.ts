@@ -317,11 +317,12 @@ export class EducationService implements OnModuleInit {
         }
 
         const gradeLevels = enrollments.map((e: any) => (e.gradeId as any)?.level).filter(Boolean);
+        const gradeLabels = enrollments.map((e: any) => (e.gradeId as any)?.label).filter(Boolean);
         const gradeOids = enrollments.map((e: any) => (e.gradeId as any)?._id || e.gradeId).filter(Boolean);
 
         if (!gradeLevels.length) {
             return {
-                enrolled: true, gradeLevels: [],
+                enrolled: true, gradeLevels: [], gradeLabels: [],
                 courses: [], liveClasses: [], videos: [], assignments: [], submissions: [],
             };
         }
@@ -381,7 +382,7 @@ export class EducationService implements OnModuleInit {
             return obj;
         });
 
-        return { enrolled: true, gradeLevels, gradeLevel: gradeLevels[0], courses, liveClasses, videos, assignments, submissions };
+        return { enrolled: true, gradeLevels, gradeLabels, gradeLevel: gradeLevels[0], courses, liveClasses, videos, assignments, submissions };
     }
 
     async getStudentCourses(studentId: string) {

@@ -57,11 +57,13 @@ export default function StudentSchedulePage() {
             try {
                 const sRes = await apiGet("/education/schedules/student");
                 const sData = await sRes.json();
-                setSchedules(sData);
+                
+                const validSchedules = Array.isArray(sData) ? sData : [];
+                setSchedules(validSchedules);
 
                 // Get gradeLevel from first schedule entry
-                if (sData.length > 0) {
-                    const gradeLevel = sData[0].gradeId?.level || sData[0].subjectId?.gradeLevel;
+                if (validSchedules.length > 0) {
+                    const gradeLevel = validSchedules[0].gradeId?.level || validSchedules[0].subjectId?.gradeLevel;
                     if (gradeLevel) {
                         const evRes = await apiGet(`/education/calendar/events?gradeLevel=${gradeLevel}`);
                         setEvents(await evRes.json());
@@ -75,8 +77,8 @@ export default function StudentSchedulePage() {
         schedules.find(s => s.dayOfWeek === day && s.startTime === startTime);
 
     const now = new Date();
-    const upcomingLC = events.liveClasses.filter(lc => new Date(lc.startTime) > now).slice(0, 3);
-    const upcomingAssignments = events.assignments.filter(a => new Date(a.dueDate) > now).slice(0, 3);
+    const upcomingLC = events?.liveClasses?.filter(lc => new Date(lc.startTime) > now).slice(0, 3) || [];
+    const upcomingAssignments = events?.assignments?.filter(a => new Date(a.dueDate) > now).slice(0, 3) || [];
 
     // Find next class today
     const todaySlots = schedules

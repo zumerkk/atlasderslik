@@ -47,33 +47,34 @@ export default function TeacherQuestionsPage() {
         try { const res = await apiGet("/education/teacher-assignments/mine"); if (res.ok) { const a = await res.json(); const s = a.map((x: any) => x.subjectId).filter(Boolean); setSubjects(s.filter((v: any, i: number, arr: any[]) => arr.findIndex(x => x._id === v._id) === i)); } } catch (e) { console.error(e); }
     };
 
-    // Compress image using canvas to reduce base64 size
+    // Compress image using canvas to reduce base64 size with objectURL instead of base64
     const compressImage = (file: File, maxWidth = 1200, quality = 0.7): Promise<string> => {
         return new Promise((resolve, reject) => {
             const img = new window.Image();
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                img.onload = () => {
-                    const canvas = document.createElement("canvas");
-                    let w = img.width;
-                    let h = img.height;
-                    if (w > maxWidth) {
-                        h = Math.round((h * maxWidth) / w);
-                        w = maxWidth;
-                    }
-                    canvas.width = w;
-                    canvas.height = h;
-                    const ctx = canvas.getContext("2d");
-                    if (!ctx) { reject(new Error("Canvas context error")); return; }
-                    ctx.drawImage(img, 0, 0, w, h);
-                    const dataUrl = canvas.toDataURL("image/jpeg", quality);
-                    resolve(dataUrl);
-                };
-                img.onerror = () => reject(new Error("Image load error"));
-                img.src = ev.target?.result as string;
+            const objectUrl = URL.createObjectURL(file);
+            
+            img.onload = () => {
+                URL.revokeObjectURL(objectUrl);
+                const canvas = document.createElement("canvas");
+                let w = img.width;
+                let h = img.height;
+                if (w > maxWidth) {
+                    h = Math.round((h * maxWidth) / w);
+                    w = maxWidth;
+                }
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext("2d");
+                if (!ctx) { reject(new Error("Canvas context error")); return; }
+                ctx.drawImage(img, 0, 0, w, h);
+                const dataUrl = canvas.toDataURL("image/jpeg", quality);
+                resolve(dataUrl);
             };
-            reader.onerror = () => reject(new Error("FileReader error"));
-            reader.readAsDataURL(file);
+            img.onerror = () => {
+                URL.revokeObjectURL(objectUrl);
+                reject(new Error("Image load error"));
+            };
+            img.src = objectUrl;
         });
     };
 

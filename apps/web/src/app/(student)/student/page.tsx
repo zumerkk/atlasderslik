@@ -58,7 +58,7 @@ export default function StudentDashboard() {
 
     // Derived stats
     const enrolled = data?.enrolled !== false;
-    const gradeLevel = data?.gradeLevel;
+    const gradeString = data?.gradeLabels?.length ? data.gradeLabels.join(" & ") : "—";
     const courseCount = data?.courses
         ? [...new Set(data.courses.map((c: any) => c.subjectId?._id))].length
         : 0;
@@ -73,8 +73,8 @@ export default function StudentDashboard() {
 
     const statCards = [
         {
-            title: "Sınıf",
-            value: gradeLevel ? `${gradeLevel}. Sınıf` : "—",
+            title: "Kayıtlı Sınıflar",
+            value: gradeString,
             icon: BookOpen,
             iconBg: "bg-blue-50",
             iconColor: "text-blue-600",

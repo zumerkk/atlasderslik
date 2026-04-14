@@ -59,8 +59,10 @@ export default function TeacherSchedulePage() {
                     apiGet("/education/schedules/teacher"),
                     apiGet("/education/live-classes/teacher"),
                 ]);
-                setSchedules(await sRes.json());
-                setLiveClasses(await lcRes.json());
+                const sData = await sRes.json();
+                const lcData = await lcRes.json();
+                setSchedules(Array.isArray(sData) ? sData : []);
+                setLiveClasses(Array.isArray(lcData) ? lcData : []);
             } catch { } finally { setLoading(false); }
         })();
     }, []);
