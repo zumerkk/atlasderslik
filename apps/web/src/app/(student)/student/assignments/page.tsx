@@ -28,6 +28,7 @@ interface Assignment {
     teacherId: { firstName: string; lastName: string };
     maxScore?: number;
     instructions?: string;
+    attachments?: string[];
 }
 
 interface Submission {
@@ -286,6 +287,19 @@ export default function StudentAssignmentsPage() {
                                     </div>
                                     {assign.instructions && (
                                         <p className="text-xs text-muted-foreground italic">📋 {assign.instructions}</p>
+                                    )}
+                                    {/* Show Teacher Attachments */}
+                                    {assign.attachments && assign.attachments.length > 0 && (
+                                        <div className="flex flex-col gap-1.5 mt-2">
+                                            <p className="text-xs font-semibold text-muted-foreground">Ekler:</p>
+                                            <div className="flex flex-wrap gap-2">
+                                                {assign.attachments.map((att, i) => (
+                                                    <a key={i} href={att} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs text-blue-600 bg-blue-50 px-2.5 py-1.5 rounded-lg hover:bg-blue-100 transition-colors w-fit border border-blue-100">
+                                                        <FileText className="h-3.5 w-3.5" /> Ek Dosya {i + 1}
+                                                    </a>
+                                                ))}
+                                            </div>
+                                        </div>
                                     )}
                                     {/* Submission details */}
                                     {submission && (

@@ -36,8 +36,8 @@ export class Question {
     @Prop({ default: '' })
     imageUrl: string; // Question image URL (photo of the question)
 
-    @Prop({ default: 'TEXT', enum: ['TEXT', 'IMAGE'] })
-    type: string; // TEXT = text-based, IMAGE = photo-only question
+    @Prop({ default: 'TEST', enum: ['TEST', 'OPEN_ENDED'] })
+    type: string; // TEST = multiple choice, OPEN_ENDED = open ended question
 
     @Prop({ type: [String], default: [] })
     optionImages: string[]; // Option images [A_url, B_url, C_url, D_url]

@@ -46,11 +46,7 @@ export default function TeacherSchedulePage() {
         return slots.sort();
     }, [schedules]);
 
-    const DAYS = useMemo(() => {
-        if (!schedules.length) return ALL_DAYS.slice(0, 5);
-        const dayValues = new Set(schedules.map((s: any) => s.dayOfWeek));
-        return ALL_DAYS.filter(d => dayValues.has(d.value));
-    }, [schedules]);
+    const DAYS = ALL_DAYS; // Haftalık tam görünüm (Pzt-Paz)
 
     useEffect(() => {
         (async () => {

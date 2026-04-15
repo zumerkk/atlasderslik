@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Loader2, Pencil, Trash2, Database, CheckCircle, AlertCircle, Image, FileText, Upload } from "lucide-react";
+import { Plus, Loader2, Pencil, Trash2, Database, CheckCircle, AlertCircle, Image as ImageIcon, FileText, Upload } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -30,24 +30,44 @@ export default function TeacherQuestionsPage() {
     const [subjects, setSubjects] = useState<{ _id: string; name: string; gradeLevel: number }[]>([]);
 
     // ─── Form State ─────────────────────────────────────────
-    const [questionMode, setQuestionMode] = useState<"TEXT" | "IMAGE">("TEXT");
+    const [questionMode, setQuestionMode] = useState<"TEST" | "OPEN_ENDED">("TEST");
     const [formData, setFormData] = useState({
         text: "", optionA: "", optionB: "", optionC: "", optionD: "",
         correctAnswer: "0", difficulty: "MEDIUM", gradeLevel: "8", subjectId: "",
-        imageUrl: "",
+        imageUrl: "", optionImageA: "", optionImageB: "", optionImageC: "", optionImageD: ""
     });
+    
+    // We use a single file input and track which field we are uploading for
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [uploadTarget, setUploadTarget] = useState<"QUESTION" | "A" | "B" | "C" | "D" | null>(null);
 
     useEffect(() => { fetchQuestions(); fetchSubjects(); }, []);
     useEffect(() => { if (feedback) { const t = setTimeout(() => setFeedback(null), 3000); return () => clearTimeout(t); } }, [feedback]);
 
-    const fetchQuestions = async () => { try { const res = await apiGet("/education/questions"); if (res.ok) setQuestions(await res.json()); } catch (e) { console.error(e); } finally { setLoading(false); } };
+    const fetchQuestions = async () => { 
+        try { 
+            const res = await apiGet("/education/questions"); 
+            if (res.ok) setQuestions(await res.json()); 
+        } catch (e) { 
+            console.error(e); 
+        } finally { 
+            setLoading(false); 
+        } 
+    };
+    
     const fetchSubjects = async () => {
-        try { const res = await apiGet("/education/teacher-assignments/mine"); if (res.ok) { const a = await res.json(); const s = a.map((x: any) => x.subjectId).filter(Boolean); setSubjects(s.filter((v: any, i: number, arr: any[]) => arr.findIndex(x => x._id === v._id) === i)); } } catch (e) { console.error(e); }
+        try { 
+            const res = await apiGet("/education/teacher-assignments/mine"); 
+            if (res.ok) { 
+                const a = await res.json(); 
+                const s = a.map((x: any) => x.subjectId).filter(Boolean); 
+                setSubjects(s.filter((v: any, i: number, arr: any[]) => arr.findIndex(x => x._id === v._id) === i)); 
+            } 
+        } catch (e) { 
+            console.error(e); 
+        }
     };
 
-    // Compress image using canvas to reduce base64 size with objectURL instead of base64
     const compressImage = (file: File, maxWidth = 1200, quality = 0.7): Promise<string> => {
         return new Promise((resolve, reject) => {
             const img = new window.Image();
@@ -80,33 +100,63 @@ export default function TeacherQuestionsPage() {
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (!file) return;
+        if (!file || !uploadTarget) return;
         if (file.size > 10 * 1024 * 1024) {
             setFeedback({ type: "error", message: "Dosya boyutu 10MB'dan küçük olmalıdır." });
             return;
         }
         try {
-            setFeedback({ type: "success", message: "Fotoğraf sıkıştırılıyor..." });
+            setFeedback({ type: "success", message: "Fotoğraf yükleniyor..." });
             const compressed = await compressImage(file);
-            setImagePreview(compressed);
-            setFormData(prev => ({ ...prev, imageUrl: compressed }));
+            
+            if (uploadTarget === "QUESTION") {
+                setFormData(prev => ({ ...prev, imageUrl: compressed }));
+            } else if (uploadTarget === "A") {
+                setFormData(prev => ({ ...prev, optionImageA: compressed }));
+            } else if (uploadTarget === "B") {
+                setFormData(prev => ({ ...prev, optionImageB: compressed }));
+            } else if (uploadTarget === "C") {
+                setFormData(prev => ({ ...prev, optionImageC: compressed }));
+            } else if (uploadTarget === "D") {
+                setFormData(prev => ({ ...prev, optionImageD: compressed }));
+            }
             setFeedback(null);
         } catch {
             setFeedback({ type: "error", message: "Fotoğraf yüklenirken hata oluştu." });
+        } finally {
+            // Reset input
+            if (fileInputRef.current) fileInputRef.current.value = "";
+            setUploadTarget(null);
         }
     };
 
+    const triggerUpload = (target: "QUESTION" | "A" | "B" | "C" | "D") => {
+        setUploadTarget(target);
+        fileInputRef.current?.click();
+    };
+
     const handleSubmit = async () => {
+        if (!formData.subjectId) {
+            setFeedback({ type: "error", message: "Lütfen bir ders seçin!" });
+            return;
+        }
+
         setSubmitting(true);
-        const isImageMode = questionMode === "IMAGE";
-        const options = isImageMode
-            ? ["A", "B", "C", "D"]
-            : [formData.optionA, formData.optionB, formData.optionC, formData.optionD];
+        const isTestMode = questionMode === "TEST";
+        
+        const options = isTestMode
+            ? [formData.optionA, formData.optionB, formData.optionC, formData.optionD]
+            : [];
+            
+        const optionImages = isTestMode
+            ? [formData.optionImageA, formData.optionImageB, formData.optionImageC, formData.optionImageD]
+            : [];
 
         const payload: any = {
-            text: isImageMode ? (formData.text || "Fotoğraflı Soru") : formData.text,
+            text: formData.text,
             options,
-            correctAnswer: Number(formData.correctAnswer),
+            optionImages,
+            correctAnswer: isTestMode ? Number(formData.correctAnswer) : 0,
             difficulty: formData.difficulty,
             gradeLevel: Number(formData.gradeLevel),
             subjectId: formData.subjectId,
@@ -125,29 +175,57 @@ export default function TeacherQuestionsPage() {
                 const errData = await res.json().catch(() => ({}));
                 setFeedback({ type: "error", message: errData.message || "İşlem başarısız." });
             }
-        } catch (err: any) { setFeedback({ type: "error", message: err?.message || "Bir hata oluştu. Lütfen tekrar deneyin." }); } finally { setSubmitting(false); }
+        } catch (err: any) { 
+            setFeedback({ type: "error", message: err?.message || "Bir hata oluştu. Lütfen tekrar deneyin." }); 
+        } finally { 
+            setSubmitting(false); 
+        }
     };
 
     const handleDelete = async () => {
         if (!deleteItem) return; setSubmitting(true);
-        try { const res = await apiDelete(`/education/questions/${deleteItem._id}`); if (res.ok) { setDeleteDialogOpen(false); fetchQuestions(); setFeedback({ type: "success", message: "Soru silindi." }); } } catch (e) { console.error(e); } finally { setSubmitting(false); }
+        try { 
+            const res = await apiDelete(`/education/questions/${deleteItem._id}`); 
+            if (res.ok) { 
+                setDeleteDialogOpen(false); fetchQuestions(); setFeedback({ type: "success", message: "Soru silindi." }); 
+            } 
+        } catch (e) { 
+            console.error(e); 
+        } finally { 
+            setSubmitting(false); 
+        }
     };
 
     const resetForm = () => {
-        setFormData({ text: "", optionA: "", optionB: "", optionC: "", optionD: "", correctAnswer: "0", difficulty: "MEDIUM", gradeLevel: "8", subjectId: "", imageUrl: "" });
-        setImagePreview(null);
-        setQuestionMode("TEXT");
+        setFormData({ 
+            text: "", optionA: "", optionB: "", optionC: "", optionD: "", 
+            correctAnswer: "0", difficulty: "MEDIUM", gradeLevel: "8", subjectId: "", 
+            imageUrl: "", optionImageA: "", optionImageB: "", optionImageC: "", optionImageD: "" 
+        });
+        setQuestionMode("TEST");
     };
 
     const openEdit = (q: Question) => {
         setEditingQuestion(q);
-        setQuestionMode((q.type as "TEXT" | "IMAGE") || "TEXT");
-        setImagePreview(q.imageUrl || null);
+        
+        // Handle old schema types gracefully
+        const mappedType = q.type === "IMAGE" || q.type === "TEXT" ? "TEST" : (q.type as "TEST" | "OPEN_ENDED" || "TEST");
+        
+        setQuestionMode(mappedType);
+        
         setFormData({
-            text: q.text, optionA: q.options[0] || "", optionB: q.options[1] || "",
-            optionC: q.options[2] || "", optionD: q.options[3] || "", correctAnswer: q.correctAnswer.toString(),
-            difficulty: q.difficulty, gradeLevel: q.gradeLevel.toString(), subjectId: q.subjectId?._id || "",
+            text: q.text, 
+            optionA: q.options[0] || "", optionB: q.options[1] || "",
+            optionC: q.options[2] || "", optionD: q.options[3] || "", 
+            correctAnswer: q.correctAnswer.toString(),
+            difficulty: q.difficulty, 
+            gradeLevel: q.gradeLevel.toString(), 
+            subjectId: q.subjectId?._id || "",
             imageUrl: q.imageUrl || "",
+            optionImageA: q.optionImages?.[0] || "",
+            optionImageB: q.optionImages?.[1] || "",
+            optionImageC: q.optionImages?.[2] || "",
+            optionImageD: q.optionImages?.[3] || "",
         });
         setDialogOpen(true);
     };
@@ -183,19 +261,19 @@ export default function TeacherQuestionsPage() {
                             <TableRow key={q._id}>
                                 <TableCell className="font-medium max-w-[250px] truncate">
                                     <div className="flex items-center gap-2">
-                                        {q.type === "IMAGE" && q.imageUrl && (
+                                        {q.imageUrl && (
                                             <img src={q.imageUrl} alt="" className="w-8 h-8 object-cover rounded" />
                                         )}
-                                        {q.text}
+                                        {q.text || "Görsel Soru"}
                                     </div>
                                 </TableCell>
                                 <TableCell>
-                                    {q.type === "IMAGE"
-                                        ? <Badge variant="info" className="gap-1"><Image className="h-3 w-3" />Fotoğraf</Badge>
-                                        : <Badge variant="secondary" className="gap-1"><FileText className="h-3 w-3" />Metin</Badge>
+                                    {q.type === "OPEN_ENDED"
+                                        ? <Badge variant="secondary" className="gap-1"><FileText className="h-3 w-3" />Açık Uçlu</Badge>
+                                        : <Badge variant="info" className="gap-1"><CheckCircle className="h-3 w-3" />Test</Badge>
                                     }
                                 </TableCell>
-                                <TableCell>{q.subjectId?.name}</TableCell>
+                                <TableCell>{q.subjectId?.name || "Bilinmiyor"}</TableCell>
                                 <TableCell><Badge variant="info">{q.gradeLevel}. Sınıf</Badge></TableCell>
                                 <TableCell>{difficultyBadge(q.difficulty)}</TableCell>
                                 <TableCell className="text-right">
@@ -212,92 +290,120 @@ export default function TeacherQuestionsPage() {
 
             {/* ─── Create/Edit Dialog ──────────────────────────── */}
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogContent className="max-w-lg">
+                <DialogContent className="max-w-2xl">
                     <DialogHeader>
                         <DialogTitle>{editingQuestion ? "Soru Düzenle" : "Yeni Soru Ekle"}</DialogTitle>
-                        <DialogDescription>Metin veya fotoğraf tabanlı soru oluşturun.</DialogDescription>
+                        <DialogDescription>Soru tipi seçin ve içeriğini belirleyin.</DialogDescription>
                     </DialogHeader>
 
                     {/* ─── Mode Tabs ─────────────────────────────── */}
                     <div className="flex gap-1 bg-muted/50 rounded-lg p-1">
-                        <button className={tabClass(questionMode === "TEXT")} onClick={() => setQuestionMode("TEXT")}>
-                            <FileText className="h-4 w-4" /> Metin Tabanlı
+                        <button className={tabClass(questionMode === "TEST")} onClick={() => setQuestionMode("TEST")}>
+                            <CheckCircle className="h-4 w-4" /> Çoktan Seçmeli (Test)
                         </button>
-                        <button className={tabClass(questionMode === "IMAGE")} onClick={() => setQuestionMode("IMAGE")}>
-                            <Image className="h-4 w-4" /> Fotoğraflı Soru
+                        <button className={tabClass(questionMode === "OPEN_ENDED")} onClick={() => setQuestionMode("OPEN_ENDED")}>
+                            <FileText className="h-4 w-4" /> Açık Uçlu
                         </button>
                     </div>
 
-                    <div className="grid gap-3 py-2 max-h-[55vh] overflow-y-auto">
-                        {questionMode === "TEXT" ? (
-                            <>
-                                {/* TEXT MODE */}
-                                <div className="grid gap-1">
-                                    <Label>Soru Metni</Label>
-                                    <Input value={formData.text} onChange={e => setFormData({ ...formData, text: e.target.value })} placeholder="Soru metnini yazın..." />
-                                </div>
-
-                                {/* Optional image for text questions */}
-                                <div className="grid gap-1">
-                                    <Label>Soru Görseli (İsteğe Bağlı)</Label>
-                                    <div className="flex items-center gap-2">
-                                        <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="gap-1">
-                                            <Upload className="h-3.5 w-3.5" /> Fotoğraf Ekle
-                                        </Button>
-                                        {imagePreview && (
-                                            <button onClick={() => { setImagePreview(null); setFormData(prev => ({ ...prev, imageUrl: "" })); }} className="text-xs text-destructive hover:underline">Kaldır</button>
-                                        )}
+                    <div className="grid gap-4 py-2 max-h-[60vh] overflow-y-auto px-1">
+                        {/* ─── Question Text & Image ─────────────────────────────── */}
+                        <div className="grid gap-2 p-3 border rounded-xl bg-slate-50/50">
+                            <Label className="text-base font-semibold">Soru İçeriği</Label>
+                            <Input value={formData.text} onChange={e => setFormData({ ...formData, text: e.target.value })} placeholder="Soru metnini yazın..." />
+                            
+                            <div className="flex items-start gap-3 mt-2">
+                                <Button type="button" variant="outline" size="sm" onClick={() => triggerUpload("QUESTION")} className="gap-1 shrink-0">
+                                    <Upload className="h-3.5 w-3.5" /> Soru Görseli Ekle
+                                </Button>
+                                {formData.imageUrl && (
+                                    <div className="relative group">
+                                        <img src={formData.imageUrl} alt="Soru" className="h-20 w-auto rounded border bg-white object-contain" />
+                                        <button onClick={() => setFormData(prev => ({ ...prev, imageUrl: "" }))} className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <Trash2 className="h-3 w-3" />
+                                        </button>
                                     </div>
-                                    {imagePreview && <img src={imagePreview} alt="Soru görseli" className="max-h-32 rounded-lg border object-contain" />}
-                                </div>
+                                )}
+                            </div>
+                        </div>
 
-                                <div className="grid grid-cols-2 gap-2">
-                                    <div><Label>A) Şık</Label><Input value={formData.optionA} onChange={e => setFormData({ ...formData, optionA: e.target.value })} /></div>
-                                    <div><Label>B) Şık</Label><Input value={formData.optionB} onChange={e => setFormData({ ...formData, optionB: e.target.value })} /></div>
-                                    <div><Label>C) Şık</Label><Input value={formData.optionC} onChange={e => setFormData({ ...formData, optionC: e.target.value })} /></div>
-                                    <div><Label>D) Şık</Label><Input value={formData.optionD} onChange={e => setFormData({ ...formData, optionD: e.target.value })} /></div>
-                                </div>
-                            </>
-                        ) : (
-                            <>
-                                {/* IMAGE MODE */}
-                                <div className="grid gap-2">
-                                    <Label>Soru Fotoğrafı</Label>
-                                    <div
-                                        className="border-2 border-dashed rounded-xl p-6 text-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors"
-                                        onClick={() => fileInputRef.current?.click()}
-                                    >
-                                        {imagePreview ? (
-                                            <img src={imagePreview} alt="Soru" className="max-h-48 mx-auto rounded-lg object-contain" />
-                                        ) : (
-                                            <div className="text-muted-foreground">
-                                                <Upload className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                                                <p className="text-sm font-medium">Soru fotoğrafını yükleyin</p>
-                                                <p className="text-xs mt-1">PNG, JPG — Max 5MB</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                    {imagePreview && (
-                                        <Button type="button" variant="outline" size="sm" onClick={() => { setImagePreview(null); setFormData(prev => ({ ...prev, imageUrl: "" })); }}>
-                                            Fotoğrafı Değiştir
-                                        </Button>
+                        {/* ─── Test Options ─────────────────────────────── */}
+                        {questionMode === "TEST" && (
+                            <div className="grid gap-3 p-3 border rounded-xl">
+                                <Label className="text-base font-semibold">Şıklar</Label>
+                                
+                                {/* Option A */}
+                                <div className="flex items-center gap-2">
+                                    <Badge variant="outline" className="w-8 justify-center shrink-0">A</Badge>
+                                    <Input value={formData.optionA} onChange={e => setFormData({ ...formData, optionA: e.target.value })} placeholder="A şıkkı metni..." />
+                                    <Button type="button" variant="ghost" size="icon" onClick={() => triggerUpload("A")} className="shrink-0" title="Resim Ekle">
+                                        <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                                    </Button>
+                                    {formData.optionImageA && (
+                                        <div className="relative">
+                                            <img src={formData.optionImageA} alt="A" className="h-10 w-10 object-cover rounded border" />
+                                            <button onClick={() => setFormData(prev => ({ ...prev, optionImageA: "" }))} className="absolute -top-1 -right-1 bg-destructive text-white rounded-full p-0.5"><Trash2 className="h-2 w-2" /></button>
+                                        </div>
                                     )}
                                 </div>
-                                <div className="grid gap-1">
-                                    <Label>Soru Açıklaması (İsteğe Bağlı)</Label>
-                                    <Input value={formData.text} onChange={e => setFormData({ ...formData, text: e.target.value })} placeholder="Kısa açıklama (ör. Soru 1)..." />
+                                
+                                {/* Option B */}
+                                <div className="flex items-center gap-2">
+                                    <Badge variant="outline" className="w-8 justify-center shrink-0">B</Badge>
+                                    <Input value={formData.optionB} onChange={e => setFormData({ ...formData, optionB: e.target.value })} placeholder="B şıkkı metni..." />
+                                    <Button type="button" variant="ghost" size="icon" onClick={() => triggerUpload("B")} className="shrink-0" title="Resim Ekle">
+                                        <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                                    </Button>
+                                    {formData.optionImageB && (
+                                        <div className="relative">
+                                            <img src={formData.optionImageB} alt="B" className="h-10 w-10 object-cover rounded border" />
+                                            <button onClick={() => setFormData(prev => ({ ...prev, optionImageB: "" }))} className="absolute -top-1 -right-1 bg-destructive text-white rounded-full p-0.5"><Trash2 className="h-2 w-2" /></button>
+                                        </div>
+                                    )}
                                 </div>
-                            </>
+
+                                {/* Option C */}
+                                <div className="flex items-center gap-2">
+                                    <Badge variant="outline" className="w-8 justify-center shrink-0">C</Badge>
+                                    <Input value={formData.optionC} onChange={e => setFormData({ ...formData, optionC: e.target.value })} placeholder="C şıkkı metni..." />
+                                    <Button type="button" variant="ghost" size="icon" onClick={() => triggerUpload("C")} className="shrink-0" title="Resim Ekle">
+                                        <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                                    </Button>
+                                    {formData.optionImageC && (
+                                        <div className="relative">
+                                            <img src={formData.optionImageC} alt="C" className="h-10 w-10 object-cover rounded border" />
+                                            <button onClick={() => setFormData(prev => ({ ...prev, optionImageC: "" }))} className="absolute -top-1 -right-1 bg-destructive text-white rounded-full p-0.5"><Trash2 className="h-2 w-2" /></button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Option D */}
+                                <div className="flex items-center gap-2">
+                                    <Badge variant="outline" className="w-8 justify-center shrink-0">D</Badge>
+                                    <Input value={formData.optionD} onChange={e => setFormData({ ...formData, optionD: e.target.value })} placeholder="D şıkkı metni..." />
+                                    <Button type="button" variant="ghost" size="icon" onClick={() => triggerUpload("D")} className="shrink-0" title="Resim Ekle">
+                                        <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                                    </Button>
+                                    {formData.optionImageD && (
+                                        <div className="relative">
+                                            <img src={formData.optionImageD} alt="D" className="h-10 w-10 object-cover rounded border" />
+                                            <button onClick={() => setFormData(prev => ({ ...prev, optionImageD: "" }))} className="absolute -top-1 -right-1 bg-destructive text-white rounded-full p-0.5"><Trash2 className="h-2 w-2" /></button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         )}
 
                         {/* Common Fields */}
-                        <div className="grid grid-cols-3 gap-2">
-                            <div>
-                                <Label>Doğru Cevap</Label>
-                                <select className={selectClass} value={formData.correctAnswer} onChange={e => setFormData({ ...formData, correctAnswer: e.target.value })}>
-                                    <option value="0">A</option><option value="1">B</option><option value="2">C</option><option value="3">D</option>
-                                </select>
-                            </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
+                            {questionMode === "TEST" && (
+                                <div>
+                                    <Label>Doğru Cevap</Label>
+                                    <select className={selectClass} value={formData.correctAnswer} onChange={e => setFormData({ ...formData, correctAnswer: e.target.value })}>
+                                        <option value="0">A</option><option value="1">B</option><option value="2">C</option><option value="3">D</option>
+                                    </select>
+                                </div>
+                            )}
                             <div>
                                 <Label>Zorluk</Label>
                                 <select className={selectClass} value={formData.difficulty} onChange={e => setFormData({ ...formData, difficulty: e.target.value })}>
@@ -310,22 +416,22 @@ export default function TeacherQuestionsPage() {
                                     {[1, 2, 3, 4, 5, 6, 7, 8].map(g => <option key={g} value={g}>{g}. Sınıf</option>)}
                                 </select>
                             </div>
-                        </div>
-                        <div>
-                            <Label>Ders</Label>
-                            <select className={selectClass} value={formData.subjectId} onChange={e => setFormData({ ...formData, subjectId: e.target.value })}>
-                                <option value="">Ders Seçin</option>{subjects.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
-                            </select>
+                            <div>
+                                <Label>Ders <span className="text-destructive">*</span></Label>
+                                <select className={selectClass} value={formData.subjectId} onChange={e => setFormData({ ...formData, subjectId: e.target.value })}>
+                                    <option value="">Ders Seçin</option>{subjects.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
+                                </select>
+                            </div>
                         </div>
                     </div>
 
                     <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
 
-                    <DialogFooter>
+                    <DialogFooter className="pt-4 border-t">
                         <Button variant="outline" onClick={() => setDialogOpen(false)}>İptal</Button>
                         <Button onClick={handleSubmit} disabled={submitting}>
                             {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                            {editingQuestion ? "Güncelle" : "Ekle"}
+                            {editingQuestion ? "Güncelle" : "Kaydet"}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
