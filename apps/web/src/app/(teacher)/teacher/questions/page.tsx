@@ -140,6 +140,10 @@ export default function TeacherQuestionsPage() {
             setFeedback({ type: "error", message: "Lütfen bir ders seçin!" });
             return;
         }
+        if (!formData.text && !formData.imageUrl) {
+            setFeedback({ type: "error", message: "Lütfen soru metni veya görseli ekleyin!" });
+            return;
+        }
 
         setSubmitting(true);
         const isTestMode = questionMode === "TEST";

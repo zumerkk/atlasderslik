@@ -5,7 +5,7 @@ export type QuestionDocument = Question & Document;
 
 @Schema({ timestamps: true })
 export class Question {
-    @Prop({ required: true })
+    @Prop({ default: '' })
     text: string;
 
     @Prop({ type: [String], default: [] })
