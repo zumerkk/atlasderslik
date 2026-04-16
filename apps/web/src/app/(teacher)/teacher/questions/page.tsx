@@ -15,7 +15,7 @@ import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/api";
 interface Question {
     _id: string; text: string; options: string[]; correctAnswer: number; difficulty: string;
     subjectId: { _id: string; name: string }; gradeLevel: number; imageUrl?: string;
-    type?: string; optionImages?: string[];
+    type?: string; optionImages?: string[]; objective?: string;
 }
 
 export default function TeacherQuestionsPage() {
@@ -34,7 +34,7 @@ export default function TeacherQuestionsPage() {
     const [formData, setFormData] = useState({
         text: "", optionA: "", optionB: "", optionC: "", optionD: "",
         correctAnswer: "0", difficulty: "MEDIUM", gradeLevel: "8", subjectId: "",
-        imageUrl: "", optionImageA: "", optionImageB: "", optionImageC: "", optionImageD: ""
+        imageUrl: "", optionImageA: "", optionImageB: "", optionImageC: "", optionImageD: "", objective: ""
     });
     
     // We use a single file input and track which field we are uploading for
@@ -162,6 +162,7 @@ export default function TeacherQuestionsPage() {
             subjectId: formData.subjectId,
             type: questionMode,
             imageUrl: formData.imageUrl || "",
+            objective: formData.objective || "",
         };
 
         try {
@@ -200,12 +201,12 @@ export default function TeacherQuestionsPage() {
         setFormData({ 
             text: "", optionA: "", optionB: "", optionC: "", optionD: "", 
             correctAnswer: "0", difficulty: "MEDIUM", gradeLevel: "8", subjectId: "", 
-            imageUrl: "", optionImageA: "", optionImageB: "", optionImageC: "", optionImageD: "" 
+            imageUrl: "", optionImageA: "", optionImageB: "", optionImageC: "", optionImageD: "", objective: "" 
         });
         setQuestionMode("TEST");
     };
 
-    const openEdit = (q: Question) => {
+    const openEdit = (q: any) => {
         setEditingQuestion(q);
         
         // Handle old schema types gracefully
@@ -226,6 +227,7 @@ export default function TeacherQuestionsPage() {
             optionImageB: q.optionImages?.[1] || "",
             optionImageC: q.optionImages?.[2] || "",
             optionImageD: q.optionImages?.[3] || "",
+            objective: q.objective || "",
         });
         setDialogOpen(true);
     };
@@ -264,7 +266,10 @@ export default function TeacherQuestionsPage() {
                                         {q.imageUrl && (
                                             <img src={q.imageUrl} alt="" className="w-8 h-8 object-cover rounded" />
                                         )}
-                                        {q.text || "Görsel Soru"}
+                                        <div className="flex flex-col">
+                                            <span>{q.text || "Görsel Soru"}</span>
+                                            {q.objective && <span className="text-[10px] text-muted-foreground mt-0.5" title={q.objective}>🎯 {q.objective}</span>}
+                                        </div>
                                     </div>
                                 </TableCell>
                                 <TableCell>
@@ -312,7 +317,10 @@ export default function TeacherQuestionsPage() {
                             <Label className="text-base font-semibold">Soru İçeriği</Label>
                             <Input value={formData.text} onChange={e => setFormData({ ...formData, text: e.target.value })} placeholder="Soru metnini yazın..." />
                             
-                            <div className="flex items-start gap-3 mt-2">
+                            <Label className="text-sm font-semibold mt-2">Kazanım (Opsiyonel)</Label>
+                            <Input value={formData.objective} onChange={e => setFormData({ ...formData, objective: e.target.value })} placeholder="Örn: Kalıtımla ilgili problemleri çözer (Mendel Genetiği)" />
+
+                            <div className="flex items-start gap-3 mt-4">
                                 <Button type="button" variant="outline" size="sm" onClick={() => triggerUpload("QUESTION")} className="gap-1 shrink-0">
                                     <Upload className="h-3.5 w-3.5" /> Soru Görseli Ekle
                                 </Button>

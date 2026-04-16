@@ -159,10 +159,8 @@ export default function AdminSchedulePage() {
 
     const gradeSubjects = subjects.filter(s => s.gradeLevel === gradeLevel);
 
-    // Determine which days have schedules (filter empty weekend columns)
-    const activeDays = DAYS.filter(d =>
-        d.value <= 5 || schedules.some(s => s.dayOfWeek === d.value)
-    );
+    // Always show full week (Pazartesi-Pazar)
+    const activeDays = DAYS;
 
     return (
         <div className="space-y-6 animate-fade-in">

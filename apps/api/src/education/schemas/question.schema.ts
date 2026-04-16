@@ -8,11 +8,14 @@ export class Question {
     @Prop({ required: true })
     text: string;
 
-    @Prop({ type: [String], required: true })
+    @Prop({ type: [String], default: [] })
     options: string[]; // e.g. ["A) ...", "B) ...", "C) ...", "D) ..."]
 
     @Prop({ required: true })
     correctAnswer: number; // index of correct option (0-3)
+
+    @Prop({ default: '' })
+    objective: string; // Kazanım
 
     @Prop({ required: true })
     gradeLevel: number;

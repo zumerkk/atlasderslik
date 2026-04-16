@@ -105,10 +105,11 @@ export async function api(endpoint: string, options: ApiOptions = {}): Promise<R
 
         try {
             const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-                ...fetchOptions,
-                headers,
-                signal: controller.signal,
-            });
+            ...fetchOptions,
+            headers,
+            signal: controller.signal,
+            cache: 'no-store', // Ensure Next.js doesn't cache client API calls
+        });
 
             clearTimeout(timeoutId);
 
