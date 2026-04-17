@@ -474,26 +474,65 @@ export class EducationService implements OnModuleInit {
     }
 
     // ─── QUESTIONS ──────────────────────────────────────
-    async createQuestion(data: any, teacherId: string) {
-        return this.questionModel.create({ ...data, teacherId: new Types.ObjectId(teacherId) });
-    }
-    async getQuestions(query: any) {
+    private safeObjectId(value: string): Types.ObjectId | null {
         try {
-            const filter: any = {};
-            if (query.teacherId) filter.teacherId = new Types.ObjectId(query.teacherId);
-            if (query.gradeLevel) filter.gradeLevel = Number(query.gradeLevel);
-            if (query.subjectId) filter.subjectId = new Types.ObjectId(query.subjectId);
-            if (query.difficulty) filter.difficulty = query.difficulty;
-            return await this.questionModel.find(filter)
-                .populate('subjectId', 'name')
-                .populate('teacherId', 'firstName lastName')
-                .sort({ createdAt: -1 })
-                .exec();
-        } catch (error) {
-            console.error('getQuestions error:', error);
-            return [];
+            if (!value || typeof value !== 'string' || value.length < 12) return null;
+            return new Types.ObjectId(value);
+        } catch {
+            this.logger.warn(`Invalid ObjectId: ${value}`);
+            return null;
         }
     }
+
+    async createQuestion(data: any, teacherId: string) {
+        const tid = this.safeObjectId(teacherId);
+        if (!tid) throw new BadRequestException('Geçersiz öğretmen ID.');
+
+        // Ensure subjectId is valid
+        const sid = this.safeObjectId(data.subjectId);
+        if (!sid) throw new BadRequestException('Geçersiz ders ID.');
+
+        const questionData = {
+            ...data,
+            teacherId: tid,
+            subjectId: sid,
+            gradeLevel: Number(data.gradeLevel) || 8,
+            correctAnswer: Number(data.correctAnswer) ?? 0,
+        };
+
+        this.logger.log(`Creating question for teacher ${teacherId}, subject ${data.subjectId}, grade ${questionData.gradeLevel}`);
+        const created = await this.questionModel.create(questionData);
+        this.logger.log(`Question created successfully: ${created._id}`);
+        return created;
+    }
+
+    async getQuestions(query: any) {
+        const filter: any = {};
+
+        if (query.teacherId) {
+            const tid = this.safeObjectId(query.teacherId);
+            if (tid) filter.teacherId = tid;
+            else this.logger.warn(`getQuestions: invalid teacherId filter ignored: ${query.teacherId}`);
+        }
+        if (query.gradeLevel) filter.gradeLevel = Number(query.gradeLevel);
+        if (query.subjectId) {
+            const sid = this.safeObjectId(query.subjectId);
+            if (sid) filter.subjectId = sid;
+        }
+        if (query.difficulty) filter.difficulty = query.difficulty;
+
+        this.logger.log(`getQuestions filter: ${JSON.stringify(filter)}`);
+
+        const results = await this.questionModel.find(filter)
+            .populate('subjectId', 'name')
+            .populate('teacherId', 'firstName lastName')
+            .sort({ createdAt: -1 })
+            .exec();
+
+        this.logger.log(`getQuestions returned ${results.length} questions`);
+        return results;
+    }
+
     async updateQuestion(id: string, data: any) {
         return this.questionModel.findByIdAndUpdate(id, data, { new: true }).exec();
     }
@@ -631,20 +670,58 @@ export class EducationService implements OnModuleInit {
 
     // ─── TESTS (Sınav/Test Oluşturma) ───────────────────────
     async createTest(data: any, teacherId: string) {
-        return this.testModel.create({ ...data, teacherId: new Types.ObjectId(teacherId) });
+        const tid = this.safeObjectId(teacherId);
+        if (!tid) throw new BadRequestException('Geçersiz öğretmen ID.');
+
+        const sid = this.safeObjectId(data.subjectId);
+        if (!sid) throw new BadRequestException('Geçersiz ders ID.');
+
+        // Convert questionIds to ObjectId array safely
+        const questionIds = (data.questionIds || []).map((qid: string) => {
+            const oid = this.safeObjectId(qid);
+            if (!oid) this.logger.warn(`createTest: skipping invalid questionId: ${qid}`);
+            return oid;
+        }).filter(Boolean);
+
+        const testData = {
+            ...data,
+            teacherId: tid,
+            subjectId: sid,
+            questionIds,
+            gradeLevel: Number(data.gradeLevel) || 8,
+            duration: Number(data.duration) || 0,
+        };
+
+        this.logger.log(`Creating test "${data.title}" for teacher ${teacherId} with ${questionIds.length} questions`);
+        const created = await this.testModel.create(testData);
+        this.logger.log(`Test created successfully: ${created._id}`);
+        return created;
     }
 
     async getTests(query: any) {
         const filter: any = {};
-        if (query.teacherId) filter.teacherId = new Types.ObjectId(query.teacherId);
+        if (query.teacherId) {
+            const tid = this.safeObjectId(query.teacherId);
+            if (tid) filter.teacherId = tid;
+            else this.logger.warn(`getTests: invalid teacherId filter ignored: ${query.teacherId}`);
+        }
         if (query.gradeLevel) filter.gradeLevel = Number(query.gradeLevel);
-        if (query.subjectId) filter.subjectId = new Types.ObjectId(query.subjectId);
-        return this.testModel.find(filter)
+        if (query.subjectId) {
+            const sid = this.safeObjectId(query.subjectId);
+            if (sid) filter.subjectId = sid;
+        }
+
+        this.logger.log(`getTests filter: ${JSON.stringify(filter)}`);
+
+        const results = await this.testModel.find(filter)
             .populate('subjectId', 'name')
             .populate('teacherId', 'firstName lastName')
             .populate('questionIds')
             .sort({ createdAt: -1 })
             .exec();
+
+        this.logger.log(`getTests returned ${results.length} tests`);
+        return results;
     }
 
     async getTestById(id: string) {

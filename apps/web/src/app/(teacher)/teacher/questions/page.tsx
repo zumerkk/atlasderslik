@@ -46,10 +46,28 @@ export default function TeacherQuestionsPage() {
 
     const fetchQuestions = async () => { 
         try { 
-            const res = await apiGet("/education/questions"); 
-            if (res.ok) setQuestions(await res.json()); 
+            const res = await apiGet("/education/questions", { timeout: 30000 }); 
+            if (res.ok) {
+                const data = await res.json();
+                // Safety: never overwrite existing questions with empty array
+                // unless we truly have no questions (first load)
+                if (Array.isArray(data) && (data.length > 0 || questions.length === 0)) {
+                    setQuestions(data);
+                } else if (Array.isArray(data) && data.length === 0 && questions.length > 0) {
+                    // Don't blindly clear - refetch to confirm
+                    console.warn("fetchQuestions returned empty but we had questions. Keeping existing state.");
+                    const confirmRes = await apiGet("/education/questions", { timeout: 30000 });
+                    if (confirmRes.ok) {
+                        const confirmData = await confirmRes.json();
+                        setQuestions(Array.isArray(confirmData) ? confirmData : []);
+                    }
+                }
+            } else {
+                console.error("fetchQuestions failed with status:", res.status);
+            }
         } catch (e) { 
-            console.error(e); 
+            console.error("fetchQuestions error:", e);
+            // Don't clear questions on error - keep existing state
         } finally { 
             setLoading(false); 
         } 
@@ -174,8 +192,21 @@ export default function TeacherQuestionsPage() {
                 ? await apiPatch(`/education/questions/${editingQuestion._id}`, payload, { timeout: 30000 })
                 : await apiPost("/education/questions", payload, { timeout: 30000 });
             if (res.ok) {
-                setDialogOpen(false); setEditingQuestion(null); resetForm(); fetchQuestions();
+                const savedQuestion = await res.json();
+                
+                if (editingQuestion) {
+                    // Optimistic update: replace the edited question in local state
+                    setQuestions(prev => prev.map(q => q._id === editingQuestion._id ? savedQuestion : q));
+                } else {
+                    // Optimistic update: add the new question to local state immediately
+                    setQuestions(prev => [savedQuestion, ...prev]);
+                }
+                
+                setDialogOpen(false); setEditingQuestion(null); resetForm();
                 setFeedback({ type: "success", message: editingQuestion ? "Soru güncellendi!" : "Soru eklendi!" });
+                
+                // Background refresh to get fully populated data (subjectId.name etc.)
+                setTimeout(() => fetchQuestions(), 1000);
             } else {
                 const errData = await res.json().catch(() => ({}));
                 setFeedback({ type: "error", message: errData.message || "İşlem başarısız." });
@@ -192,7 +223,9 @@ export default function TeacherQuestionsPage() {
         try { 
             const res = await apiDelete(`/education/questions/${deleteItem._id}`); 
             if (res.ok) { 
-                setDeleteDialogOpen(false); fetchQuestions(); setFeedback({ type: "success", message: "Soru silindi." }); 
+                setDeleteDialogOpen(false);
+                setQuestions(prev => prev.filter(q => q._id !== deleteItem._id));
+                setFeedback({ type: "success", message: "Soru silindi." }); 
             } 
         } catch (e) { 
             console.error(e); 

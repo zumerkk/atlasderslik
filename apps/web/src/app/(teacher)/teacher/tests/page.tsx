@@ -42,8 +42,36 @@ export default function TeacherTestsPage() {
     useEffect(() => { fetchTests(); fetchQuestions(); fetchSubjects(); }, []);
     useEffect(() => { if (feedback) { const t = setTimeout(() => setFeedback(null), 3000); return () => clearTimeout(t); } }, [feedback]);
 
-    const fetchTests = async () => { try { const res = await apiGet("/education/tests"); if (res.ok) setTests(await res.json()); } catch (e) { console.error(e); } finally { setLoading(false); } };
-    const fetchQuestions = async () => { try { const res = await apiGet("/education/questions"); if (res.ok) setQuestions(await res.json()); } catch (e) { console.error(e); } };
+    const fetchTests = async () => { 
+        try { 
+            const res = await apiGet("/education/tests", { timeout: 30000 }); 
+            if (res.ok) {
+                const data = await res.json();
+                if (Array.isArray(data) && (data.length > 0 || tests.length === 0)) {
+                    setTests(data);
+                } else if (Array.isArray(data) && data.length === 0 && tests.length > 0) {
+                    console.warn("fetchTests returned empty but we had tests. Confirming...");
+                    const confirmRes = await apiGet("/education/tests", { timeout: 30000 });
+                    if (confirmRes.ok) {
+                        const confirmData = await confirmRes.json();
+                        setTests(Array.isArray(confirmData) ? confirmData : []);
+                    }
+                }
+            } else {
+                console.error("fetchTests failed with status:", res.status);
+            }
+        } catch (e) { 
+            console.error("fetchTests error:", e);
+        } finally { 
+            setLoading(false); 
+        } 
+    };
+    const fetchQuestions = async () => { 
+        try { 
+            const res = await apiGet("/education/questions", { timeout: 30000 }); 
+            if (res.ok) setQuestions(await res.json()); 
+        } catch (e) { console.error(e); } 
+    };
     const fetchSubjects = async () => {
         try { const res = await apiGet("/education/teacher-assignments/mine"); if (res.ok) { const a = await res.json(); const s = a.map((x: any) => x.subjectId).filter(Boolean); setSubjects(s.filter((v: any, i: number, arr: any[]) => arr.findIndex(x => x._id === v._id) === i)); } } catch (e) { console.error(e); }
     };
@@ -75,20 +103,32 @@ export default function TeacherTestsPage() {
         };
         try {
             const res = editingTest
-                ? await apiPatch(`/education/tests/${editingTest._id}`, payload)
-                : await apiPost("/education/tests", payload);
+                ? await apiPatch(`/education/tests/${editingTest._id}`, payload, { timeout: 30000 })
+                : await apiPost("/education/tests", payload, { timeout: 30000 });
             if (res.ok) {
-                setDialogOpen(false); setEditingTest(null); resetForm(); fetchTests();
+                const savedTest = await res.json();
+                
+                if (editingTest) {
+                    setTests(prev => prev.map(t => t._id === editingTest._id ? savedTest : t));
+                } else {
+                    setTests(prev => [savedTest, ...prev]);
+                }
+                
+                setDialogOpen(false); setEditingTest(null); resetForm();
                 setFeedback({ type: "success", message: editingTest ? "Test güncellendi!" : "Test oluşturuldu!" });
+                
+                // Background refresh to get fully populated data
+                setTimeout(() => fetchTests(), 1000);
             } else {
-                setFeedback({ type: "error", message: "İşlem başarısız." });
+                const errData = await res.json().catch(() => ({}));
+                setFeedback({ type: "error", message: errData.message || "İşlem başarısız." });
             }
         } catch { setFeedback({ type: "error", message: "Bir hata oluştu." }); } finally { setSubmitting(false); }
     };
 
     const handleDelete = async () => {
         if (!deleteItem) return; setSubmitting(true);
-        try { const res = await apiDelete(`/education/tests/${deleteItem._id}`); if (res.ok) { setDeleteDialogOpen(false); fetchTests(); setFeedback({ type: "success", message: "Test silindi." }); } } catch (e) { console.error(e); } finally { setSubmitting(false); }
+        try { const res = await apiDelete(`/education/tests/${deleteItem._id}`); if (res.ok) { setDeleteDialogOpen(false); setTests(prev => prev.filter(t => t._id !== deleteItem._id)); setFeedback({ type: "success", message: "Test silindi." }); } } catch (e) { console.error(e); } finally { setSubmitting(false); }
     };
 
     const resetForm = () => {
