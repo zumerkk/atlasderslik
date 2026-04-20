@@ -47,15 +47,8 @@ export default function TeacherTestsPage() {
             const res = await apiGet("/education/tests", { timeout: 30000 }); 
             if (res.ok) {
                 const data = await res.json();
-                if (Array.isArray(data) && (data.length > 0 || tests.length === 0)) {
+                if (Array.isArray(data)) {
                     setTests(data);
-                } else if (Array.isArray(data) && data.length === 0 && tests.length > 0) {
-                    console.warn("fetchTests returned empty but we had tests. Confirming...");
-                    const confirmRes = await apiGet("/education/tests", { timeout: 30000 });
-                    if (confirmRes.ok) {
-                        const confirmData = await confirmRes.json();
-                        setTests(Array.isArray(confirmData) ? confirmData : []);
-                    }
                 }
             } else {
                 console.error("fetchTests failed with status:", res.status);
@@ -116,9 +109,6 @@ export default function TeacherTestsPage() {
                 
                 setDialogOpen(false); setEditingTest(null); resetForm();
                 setFeedback({ type: "success", message: editingTest ? "Test güncellendi!" : "Test oluşturuldu!" });
-                
-                // Background refresh to get fully populated data
-                setTimeout(() => fetchTests(), 1000);
             } else {
                 const errData = await res.json().catch(() => ({}));
                 setFeedback({ type: "error", message: errData.message || "İşlem başarısız." });

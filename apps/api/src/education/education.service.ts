@@ -492,18 +492,39 @@ export class EducationService implements OnModuleInit {
         const sid = this.safeObjectId(data.subjectId);
         if (!sid) throw new BadRequestException('Geçersiz ders ID.');
 
-        const questionData = {
-            ...data,
-            teacherId: tid,
-            subjectId: sid,
+        // Clean up data - remove any undefined/null fields that might cause schema issues
+        const questionData: any = {
+            text: data.text || '',
+            options: Array.isArray(data.options) ? data.options : [],
+            optionImages: Array.isArray(data.optionImages) ? data.optionImages : [],
+            correctAnswer: Number(data.correctAnswer) || 0,
+            difficulty: data.difficulty || 'MEDIUM',
             gradeLevel: Number(data.gradeLevel) || 8,
-            correctAnswer: Number(data.correctAnswer) ?? 0,
+            subjectId: sid,
+            teacherId: tid,
+            type: data.type || 'TEST',
+            imageUrl: data.imageUrl || '',
+            objective: data.objective || '',
         };
 
         this.logger.log(`Creating question for teacher ${teacherId}, subject ${data.subjectId}, grade ${questionData.gradeLevel}`);
+        
         const created = await this.questionModel.create(questionData);
-        this.logger.log(`Question created successfully: ${created._id}`);
-        return created;
+        this.logger.log(`Question created with _id: ${created._id}`);
+
+        // CRITICAL: Verify the question was actually saved by reading it back
+        const verified = await this.questionModel.findById(created._id)
+            .populate('subjectId', 'name')
+            .populate('teacherId', 'firstName lastName')
+            .exec();
+
+        if (!verified) {
+            this.logger.error(`CRITICAL: Question ${created._id} was created but cannot be read back!`);
+            throw new BadRequestException('Soru kaydedilemedi. Lütfen tekrar deneyin.');
+        }
+
+        this.logger.log(`Question verified in DB: ${verified._id}, teacherId: ${verified.teacherId}`);
+        return verified;
     }
 
     async getQuestions(query: any) {
@@ -511,8 +532,13 @@ export class EducationService implements OnModuleInit {
 
         if (query.teacherId) {
             const tid = this.safeObjectId(query.teacherId);
-            if (tid) filter.teacherId = tid;
-            else this.logger.warn(`getQuestions: invalid teacherId filter ignored: ${query.teacherId}`);
+            if (tid) {
+                filter.teacherId = tid;
+            } else {
+                this.logger.warn(`getQuestions: invalid teacherId filter: ${query.teacherId}`);
+                // Don't add an invalid filter - return empty rather than all
+                return [];
+            }
         }
         if (query.gradeLevel) filter.gradeLevel = Number(query.gradeLevel);
         if (query.subjectId) {
@@ -534,7 +560,10 @@ export class EducationService implements OnModuleInit {
     }
 
     async updateQuestion(id: string, data: any) {
-        return this.questionModel.findByIdAndUpdate(id, data, { new: true }).exec();
+        return this.questionModel.findByIdAndUpdate(id, data, { new: true })
+            .populate('subjectId', 'name')
+            .populate('teacherId', 'firstName lastName')
+            .exec();
     }
     async deleteQuestion(id: string) {
         return this.questionModel.findByIdAndDelete(id).exec();
