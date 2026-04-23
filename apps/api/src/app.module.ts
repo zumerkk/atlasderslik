@@ -18,10 +18,10 @@ import { PaymentModule } from './payment/payment.module';
       isGlobal: true,
       envFilePath: '.env',
     }),
-    // Rate limiting: 10 requests per 60 seconds per IP
+    // Rate limiting: 100 requests per 60 seconds per IP (was 10 — far too aggressive!)
     ThrottlerModule.forRoot([{
       ttl: 60000,
-      limit: 10,
+      limit: 100,
     }]),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],

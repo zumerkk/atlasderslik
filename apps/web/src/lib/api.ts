@@ -121,6 +121,20 @@ export async function api(endpoint: string, options: ApiOptions = {}): Promise<R
                 throw new Error("Oturum süresi doldu. Lütfen tekrar giriş yapın.");
             }
 
+            // Handle rate limiting - auto-retry after delay
+            if (res.status === 429) {
+                const isLastAttempt = attempt >= maxAttempts;
+                if (!isLastAttempt) {
+                    const retryAfter = parseInt(res.headers.get('Retry-After') || '3', 10);
+                    const delay = retryAfter * 1000;
+                    console.warn(`Rate limited (429). Retrying after ${retryAfter}s (attempt ${attempt}/${maxAttempts})`);
+                    onRetry?.(attempt, maxAttempts);
+                    await sleep(delay);
+                    continue;
+                }
+                console.error('Rate limited (429) - all retries exhausted');
+            }
+
             return res;
         } catch (err: any) {
             clearTimeout(timeoutId);

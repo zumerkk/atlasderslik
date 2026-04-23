@@ -5,7 +5,9 @@ import { UserRole } from '@repo/shared';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { CreateGradeDto, CreateSubjectDto, CreateTopicDto, CreateUnitDto } from './dto/create-education.dto';
+import { SkipThrottle } from '@nestjs/throttler';
 
+@SkipThrottle()
 @Controller('education')
 export class EducationController {
     constructor(private readonly educationService: EducationService) { }
