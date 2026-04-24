@@ -527,7 +527,12 @@ export class EducationService implements OnModuleInit {
 
     async getQuestions(query: any) {
         try {
-            const filter: any = {};
+            const filter: any = {
+                // Sadece geçerli ObjectId'ye sahip dökümanları getir, 
+                // aksi halde boş string ("") içeren bozuk kayıtlar populate() sırasında CastError verip 500'e sebep oluyor
+                subjectId: { $type: "objectId" },
+                teacherId: { $type: "objectId" }
+            };
 
             if (query.teacherId) {
                 const tid = this.safeObjectId(query.teacherId);
@@ -558,7 +563,6 @@ export class EducationService implements OnModuleInit {
             return results;
         } catch (error: any) {
             this.logger.error(`getQuestions ERROR: ${error.message}`, error.stack);
-            // Return empty array instead of crashing with 500
             return [];
         }
     }
@@ -746,7 +750,11 @@ export class EducationService implements OnModuleInit {
 
     async getTests(query: any) {
         try {
-            const filter: any = {};
+            const filter: any = {
+                // Sadece geçerli ObjectId'ye sahip dökümanları getir
+                subjectId: { $type: "objectId" },
+                teacherId: { $type: "objectId" }
+            };
             if (query.teacherId) {
                 const tid = this.safeObjectId(query.teacherId);
                 if (tid) filter.teacherId = tid;
