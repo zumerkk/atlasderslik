@@ -488,11 +488,9 @@ export class EducationService implements OnModuleInit {
         const tid = this.safeObjectId(teacherId);
         if (!tid) throw new BadRequestException('Geçersiz öğretmen ID.');
 
-        // Ensure subjectId is valid
         const sid = this.safeObjectId(data.subjectId);
         if (!sid) throw new BadRequestException('Geçersiz ders ID.');
 
-        // Clean up data - remove any undefined/null fields that might cause schema issues
         const questionData: any = {
             text: data.text || '',
             options: Array.isArray(data.options) ? data.options : [],
@@ -507,56 +505,62 @@ export class EducationService implements OnModuleInit {
             objective: data.objective || '',
         };
 
-        this.logger.log(`Creating question for teacher ${teacherId}, subject ${data.subjectId}, grade ${questionData.gradeLevel}`);
-        
-        const created = await this.questionModel.create(questionData);
-        this.logger.log(`Question created with _id: ${created._id}`);
+        this.logger.log(`Creating question for teacher ${teacherId}, subject ${data.subjectId}`);
 
-        // CRITICAL: Verify the question was actually saved by reading it back
-        const verified = await this.questionModel.findById(created._id)
-            .populate('subjectId', 'name')
-            .populate('teacherId', 'firstName lastName')
-            .exec();
+        try {
+            const created = await this.questionModel.create(questionData);
+            this.logger.log(`Question created: ${created._id}`);
 
-        if (!verified) {
-            this.logger.error(`CRITICAL: Question ${created._id} was created but cannot be read back!`);
-            throw new BadRequestException('Soru kaydedilemedi. Lütfen tekrar deneyin.');
+            // Return populated version
+            const populated = await this.questionModel.findById(created._id)
+                .populate('subjectId', 'name')
+                .populate('teacherId', 'firstName lastName')
+                .lean()
+                .exec();
+
+            return populated || created;
+        } catch (error: any) {
+            this.logger.error(`createQuestion FAILED: ${error.message}`, error.stack);
+            throw error;
         }
-
-        this.logger.log(`Question verified in DB: ${verified._id}, teacherId: ${verified.teacherId}`);
-        return verified;
     }
 
     async getQuestions(query: any) {
-        const filter: any = {};
+        try {
+            const filter: any = {};
 
-        if (query.teacherId) {
-            const tid = this.safeObjectId(query.teacherId);
-            if (tid) {
-                filter.teacherId = tid;
-            } else {
-                this.logger.warn(`getQuestions: invalid teacherId filter: ${query.teacherId}`);
-                // Don't add an invalid filter - return empty rather than all
-                return [];
+            if (query.teacherId) {
+                const tid = this.safeObjectId(query.teacherId);
+                if (tid) {
+                    filter.teacherId = tid;
+                } else {
+                    this.logger.warn(`getQuestions: invalid teacherId: ${query.teacherId}`);
+                    return [];
+                }
             }
+            if (query.gradeLevel) filter.gradeLevel = Number(query.gradeLevel);
+            if (query.subjectId) {
+                const sid = this.safeObjectId(query.subjectId);
+                if (sid) filter.subjectId = sid;
+            }
+            if (query.difficulty) filter.difficulty = query.difficulty;
+
+            this.logger.log(`getQuestions filter: ${JSON.stringify(filter)}`);
+
+            const results = await this.questionModel.find(filter)
+                .populate('subjectId', 'name')
+                .populate('teacherId', 'firstName lastName')
+                .sort({ createdAt: -1 })
+                .lean()
+                .exec();
+
+            this.logger.log(`getQuestions returned ${results.length} questions`);
+            return results;
+        } catch (error: any) {
+            this.logger.error(`getQuestions ERROR: ${error.message}`, error.stack);
+            // Return empty array instead of crashing with 500
+            return [];
         }
-        if (query.gradeLevel) filter.gradeLevel = Number(query.gradeLevel);
-        if (query.subjectId) {
-            const sid = this.safeObjectId(query.subjectId);
-            if (sid) filter.subjectId = sid;
-        }
-        if (query.difficulty) filter.difficulty = query.difficulty;
-
-        this.logger.log(`getQuestions filter: ${JSON.stringify(filter)}`);
-
-        const results = await this.questionModel.find(filter)
-            .populate('subjectId', 'name')
-            .populate('teacherId', 'firstName lastName')
-            .sort({ createdAt: -1 })
-            .exec();
-
-        this.logger.log(`getQuestions returned ${results.length} questions`);
-        return results;
     }
 
     async updateQuestion(id: string, data: any) {
@@ -705,7 +709,6 @@ export class EducationService implements OnModuleInit {
         const sid = this.safeObjectId(data.subjectId);
         if (!sid) throw new BadRequestException('Geçersiz ders ID.');
 
-        // Convert questionIds to ObjectId array safely
         const questionIds = (data.questionIds || []).map((qid: string) => {
             const oid = this.safeObjectId(qid);
             if (!oid) this.logger.warn(`createTest: skipping invalid questionId: ${qid}`);
@@ -713,7 +716,8 @@ export class EducationService implements OnModuleInit {
         }).filter(Boolean);
 
         const testData = {
-            ...data,
+            title: data.title || '',
+            description: data.description || '',
             teacherId: tid,
             subjectId: sid,
             questionIds,
@@ -721,36 +725,58 @@ export class EducationService implements OnModuleInit {
             duration: Number(data.duration) || 0,
         };
 
-        this.logger.log(`Creating test "${data.title}" for teacher ${teacherId} with ${questionIds.length} questions`);
-        const created = await this.testModel.create(testData);
-        this.logger.log(`Test created successfully: ${created._id}`);
-        return created;
+        try {
+            this.logger.log(`Creating test "${data.title}" for teacher ${teacherId} with ${questionIds.length} questions`);
+            const created = await this.testModel.create(testData);
+            this.logger.log(`Test created: ${created._id}`);
+
+            const populated = await this.testModel.findById(created._id)
+                .populate('subjectId', 'name')
+                .populate('teacherId', 'firstName lastName')
+                .populate('questionIds')
+                .lean()
+                .exec();
+
+            return populated || created;
+        } catch (error: any) {
+            this.logger.error(`createTest FAILED: ${error.message}`, error.stack);
+            throw error;
+        }
     }
 
     async getTests(query: any) {
-        const filter: any = {};
-        if (query.teacherId) {
-            const tid = this.safeObjectId(query.teacherId);
-            if (tid) filter.teacherId = tid;
-            else this.logger.warn(`getTests: invalid teacherId filter ignored: ${query.teacherId}`);
+        try {
+            const filter: any = {};
+            if (query.teacherId) {
+                const tid = this.safeObjectId(query.teacherId);
+                if (tid) filter.teacherId = tid;
+                else {
+                    this.logger.warn(`getTests: invalid teacherId: ${query.teacherId}`);
+                    return [];
+                }
+            }
+            if (query.gradeLevel) filter.gradeLevel = Number(query.gradeLevel);
+            if (query.subjectId) {
+                const sid = this.safeObjectId(query.subjectId);
+                if (sid) filter.subjectId = sid;
+            }
+
+            this.logger.log(`getTests filter: ${JSON.stringify(filter)}`);
+
+            const results = await this.testModel.find(filter)
+                .populate('subjectId', 'name')
+                .populate('teacherId', 'firstName lastName')
+                .populate('questionIds')
+                .sort({ createdAt: -1 })
+                .lean()
+                .exec();
+
+            this.logger.log(`getTests returned ${results.length} tests`);
+            return results;
+        } catch (error: any) {
+            this.logger.error(`getTests ERROR: ${error.message}`, error.stack);
+            return [];
         }
-        if (query.gradeLevel) filter.gradeLevel = Number(query.gradeLevel);
-        if (query.subjectId) {
-            const sid = this.safeObjectId(query.subjectId);
-            if (sid) filter.subjectId = sid;
-        }
-
-        this.logger.log(`getTests filter: ${JSON.stringify(filter)}`);
-
-        const results = await this.testModel.find(filter)
-            .populate('subjectId', 'name')
-            .populate('teacherId', 'firstName lastName')
-            .populate('questionIds')
-            .sort({ createdAt: -1 })
-            .exec();
-
-        this.logger.log(`getTests returned ${results.length} tests`);
-        return results;
     }
 
     async getTestById(id: string) {

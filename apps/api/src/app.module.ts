@@ -29,11 +29,12 @@ import { PaymentModule } from './payment/payment.module';
         const isProd = configService.get<string>('NODE_ENV') === 'production';
         return {
           uri: configService.get<string>('MONGO_URI'),
-          serverSelectionTimeoutMS: 3000,
-          connectTimeoutMS: 10000,
+          serverSelectionTimeoutMS: 10000,
+          connectTimeoutMS: 30000,
           socketTimeoutMS: 45000,
-          autoIndex: !isProd, // skip index building at startup in prod
-          bufferCommands: false, // fail fast if DB not ready
+          autoIndex: !isProd,
+          retryWrites: true,
+          retryReads: true,
         };
       },
       inject: [ConfigService],
