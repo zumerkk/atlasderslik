@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 import { UserRole, ROLES } from '@repo/shared';
 
 export type UserDocument = User & Document;
@@ -25,6 +25,9 @@ export class User {
     isActive: boolean;
 
     // For Students
+    @Prop({ type: Types.ObjectId, ref: 'User', required: false })
+    parentId?: Types.ObjectId | string;
+
     @Prop({ required: false })
     grade: number; // e.g. 5, 6, 7, 8
 

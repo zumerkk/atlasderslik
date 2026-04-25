@@ -14,6 +14,7 @@ import { StudentEnrollment, StudentEnrollmentDocument } from './schemas/student-
 import { Question, QuestionDocument } from './schemas/question.schema';
 import { Schedule, ScheduleDocument } from './schemas/schedule.schema';
 import { Test, TestDocument } from './schemas/test.schema';
+import { User, UserDocument } from '../users/schemas/user.schema';
 
 @Injectable()
 export class EducationService implements OnModuleInit {
@@ -33,6 +34,7 @@ export class EducationService implements OnModuleInit {
         @InjectModel(Question.name) private questionModel: Model<QuestionDocument>,
         @InjectModel(Schedule.name) private scheduleModel: Model<ScheduleDocument>,
         @InjectModel(Test.name) private testModel: Model<TestDocument>,
+        @InjectModel(User.name) private userModel: Model<UserDocument>,
     ) { }
 
     async onModuleInit() {
@@ -382,7 +384,14 @@ export class EducationService implements OnModuleInit {
             return obj;
         });
 
-        return { enrolled: true, gradeLevels, gradeLabels, gradeLevel: gradeLevels[0], courses, liveClasses, videos, assignments, submissions };
+        // Fetch parent info if exists
+        let parentInfo = null;
+        const student = await this.userModel.findById(sid).populate('parentId', 'firstName lastName email').exec();
+        if (student && student.parentId) {
+            parentInfo = student.parentId;
+        }
+
+        return { enrolled: true, gradeLevels, gradeLabels, gradeLevel: gradeLevels[0], courses, liveClasses, videos, assignments, submissions, parent: parentInfo };
     }
 
     async getStudentCourses(studentId: string) {
@@ -673,19 +682,34 @@ export class EducationService implements OnModuleInit {
     // ─── PARENT DASHBOARD ──────────────────────────────
     async getParentDashboard(parentId: string) {
         const pid = new Types.ObjectId(parentId);
-        // Find all enrollments where this parent is linked
-        const enrollments = await this.studentEnrollmentModel.find({ parentId: pid })
-            .populate('studentId', 'firstName lastName email')
-            .populate('gradeId', 'level label')
-            .exec();
-
-        if (!enrollments.length) {
+        
+        // Find students whose parentId matches
+        const studentsWithParent = await this.userModel.find({ parentId: pid }).select('firstName lastName email').exec();
+        
+        if (!studentsWithParent.length) {
             return { students: [] };
         }
 
-        // For each enrolled student, gather courses
+        // For each student, find their enrollments and courses
         const students = await Promise.all(
-            enrollments.map(async (enrollment: any) => {
+            studentsWithParent.map(async (studentObj: any) => {
+                const sid = studentObj._id;
+                const enrollments = await this.studentEnrollmentModel.find({ studentId: sid })
+                    .populate('gradeId', 'level label')
+                    .exec();
+
+                // If a student is not enrolled, we still return them but without courses
+                if (!enrollments.length) {
+                    return {
+                        student: studentObj,
+                        grade: null,
+                        courses: [],
+                        enrollmentDate: null,
+                    };
+                }
+
+                // Assuming a student is usually enrolled in one grade for the dashboard view
+                const enrollment = enrollments[0];
                 const gradeOid = enrollment.gradeId?._id || enrollment.gradeId;
                 const courses = await this.teacherAssignmentModel.find({ gradeId: gradeOid })
                     .populate('gradeId', 'level label')
@@ -694,7 +718,7 @@ export class EducationService implements OnModuleInit {
                     .exec();
 
                 return {
-                    student: enrollment.studentId,
+                    student: studentObj,
                     grade: enrollment.gradeId,
                     courses,
                     enrollmentDate: enrollment.enrollmentDate,

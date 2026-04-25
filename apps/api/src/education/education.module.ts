@@ -15,6 +15,7 @@ import { StudentEnrollment, StudentEnrollmentSchema } from './schemas/student-en
 import { Question, QuestionSchema } from './schemas/question.schema';
 import { Schedule, ScheduleSchema } from './schemas/schedule.schema';
 import { Test, TestSchema } from './schemas/test.schema';
+import { User, UserSchema } from '../users/schemas/user.schema';
 
 @Module({
     imports: [
@@ -32,6 +33,7 @@ import { Test, TestSchema } from './schemas/test.schema';
             { name: Question.name, schema: QuestionSchema },
             { name: Schedule.name, schema: ScheduleSchema },
             { name: Test.name, schema: TestSchema },
+            { name: User.name, schema: UserSchema },
         ]),
     ],
     controllers: [EducationController],

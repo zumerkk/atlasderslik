@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { User, UserDocument } from './schemas/user.schema';
 import * as bcrypt from 'bcrypt';
 import { UserRole } from '@repo/shared';
@@ -27,11 +27,11 @@ export class UsersService {
     async findAll(role?: string): Promise<User[]> {
         const filter: any = {};
         if (role) filter.role = role;
-        return this.userModel.find(filter).select('-passwordHash').exec();
+        return this.userModel.find(filter).select('-passwordHash').populate('parentId', 'firstName lastName email').exec();
     }
 
     async findOne(id: string): Promise<User | null> {
-        return this.userModel.findById(id).select('-passwordHash').exec();
+        return this.userModel.findById(id).select('-passwordHash').populate('parentId', 'firstName lastName email').exec();
     }
 
     async remove(id: string): Promise<User | null> {
@@ -51,7 +51,15 @@ export class UsersService {
             sanitized.passwordHash = await bcrypt.hash(sanitized.password, salt);
             delete sanitized.password;
         }
-        return this.userModel.findByIdAndUpdate(id, sanitized, { new: true }).select('-passwordHash').exec();
+        return this.userModel.findByIdAndUpdate(id, sanitized, { new: true }).select('-passwordHash').populate('parentId', 'firstName lastName email').exec();
+    }
+
+    async assignParent(studentId: string, parentId: string): Promise<User | null> {
+        return this.userModel.findByIdAndUpdate(
+            studentId,
+            { parentId: new Types.ObjectId(parentId) },
+            { new: true }
+        ).select('-passwordHash').populate('parentId', 'firstName lastName email').exec();
     }
 
     // ─── Password Management ─────────────────────────────────

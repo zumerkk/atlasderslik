@@ -42,6 +42,12 @@ export class UsersController {
         return this.usersService.remove(id);
     }
 
+    @Post(':id/assign-parent')
+    @Roles(UserRole.ADMIN)
+    assignParent(@Param('id') id: string, @Body() body: { parentId: string }) {
+        return this.usersService.assignParent(id, body.parentId);
+    }
+
     // ─── Password Management (Admin Only) ─────────────────────
 
     /**

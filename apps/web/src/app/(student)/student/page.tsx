@@ -22,6 +22,7 @@ import {
     Video,
     PlayCircle,
     AlertTriangle,
+    Users,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -122,6 +123,14 @@ export default function StudentDashboard() {
                     </Button>
                 </Link>
             </PageHeader>
+
+            {/* Parent Info */}
+            {!loading && data?.parent && (
+                <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-50 border border-blue-100 text-sm text-blue-800 w-fit">
+                    <Users className="h-4 w-4 shrink-0 text-blue-600" />
+                    <span>Veli: <strong>{data.parent.firstName} {data.parent.lastName}</strong></span>
+                </div>
+            )}
 
             {/* Enrollment Warning */}
             {!loading && !enrolled && (

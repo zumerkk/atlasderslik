@@ -44,6 +44,12 @@ export default function UsersPage() {
     const [copied, setCopied] = useState(false);
     const [passwordSubmitting, setPasswordSubmitting] = useState(false);
 
+    // Parent matching state
+    const [assignParentDialog, setAssignParentDialog] = useState(false);
+    const [parentsList, setParentsList] = useState<User[]>([]);
+    const [selectedParentId, setSelectedParentId] = useState<string>("");
+    const [assigningParent, setAssigningParent] = useState(false);
+
     useEffect(() => { fetchUsers(); }, []);
     useEffect(() => { if (feedback) { const t = setTimeout(() => setFeedback(null), 4000); return () => clearTimeout(t); } }, [feedback]);
 
@@ -80,6 +86,38 @@ export default function UsersPage() {
             if (res.ok) { setFeedback({ type: "success", message: "Kullanıcı silindi." }); fetchUsers(); }
             else { setFeedback({ type: "error", message: "Kullanıcı silinemedi." }); }
         } catch { console.error("Failed to delete user"); }
+    };
+
+    // ─── Parent Matching Handlers ───────────────────────────
+    const fetchParents = async () => {
+        try {
+            const res = await apiGet("/users?role=PARENT");
+            if (res.ok) setParentsList(await res.json());
+        } catch (error) { console.error("Failed to fetch parents", error); }
+    };
+
+    const openAssignParentDialog = (user: User) => {
+        setSelectedUser(user);
+        setSelectedParentId((user as any).parentId?._id || "");
+        setAssignParentDialog(true);
+        fetchParents();
+    };
+
+    const handleAssignParent = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedUser || !selectedParentId) return;
+        setAssigningParent(true);
+        try {
+            const res = await apiPost(`/users/${selectedUser._id}/assign-parent`, { parentId: selectedParentId });
+            if (res.ok) {
+                setAssignParentDialog(false);
+                setFeedback({ type: "success", message: "Veli başarıyla atandı." });
+                fetchUsers();
+            } else {
+                setFeedback({ type: "error", message: "Veli atanamadı." });
+            }
+        } catch { setFeedback({ type: "error", message: "Bir hata oluştu." }); }
+        finally { setAssigningParent(false); }
     };
 
     // ─── Password Management Handlers ─────────────────────────
@@ -245,6 +283,13 @@ export default function UsersPage() {
                                 <TableCell className="text-muted-foreground">{new Date(user.createdAt).toLocaleDateString("tr-TR")}</TableCell>
                                 <TableCell className="text-right">
                                     <div className="flex items-center justify-end gap-1">
+                                        {/* Assign Parent */}
+                                        {user.role === "STUDENT" && (
+                                            <Button variant="ghost" size="sm" className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50" onClick={() => openAssignParentDialog(user)} title="Veli Eşleştir">
+                                                <Users className="h-4 w-4" />
+                                            </Button>
+                                        )}
+
                                         {/* Password Dropdown */}
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
@@ -419,6 +464,40 @@ export default function UsersPage() {
                             Tamam
                         </Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* ═══ Assign Parent Dialog ═══ */}
+            <Dialog open={assignParentDialog} onOpenChange={setAssignParentDialog}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Veli Eşleştir</DialogTitle>
+                        <DialogDescription>
+                            {selectedUser && <><strong>{selectedUser.firstName} {selectedUser.lastName}</strong> için veli seçin.</>}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleAssignParent} className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="parentSelect">Veli</Label>
+                            <Select value={selectedParentId} onValueChange={setSelectedParentId}>
+                                <SelectTrigger><SelectValue placeholder="Veli seçin" /></SelectTrigger>
+                                <SelectContent>
+                                    {parentsList.map(parent => (
+                                        <SelectItem key={parent._id} value={parent._id}>
+                                            {parent.firstName} {parent.lastName} ({parent.email})
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" type="button" onClick={() => setAssignParentDialog(false)}>İptal</Button>
+                            <Button type="submit" disabled={assigningParent || !selectedParentId}>
+                                {assigningParent && <Loader2 className="h-4 w-4 animate-spin" />}
+                                Eşleştir
+                            </Button>
+                        </DialogFooter>
+                    </form>
                 </DialogContent>
             </Dialog>
         </div>
