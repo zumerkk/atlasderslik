@@ -385,7 +385,7 @@ export class EducationService implements OnModuleInit {
         });
 
         // Fetch parent info if exists
-        let parentInfo = null;
+        let parentInfo: any = null;
         const student = await this.userModel.findById(sid).populate('parentId', 'firstName lastName email').exec();
         if (student && student.parentId) {
             parentInfo = student.parentId;
