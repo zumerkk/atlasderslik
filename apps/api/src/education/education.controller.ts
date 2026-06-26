@@ -198,6 +198,13 @@ export class EducationController {
         return this.educationService.deleteVideo(id);
     }
 
+    @Post('videos/:id/view')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.TEACHER, UserRole.STUDENT, UserRole.ADMIN)
+    incrementVideoViews(@Param('id') id: string) {
+        return this.educationService.incrementVideoViews(id);
+    }
+
     // ─── ASSIGNMENTS ────────────────────────────────────
     @Post('assignments')
     @UseGuards(JwtAuthGuard, RolesGuard)
@@ -443,6 +450,13 @@ export class EducationController {
     }
 
     // ─── TESTS (Sınav/Test) ──────────────────────────────
+    @Get('tests/student/available')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.STUDENT)
+    getStudentAvailableTests(@Req() req) {
+        return this.educationService.getStudentAvailableTests(req.user.userId);
+    }
+
     @Post('tests')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.TEACHER, UserRole.ADMIN)
@@ -479,5 +493,27 @@ export class EducationController {
     @Roles(UserRole.TEACHER, UserRole.ADMIN)
     deleteTest(@Param('id') id: string) {
         return this.educationService.deleteTest(id);
+    }
+
+    @Post('tests/:id/submit')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.STUDENT)
+    submitTest(@Param('id') id: string, @Body() body: { answers: Record<string, number>; durationSeconds: number }, @Req() req) {
+        return this.educationService.submitTest(id, req.user.userId, body.answers, body.durationSeconds || 0);
+    }
+
+    @Get('tests/:id/result')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.STUDENT, UserRole.TEACHER, UserRole.ADMIN)
+    getTestResultForStudent(@Param('id') id: string, @Req() req) {
+        const studentId = req.user.role === UserRole.STUDENT ? req.user.userId : req.query.studentId;
+        return this.educationService.getTestResultForStudent(id, studentId);
+    }
+
+    @Get('tests/:id/results')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.TEACHER, UserRole.ADMIN)
+    getTestResultsForTeacher(@Param('id') id: string) {
+        return this.educationService.getTestResultsForTeacher(id);
     }
 }

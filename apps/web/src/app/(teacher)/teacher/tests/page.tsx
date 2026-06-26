@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Loader2, Pencil, Trash2, ClipboardList, CheckCircle, AlertCircle, Eye, Clock, Image, FileText } from "lucide-react";
+import { Plus, Loader2, Pencil, Trash2, ClipboardList, CheckCircle, AlertCircle, Eye, Clock, Image, FileText, BarChart2, Award } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -31,6 +31,10 @@ export default function TeacherTestsPage() {
     const [dialogOpen, setDialogOpen] = useState(false);
     const [previewOpen, setPreviewOpen] = useState(false);
     const [previewTest, setPreviewTest] = useState<Test | null>(null);
+    const [resultsOpen, setResultsOpen] = useState(false);
+    const [resultsTest, setResultsTest] = useState<Test | null>(null);
+    const [resultsList, setResultsList] = useState<any[]>([]);
+    const [loadingResults, setLoadingResults] = useState(false);
     const [editingTest, setEditingTest] = useState<Test | null>(null);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [deleteItem, setDeleteItem] = useState<Test | null>(null);
@@ -67,6 +71,29 @@ export default function TeacherTestsPage() {
     };
     const fetchSubjects = async () => {
         try { const res = await apiGet("/education/teacher-assignments/mine"); if (res.ok) { const a = await res.json(); const s = a.map((x: any) => x.subjectId).filter(Boolean); setSubjects(s.filter((v: any, i: number, arr: any[]) => arr.findIndex(x => x._id === v._id) === i)); } } catch (e) { console.error(e); }
+    };
+
+    const openResults = async (t: Test) => {
+        setResultsTest(t);
+        setResultsOpen(true);
+        setLoadingResults(true);
+        try {
+            const res = await apiGet(`/education/tests/${t._id}/results`);
+            if (res.ok) {
+                setResultsList(await res.json());
+            }
+        } catch (e) {
+            console.error("Error fetching results:", e);
+        } finally {
+            setLoadingResults(false);
+        }
+    };
+
+    const formatDuration = (seconds: number) => {
+        if (!seconds) return "0 dk";
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return mins > 0 ? `${mins} dk ${secs} sn` : `${secs} sn`;
     };
 
     const filteredQuestions = questions.filter(q => {
@@ -172,9 +199,10 @@ export default function TeacherTestsPage() {
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <div className="flex items-center justify-end gap-1">
-                                        <Button variant="ghost" size="sm" onClick={() => { setPreviewTest(t); setPreviewOpen(true); }}><Eye className="h-4 w-4" /></Button>
-                                        <Button variant="ghost" size="sm" onClick={() => openEdit(t)}><Pencil className="h-4 w-4" /></Button>
-                                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => { setDeleteItem(t); setDeleteDialogOpen(true); }}><Trash2 className="h-4 w-4" /></Button>
+                                        <Button variant="ghost" size="sm" title="Sonuçları Gör" onClick={() => openResults(t)}><BarChart2 className="h-4 w-4 text-primary" /></Button>
+                                        <Button variant="ghost" size="sm" title="Önizle" onClick={() => { setPreviewTest(t); setPreviewOpen(true); }}><Eye className="h-4 w-4" /></Button>
+                                        <Button variant="ghost" size="sm" title="Düzenle" onClick={() => openEdit(t)}><Pencil className="h-4 w-4" /></Button>
+                                        <Button variant="ghost" size="sm" title="Sil" className="text-destructive hover:text-destructive" onClick={() => { setDeleteItem(t); setDeleteDialogOpen(true); }}><Trash2 className="h-4 w-4" /></Button>
                                     </div>
                                 </TableCell>
                             </TableRow>
@@ -279,6 +307,69 @@ export default function TeacherTestsPage() {
                                 </div>
                             </div>
                         ))}
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* ─── Results Dialog ──────────────────────────────── */}
+            <Dialog open={resultsOpen} onOpenChange={setResultsOpen}>
+                <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col">
+                    <DialogHeader>
+                        <DialogTitle>{resultsTest?.title} - Sınav Sonuçları</DialogTitle>
+                        <DialogDescription>
+                            Bu testi tamamlayan öğrencilerin başarı puanları ve çözüm süreleri.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="overflow-y-auto flex-1 py-2">
+                        {loadingResults ? (
+                            <div className="flex items-center justify-center py-12">
+                                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                            </div>
+                        ) : resultsList.length === 0 ? (
+                            <p className="text-center py-12 text-muted-foreground text-sm">
+                                Henüz bu sınavı tamamlayan öğrenci bulunmuyor.
+                            </p>
+                        ) : (
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Öğrenci</TableHead>
+                                        <TableHead>E-posta</TableHead>
+                                        <TableHead>Skor</TableHead>
+                                        <TableHead>Doğru/Yanlış/Boş</TableHead>
+                                        <TableHead>Süre</TableHead>
+                                        <TableHead className="text-right">Tarih</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {resultsList.map((res: any) => (
+                                        <TableRow key={res._id}>
+                                            <TableCell className="font-semibold text-sm">
+                                                {res.studentId?.firstName} {res.studentId?.lastName}
+                                            </TableCell>
+                                            <TableCell className="text-xs text-muted-foreground">
+                                                {res.studentId?.email}
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant={res.score >= 70 ? "success" : res.score >= 40 ? "warning" : "destructive"}>
+                                                    %{res.score}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-xs">
+                                                <span className="text-emerald-600 font-semibold">{res.correctCount}D</span> / <span className="text-rose-500 font-semibold">{res.wrongCount}Y</span> / <span className="text-gray-500 font-semibold">{res.emptyCount}B</span>
+                                            </TableCell>
+                                            <TableCell className="text-xs font-medium">
+                                                {formatDuration(res.durationSeconds)}
+                                            </TableCell>
+                                            <TableCell className="text-right text-xs text-muted-foreground">
+                                                {new Date(res.createdAt).toLocaleDateString("tr-TR")}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        )}
                     </div>
                 </DialogContent>
             </Dialog>

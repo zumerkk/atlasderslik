@@ -6,7 +6,8 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { CalendarDays, Clock, User, Video, FileText, MapPin, Timer } from "lucide-react";
+import { CalendarDays, Clock, User, Video, FileText, MapPin, Timer, ExternalLink } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const ALL_DAYS = [
     { value: 1, label: "Pazartesi" },
@@ -85,7 +86,7 @@ export default function StudentSchedulePage() {
 
     return (
         <div className="space-y-6 animate-fade-in">
-            <PageHeader title="Ders Programım" description="Haftalık ders programın ve yaklaşan etkinlikler." />
+            <PageHeader title="Ders Programım" description="Haftalık ders programın ve yaklaşan etkinlikler. Mavi çerçeveli aktif derslere tıklayarak doğrudan canlı derse katılabilirsin." />
 
             {loading ? (
                 <div className="space-y-3">{[1, 2, 3, 4, 5].map(i => <div key={i} className="skeleton h-16 rounded-xl" />)}</div>
@@ -100,7 +101,7 @@ export default function StudentSchedulePage() {
                                 <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                                     <Timer className="h-6 w-6 text-primary" />
                                 </div>
-                                <div>
+                                <div className="flex-1">
                                     <p className="text-sm font-semibold text-primary">Sıradaki Ders</p>
                                     <p className="text-lg font-bold">{nextClass.subjectId?.name}</p>
                                     <p className="text-xs text-muted-foreground">
@@ -108,7 +109,16 @@ export default function StudentSchedulePage() {
                                         {nextClass.room && ` · ${nextClass.room}`}
                                     </p>
                                 </div>
-                                <Badge variant="info" className="ml-auto">{nextClass.startTime}</Badge>
+                                {nextClass.subjectId?.zoomUrl ? (
+                                    <Button
+                                        onClick={() => window.open(nextClass.subjectId.zoomUrl, '_blank')}
+                                        className="bg-primary hover:bg-primary/95 text-white"
+                                    >
+                                        <ExternalLink className="h-4 w-4 mr-2" /> Derse Katıl
+                                    </Button>
+                                ) : (
+                                    <Badge variant="info" className="ml-auto">{nextClass.startTime}</Badge>
+                                )}
                             </CardContent>
                         </Card>
                     )}
@@ -140,10 +150,24 @@ export default function StudentSchedulePage() {
                                                     const subjectName = entry?.subjectId?.name || "";
                                                     const colorClass = SUBJECT_COLORS[subjectName] || "bg-gray-100 border-gray-300 text-gray-800";
                                                     const isNow = todayMapped === day.value;
+                                                    const zoomUrl = entry?.subjectId?.zoomUrl;
                                                     return (
                                                         <td key={day.value} className={`p-1.5 text-center align-top ${isNow ? "bg-primary/[0.02]" : ""}`}>
                                                             {entry ? (
-                                                                <div className={`rounded-xl border p-2 transition-all hover:shadow-md ${colorClass}`}>
+                                                                <div 
+                                                                    onClick={() => zoomUrl && window.open(zoomUrl, '_blank')}
+                                                                    className={`rounded-xl border p-2 transition-all relative group ${
+                                                                        zoomUrl 
+                                                                            ? "cursor-pointer hover:shadow-md border-blue-400 hover:border-blue-600 bg-blue-50/50" 
+                                                                            : colorClass
+                                                                    }`}
+                                                                    title={zoomUrl ? "Derse Katılmak İçin Tıkla" : ""}
+                                                                >
+                                                                    {zoomUrl && (
+                                                                        <div className="absolute top-1 right-1 opacity-60 group-hover:opacity-100 transition-opacity">
+                                                                            <ExternalLink className="h-3 w-3 text-blue-600" />
+                                                                        </div>
+                                                                    )}
                                                                     <p className="text-xs font-bold">{subjectName}</p>
                                                                     <p className="text-[10px] mt-0.5 opacity-70 flex items-center justify-center gap-0.5">
                                                                         <User className="h-2.5 w-2.5" />{entry.teacherId?.firstName} {entry.teacherId?.lastName}

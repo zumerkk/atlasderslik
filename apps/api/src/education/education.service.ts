@@ -14,6 +14,7 @@ import { StudentEnrollment, StudentEnrollmentDocument } from './schemas/student-
 import { Question, QuestionDocument } from './schemas/question.schema';
 import { Schedule, ScheduleDocument } from './schemas/schedule.schema';
 import { Test, TestDocument } from './schemas/test.schema';
+import { TestResult, TestResultDocument } from './schemas/test-result.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
 
 @Injectable()
@@ -34,6 +35,7 @@ export class EducationService implements OnModuleInit {
         @InjectModel(Question.name) private questionModel: Model<QuestionDocument>,
         @InjectModel(Schedule.name) private scheduleModel: Model<ScheduleDocument>,
         @InjectModel(Test.name) private testModel: Model<TestDocument>,
+        @InjectModel(TestResult.name) private testResultModel: Model<TestResultDocument>,
         @InjectModel(User.name) private userModel: Model<UserDocument>,
     ) { }
 
@@ -227,6 +229,9 @@ export class EducationService implements OnModuleInit {
     }
     async deleteVideo(id: string) {
         return this.videoModel.findByIdAndDelete(id).exec();
+    }
+    async incrementVideoViews(id: string) {
+        return this.videoModel.findByIdAndUpdate(id, { $inc: { views: 1 } }, { new: true }).exec();
     }
 
     // ─── ASSIGNMENTS ────────────────────────────────────
@@ -607,7 +612,7 @@ export class EducationService implements OnModuleInit {
         if (query.dayOfWeek) filter.dayOfWeek = Number(query.dayOfWeek);
         return this.scheduleModel.find(filter)
             .populate('gradeId', 'level label')
-            .populate('subjectId', 'name gradeLevel')
+            .populate('subjectId', 'name gradeLevel zoomUrl zoomMeetingId zoomPasscode')
             .populate('teacherId', 'firstName lastName email')
             .sort({ dayOfWeek: 1, startTime: 1 })
             .exec();
@@ -616,7 +621,7 @@ export class EducationService implements OnModuleInit {
     async getTeacherSchedule(teacherId: string) {
         return this.scheduleModel.find({ teacherId: new Types.ObjectId(teacherId), isActive: true })
             .populate('gradeId', 'level label')
-            .populate('subjectId', 'name gradeLevel')
+            .populate('subjectId', 'name gradeLevel zoomUrl zoomMeetingId zoomPasscode')
             .sort({ dayOfWeek: 1, startTime: 1 })
             .exec();
     }
@@ -629,7 +634,7 @@ export class EducationService implements OnModuleInit {
         const gradeOids = enrollments.map((e: any) => (e.gradeId as any)?._id || e.gradeId).filter(Boolean);
         return this.scheduleModel.find({ gradeId: { $in: gradeOids }, isActive: true })
             .populate('gradeId', 'level label')
-            .populate('subjectId', 'name gradeLevel')
+            .populate('subjectId', 'name gradeLevel zoomUrl zoomMeetingId zoomPasscode')
             .populate('teacherId', 'firstName lastName')
             .sort({ dayOfWeek: 1, startTime: 1 })
             .exec();
@@ -827,5 +832,127 @@ export class EducationService implements OnModuleInit {
 
     async deleteTest(id: string) {
         return this.testModel.findByIdAndDelete(id).exec();
+    }
+
+    async submitTest(testId: string, studentId: string, answers: Record<string, number>, durationSeconds: number) {
+        const test = await this.testModel.findById(testId).populate('questionIds').exec();
+        if (!test) {
+            throw new BadRequestException('Test bulunamadı.');
+        }
+
+        const sid = new Types.ObjectId(studentId);
+        const questions = test.questionIds || [];
+        let correctCount = 0;
+        let wrongCount = 0;
+        let emptyCount = 0;
+
+        const answersMap = new Map<string, number>();
+
+        questions.forEach((q: any) => {
+            const questionIdStr = q._id.toString();
+            const studentAnswer = answers[questionIdStr];
+
+            if (studentAnswer === undefined || studentAnswer === null || studentAnswer === -1) {
+                emptyCount++;
+                answersMap.set(questionIdStr, -1);
+            } else {
+                answersMap.set(questionIdStr, Number(studentAnswer));
+                if (Number(studentAnswer) === q.correctAnswer) {
+                    correctCount++;
+                } else {
+                    wrongCount++;
+                }
+            }
+        });
+
+        const totalQuestions = questions.length;
+        const score = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
+
+        // Check if student already submitted (update if exists)
+        let result = await this.testResultModel.findOne({ testId: test._id, studentId: sid }).exec();
+        if (result) {
+            result.answers = answersMap;
+            result.score = score;
+            result.correctCount = correctCount;
+            result.wrongCount = wrongCount;
+            result.emptyCount = emptyCount;
+            result.durationSeconds = durationSeconds;
+            await result.save();
+        } else {
+            result = await this.testResultModel.create({
+                testId: test._id,
+                studentId: sid,
+                answers: answersMap,
+                score,
+                correctCount,
+                wrongCount,
+                emptyCount,
+                durationSeconds,
+            });
+        }
+
+        return result;
+    }
+
+    async getStudentAvailableTests(studentId: string) {
+        const sid = new Types.ObjectId(studentId);
+        const enrollments = await this.studentEnrollmentModel.find({ studentId: sid })
+            .populate('gradeId', 'level label')
+            .exec();
+
+        if (!enrollments.length) return [];
+        const gradeLevels = enrollments.map((e: any) => (e.gradeId as any)?.level).filter(Boolean);
+
+        if (!gradeLevels.length) return [];
+
+        const tests = await this.testModel.find({ gradeLevel: { $in: gradeLevels }, isActive: true })
+            .populate('subjectId', 'name')
+            .populate('teacherId', 'firstName lastName')
+            .sort({ createdAt: -1 })
+            .lean()
+            .exec();
+
+        const results = await this.testResultModel.find({ studentId: sid }).exec();
+
+        return tests.map(test => {
+            const testResult = results.find(r => r.testId.toString() === test._id.toString());
+            return {
+                ...test,
+                solved: !!testResult,
+                score: testResult ? testResult.score : null,
+                correctCount: testResult ? testResult.correctCount : null,
+                wrongCount: testResult ? testResult.wrongCount : null,
+                emptyCount: testResult ? testResult.emptyCount : null,
+                durationSeconds: testResult ? testResult.durationSeconds : null,
+                resultId: testResult ? testResult._id : null,
+            };
+        });
+    }
+
+    async getTestResultForStudent(testId: string, studentId: string) {
+        const sid = new Types.ObjectId(studentId);
+        const result = await this.testResultModel.findOne({ testId: new Types.ObjectId(testId), studentId: sid }).exec();
+        if (!result) {
+            throw new BadRequestException('Sınav sonucu bulunamadı.');
+        }
+
+        const test = await this.testModel.findById(testId)
+            .populate('subjectId', 'name')
+            .populate('teacherId', 'firstName lastName')
+            .populate('questionIds')
+            .lean()
+            .exec();
+
+        return {
+            result,
+            test,
+        };
+    }
+
+    async getTestResultsForTeacher(testId: string) {
+        return this.testResultModel.find({ testId: new Types.ObjectId(testId) })
+            .populate('studentId', 'firstName lastName email')
+            .sort({ score: -1, createdAt: -1 })
+            .exec();
     }
 }
