@@ -16,7 +16,7 @@ import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 import { apiGet, apiPost, apiDelete } from "@/lib/api";
 
-interface TeacherAssignment { _id: string; gradeId: { _id: string; level: number }; subjectId: { _id: string; name: string; gradeLevel: number }; }
+interface TeacherAssignment { _id: string; gradeId: { _id: string; level: number; label?: string }; subjectId: { _id: string; name: string; gradeLevel: number }; }
 interface Assignment { _id: string; title: string; description: string; dueDate: string; subjectId: { _id: string; name: string }; gradeLevel: number; attachments?: string[]; }
 
 export default function TeacherAssignmentsPage() {
@@ -176,7 +176,7 @@ export default function TeacherAssignmentsPage() {
                         <div className="grid gap-2"><Label>Atanmış Dersim</Label>
                             <Select value={formData.assignmentId} onValueChange={(val) => setFormData({ ...formData, assignmentId: val })}>
                                 <SelectTrigger><SelectValue placeholder="Sınıf + Ders Seçin" /></SelectTrigger>
-                                <SelectContent>{teacherAssignments.map(a => (<SelectItem key={a._id} value={a._id}>{a.gradeId?.level}. Sınıf • {a.subjectId?.name}</SelectItem>))}</SelectContent>
+                                <SelectContent>{teacherAssignments.map(a => (<SelectItem key={a._id} value={a._id}>{a.gradeId?.level}. Sınıf {a.gradeId?.label ? `(${a.gradeId.label}) ` : ''}• {a.subjectId?.name}</SelectItem>))}</SelectContent>
                             </Select>
                         </div>
                         <div className="grid gap-2"><Label>Başlık</Label><Input value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="Örn: Hafta Sonu Çalışması" /></div>

@@ -126,7 +126,7 @@ export default function TeacherSchedulePage() {
                                                                         </div>
                                                                     )}
                                                                     <p className="text-xs font-bold">{subjectName}</p>
-                                                                    <p className="text-[10px] mt-0.5 opacity-70">{(entry.gradeId as any)?.level}. Sınıf</p>
+                                                                    <p className="text-[10px] mt-0.5 opacity-70">{(entry.gradeId as any)?.level}. Sınıf {(entry.gradeId as any)?.label ? `(${(entry.gradeId as any).label})` : ''}</p>
                                                                     {entry.room && <p className="text-[10px] opacity-50 flex items-center justify-center gap-0.5"><MapPin className="h-2.5 w-2.5" />{entry.room}</p>}
                                                                 </div>
                                                             ) : (

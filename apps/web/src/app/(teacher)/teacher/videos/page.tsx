@@ -16,7 +16,7 @@ import { useRouter } from "next/navigation";
 
 interface TeacherAssignment {
     _id: string;
-    gradeId: { _id: string; level: number };
+    gradeId: { _id: string; level: number; label?: string };
     subjectId: { _id: string; name: string; gradeLevel: number };
 }
 
@@ -202,7 +202,7 @@ export default function TeacherVideosPage() {
                             <Select value={formData.assignmentId} onValueChange={(val) => setFormData({ ...formData, assignmentId: val })}>
                                 <SelectTrigger><SelectValue placeholder="Sınıf + Ders Seçin" /></SelectTrigger>
                                 <SelectContent>
-                                    {assignments.map(a => (<SelectItem key={a._id} value={a._id}>{a.gradeId?.level}. Sınıf • {a.subjectId?.name}</SelectItem>))}
+                                    {assignments.map(a => (<SelectItem key={a._id} value={a._id}>{a.gradeId?.level}. Sınıf {a.gradeId?.label ? `(${a.gradeId.label}) ` : ''}• {a.subjectId?.name}</SelectItem>))}
                                 </SelectContent>
                             </Select>
                         </div>

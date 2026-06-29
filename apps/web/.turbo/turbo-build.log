@@ -3,42 +3,80 @@
 > web@0.1.0 build /Users/zumerkekillioglu/Desktop/atls/apps/web
 > next build
 
-[1m[38;2;173;127;168m▲ Next.js 16.1.6[39m[22m (Turbopack)
+▲ Next.js 16.1.6 (Turbopack)
 - Environments: .env.local
 
-[37m[1m [22m[39m Creating an optimized production build ...
-[32m[1m✓[22m[39m Compiled successfully in 6.9s
-[?25l[37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G[?25h[?25l[37m[1m [22m[39m Finished TypeScript in 4.4s  [36m.[39m[2K[1G[?25h[37m[1m [22m[39m Finished TypeScript in 4.4s    [32m[1m✓[22m[39m Finished TypeScript in 4.4s 
-[?25l[37m[1m [22m[39m Collecting page data using 7 workers  [36m.[39m[2K[1G[37m[1m [22m[39m Collecting page data using 7 workers  [36m..[39m[2K[1G[37m[1m [22m[39m Collecting page data using 7 workers  [36m...[39m[2K[1G[37m[1m [22m[39m Collecting page data using 7 workers  [36m.[39m[2K[1G[37m[1m [22m[39m Collecting page data using 7 workers  [36m..[39m[2K[1G[?25h[37m[1m [22m[39m Collecting page data using 7 workers in 837.3ms    [32m[1m✓[22m[39m Collecting page data using 7 workers in 837.3ms 
-[?25l[37m[1m [22m[39m Generating static pages using 7 workers (0/25)  [36m[    ][39m[2K[1G[37m[1m [22m[39m Generating static pages using 7 workers (0/25)  [36m[=   ][39m[2K[1G[37m[1m [22m[39m Generating static pages using 7 workers (16/25)  [36m[==  ][39m[2K[1G[?25h[32m[1m✓[22m[39m Generating static pages using 7 workers (25/25) in 482.1ms
-[?25l[37m[1m [22m[39m Finalizing page optimization  [36m.[39m[2K[1G[?25h[37m[1m [22m[39m Finalizing page optimization in 9.6ms    [32m[1m✓[22m[39m Finalizing page optimization in 9.6ms 
+  Creating an optimized production build ...
+✓ Compiled successfully in 12.8s
+  Finished TypeScript in 5.7s    ✓ Finished TypeScript in 5.7s 
+  Collecting page data using 7 workers in 1364.3ms    ✓ Collecting page data using 7 workers in 1364.3ms 
+Failed to fetch packages from server: TypeError: fetch failed
+    at ignore-listed frames {
+  [cause]: AggregateError: 
+      at ignore-listed frames {
+    code: 'ECONNREFUSED'
+  }
+}
+✓ Generating static pages using 7 workers (54/54) in 937.5ms
+  Finalizing page optimization in 1508.7ms    ✓ Finalizing page optimization in 1508.7ms 
 
-[4mRoute (app)[24m
-┌ ○ /
+Route (app)                      Revalidate  Expire
+┌ ○ /                                    1h      1y
 ├ ○ /_not-found
 ├ ○ /admin
+├ ○ /admin/assignments/students
+├ ○ /admin/assignments/teachers
 ├ ○ /admin/grades
 ├ ○ /admin/packages
+├ ○ /admin/schedule
 ├ ○ /admin/subjects
 ├ ○ /admin/topics
 ├ ○ /admin/units
 ├ ○ /admin/users
+├ ○ /blog
+├ ○ /canli-dersler
+├ ○ /gizlilik-politikasi
+├ ○ /hakkimizda
+├ ○ /kullanim-sartlari
+├ ○ /kvkk
 ├ ○ /login
+├ ○ /ogretmenler
+├ ○ /packages
+├ ○ /parent
+├ ○ /parent/profile
+├ ○ /payment
+├ ○ /payment/callback
+├ ○ /payment/result
 ├ ○ /register
 ├ ○ /robots.txt
 ├ ○ /sitemap.xml
+├ ○ /soru-bankasi
+├ ○ /sss
 ├ ○ /student
 ├ ○ /student/assignments
 ├ ○ /student/courses
+├ ○ /student/exams
+├ ƒ /student/exams/[id]
+├ ƒ /student/exams/[id]/result
 ├ ○ /student/live-classes
+├ ○ /student/packages
+├ ○ /student/profile
+├ ○ /student/schedule
+├ ○ /student/settings
+├ ○ /student/support
 ├ ○ /student/videos
 ├ ○ /teacher
 ├ ○ /teacher/assignments
 ├ ○ /teacher/classes
 ├ ○ /teacher/live-classes
-└ ○ /teacher/videos
+├ ○ /teacher/profile
+├ ○ /teacher/questions
+├ ○ /teacher/schedule
+├ ○ /teacher/tests
+├ ○ /teacher/videos
+└ ○ /video-kutuphanesi
 
 
-○  (Static)  prerendered as static content
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
 
-[?25h
