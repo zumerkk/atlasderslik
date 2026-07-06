@@ -29,6 +29,7 @@ interface LiveClass {
     durationMinutes: number;
     subjectId: { _id: string; name: string };
     gradeLevel: number;
+    gradeId?: { _id: string; level: number; label?: string };
     platform: string;
     meetingId?: string;
     passcode?: string;
@@ -78,6 +79,7 @@ export default function TeacherLiveClassesPage() {
                 title: formData.title, description: formData.description, url: formData.url,
                 startTime: new Date(formData.startTime), durationMinutes: Number(formData.durationMinutes),
                 subjectId: selectedAssignment.subjectId._id, gradeLevel: selectedAssignment.gradeId.level,
+                gradeId: selectedAssignment.gradeId._id,
                 platform: formData.platform, meetingId: formData.meetingId, passcode: formData.passcode
             };
             const res = await apiPost("/education/live-classes", payload);
@@ -136,7 +138,10 @@ export default function TeacherLiveClassesPage() {
                         <Card key={cls._id} className="hover:shadow-md transition-shadow">
                             <CardHeader className="pb-2">
                                 <div className="flex justify-between items-start">
-                                    <Badge variant="secondary">{cls.subjectId?.name}</Badge>
+                                    <Badge variant="secondary">
+                                        {cls.gradeId ? `${cls.gradeId.level}. Sınıf ${cls.gradeId.label ? `(${cls.gradeId.label}) ` : ''}• ` : ''}
+                                        {cls.subjectId?.name}
+                                    </Badge>
                                     {new Date(cls.startTime) < new Date()
                                         ? <Badge variant="destructive">Tamamlandı</Badge>
                                         : <Badge variant="success">Planlandı</Badge>

@@ -17,7 +17,7 @@ import { useRouter } from "next/navigation";
 import { apiGet, apiPost, apiDelete } from "@/lib/api";
 
 interface TeacherAssignment { _id: string; gradeId: { _id: string; level: number; label?: string }; subjectId: { _id: string; name: string; gradeLevel: number }; }
-interface Assignment { _id: string; title: string; description: string; dueDate: string; subjectId: { _id: string; name: string }; gradeLevel: number; attachments?: string[]; }
+interface Assignment { _id: string; title: string; description: string; dueDate: string; subjectId: { _id: string; name: string }; gradeLevel: number; gradeId?: { _id: string; level: number; label?: string }; attachments?: string[]; }
 
 export default function TeacherAssignmentsPage() {
     const router = useRouter();
@@ -94,6 +94,7 @@ export default function TeacherAssignmentsPage() {
                 dueDate: formData.dueDate,
                 subjectId: selectedAssignment.subjectId._id, 
                 gradeLevel: selectedAssignment.gradeId.level,
+                gradeId: selectedAssignment.gradeId._id,
                 attachments: attachments.map(a => a.url)
             });
             if (res.ok) { 
@@ -143,7 +144,10 @@ export default function TeacherAssignmentsPage() {
                         <Card key={a._id} className="hover:shadow-md transition-shadow">
                             <CardHeader className="pb-2">
                                 <div className="flex justify-between items-start">
-                                    <Badge variant="outline">{a.subjectId?.name}</Badge>
+                                    <Badge variant="outline">
+                                        {a.gradeId ? `${a.gradeId.level}. Sınıf ${a.gradeId.label ? `(${a.gradeId.label}) ` : ''}• ` : ''}
+                                        {a.subjectId?.name}
+                                    </Badge>
                                     <Badge variant={new Date(a.dueDate) < new Date() ? "destructive" : "success"}>{new Date(a.dueDate) < new Date() ? "Süresi Doldu" : "Aktif"}</Badge>
                                 </div>
                                 <CardTitle className="text-lg truncate mt-2" title={a.title}>{a.title}</CardTitle>

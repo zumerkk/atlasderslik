@@ -20,6 +20,9 @@ export class Video {
     @Prop({ required: true })
     gradeLevel: number; // e.g., 8
 
+    @Prop({ type: Types.ObjectId, ref: 'Grade' })
+    gradeId: Types.ObjectId;
+
     @Prop({ type: Types.ObjectId, ref: 'Subject', required: true })
     subjectId: Types.ObjectId;
 

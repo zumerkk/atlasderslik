@@ -26,6 +26,7 @@ interface Video {
     description: string;
     videoUrl: string;
     gradeLevel: number;
+    gradeId?: { _id: string; level: number; label?: string };
     subjectId: { _id: string; name: string };
     views: number;
 }
@@ -76,6 +77,7 @@ export default function TeacherVideosPage() {
             const payload = {
                 title: formData.title, description: formData.description, videoUrl: formData.videoUrl,
                 subjectId: selectedAssignment.subjectId._id, gradeLevel: selectedAssignment.gradeId.level,
+                gradeId: selectedAssignment.gradeId._id,
             };
             const res = await apiPost("/education/videos", payload);
             if (res.ok) {
@@ -157,7 +159,10 @@ export default function TeacherVideosPage() {
                     {videos.map((vid) => (
                         <Card key={vid._id} className="hover:shadow-md transition-shadow">
                             <CardHeader className="pb-2">
-                                <Badge variant="secondary" className="w-fit">{vid.subjectId?.name}</Badge>
+                                <Badge variant="secondary" className="w-fit">
+                                    {vid.gradeId ? `${vid.gradeId.level}. Sınıf ${vid.gradeId.label ? `(${vid.gradeId.label}) ` : ''}• ` : ''}
+                                    {vid.subjectId?.name}
+                                </Badge>
                                 <CardTitle className="text-lg truncate mt-2" title={vid.title}>{vid.title}</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3">

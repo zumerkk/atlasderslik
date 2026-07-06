@@ -20,6 +20,9 @@ export class Assignment {
     @Prop({ required: true })
     gradeLevel: number;
 
+    @Prop({ type: Types.ObjectId, ref: 'Grade' })
+    gradeId: Types.ObjectId;
+
     @Prop({ type: Types.ObjectId, ref: 'User', required: true })
     teacherId: Types.ObjectId;
 

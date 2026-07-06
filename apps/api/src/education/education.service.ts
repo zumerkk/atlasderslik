@@ -167,12 +167,14 @@ export class EducationService implements OnModuleInit {
     async getTeacherLiveClasses(teacherId: string) {
         return this.liveClassModel.find({ teacherId: new Types.ObjectId(teacherId) })
             .populate('subjectId', 'name')
+            .populate('gradeId', 'level label')
             .sort({ startTime: 1 })
             .exec();
     }
     async getAllLiveClasses() {
         return this.liveClassModel.find({})
             .populate('subjectId', 'name')
+            .populate('gradeId', 'level label')
             .populate('teacherId', 'firstName lastName')
             .sort({ startTime: -1 })
             .exec();
@@ -184,6 +186,7 @@ export class EducationService implements OnModuleInit {
             startTime: { $gte: twoHoursAgo },
         })
             .populate('subjectId', 'name')
+            .populate('gradeId', 'level label')
             .populate('teacherId', 'firstName lastName')
             .sort({ startTime: 1 })
             .exec();
@@ -204,6 +207,7 @@ export class EducationService implements OnModuleInit {
         if (query.topicId) filter.topicId = new Types.ObjectId(query.topicId);
         return this.videoModel.find(filter)
             .populate('subjectId', 'name')
+            .populate('gradeId', 'level label')
             .populate('topicId', 'name')
             .populate('teacherId', 'firstName lastName')
             .sort({ createdAt: -1 })
@@ -224,6 +228,7 @@ export class EducationService implements OnModuleInit {
         if (data.durationMinutes !== undefined) update.durationMinutes = data.durationMinutes;
         return this.videoModel.findByIdAndUpdate(id, update, { new: true })
             .populate('subjectId', 'name')
+            .populate('gradeId', 'level label')
             .populate('teacherId', 'firstName lastName')
             .exec();
     }
@@ -245,6 +250,7 @@ export class EducationService implements OnModuleInit {
         if (query.teacherId) filter.teacherId = new Types.ObjectId(query.teacherId);
         return this.assignmentModel.find(filter)
             .populate('subjectId', 'name')
+            .populate('gradeId', 'level label')
             .sort({ dueDate: 1 })
             .exec();
     }
@@ -257,6 +263,7 @@ export class EducationService implements OnModuleInit {
         if (data.maxScore !== undefined) update.maxScore = data.maxScore;
         return this.assignmentModel.findByIdAndUpdate(id, update, { new: true })
             .populate('subjectId', 'name')
+            .populate('gradeId', 'level label')
             .populate('teacherId', 'firstName lastName')
             .exec();
     }
@@ -298,6 +305,7 @@ export class EducationService implements OnModuleInit {
         if (!gradeLevels.length) return [];
         return this.assignmentModel.find({ gradeLevel: { $in: gradeLevels } })
             .populate('subjectId', 'name')
+            .populate('gradeId', 'level label')
             .sort({ dueDate: 1 })
             .exec();
     }
