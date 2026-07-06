@@ -31,6 +31,13 @@ export class Submission {
 
     @Prop({ type: [String], default: [] })
     fileUrls: string[]; // Birden fazla dosya yükleme
+
+    // Optic Form (Answer Sheet) Support
+    @Prop({ type: [String], default: [] })
+    studentAnswers: string[]; // Öğrencinin işaretlediği cevaplar
+
+    @Prop({ type: Object })
+    opticResult: { correct: number; incorrect: number; empty: number; score: number; }; // Otomatik sonuç
 }
 
 export const SubmissionSchema = SchemaFactory.createForClass(Submission);

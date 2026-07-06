@@ -281,9 +281,41 @@ export class EducationService implements OnModuleInit {
             isLate = new Date() > deadline;
         }
 
+        let opticResult = undefined;
+        let grade = undefined;
+
+        if (assignment?.isOpticTest && data.studentAnswers) {
+            const answerKey = assignment.answerKey || [];
+            const studentAnswers = data.studentAnswers || [];
+            let correct = 0;
+            let incorrect = 0;
+            let empty = 0;
+
+            for (let i = 0; i < answerKey.length; i++) {
+                const sAns = studentAnswers[i];
+                if (!sAns || sAns === "") {
+                    empty++;
+                } else if (sAns === answerKey[i]) {
+                    correct++;
+                } else {
+                    incorrect++;
+                }
+            }
+
+            const total = answerKey.length || 1; // avoid division by zero
+            const score = Math.round((correct / total) * 100);
+
+            opticResult = { correct, incorrect, empty, score };
+            grade = score;
+        }
+
+        const updateData: any = { ...data, submittedAt: new Date(), isLate };
+        if (opticResult) updateData.opticResult = opticResult;
+        if (grade !== undefined) updateData.grade = grade;
+
         return this.submissionModel.findOneAndUpdate(
             { assignmentId: new Types.ObjectId(data.assignmentId), studentId: new Types.ObjectId(data.studentId) },
-            { ...data, submittedAt: new Date(), isLate },
+            updateData,
             { new: true, upsert: true }
         );
     }

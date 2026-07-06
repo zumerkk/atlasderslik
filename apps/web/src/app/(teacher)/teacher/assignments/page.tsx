@@ -29,12 +29,28 @@ export default function TeacherAssignmentsPage() {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState<Assignment | null>(null);
     const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+    const [isOpticTest, setIsOpticTest] = useState(false);
+    const [opticOptionsCount, setOpticOptionsCount] = useState<number>(4);
+    const [questionCount, setQuestionCount] = useState<number>(10);
+    const [answerKey, setAnswerKey] = useState<string[]>(Array(10).fill(''));
     const [formData, setFormData] = useState({ title: "", description: "", dueDate: "", assignmentId: "" });
     const [attachments, setAttachments] = useState<{name: string, url: string}[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => { fetchAssignments(); fetchTeacherAssignments(); }, []);
     useEffect(() => { if (feedback) { const t = setTimeout(() => setFeedback(null), 3000); return () => clearTimeout(t); } }, [feedback]);
+
+    const handleQuestionCountChange = (count: number) => {
+        setQuestionCount(count);
+        setAnswerKey(prev => {
+            const newArr = [...prev];
+            if (count > prev.length) {
+                return [...newArr, ...Array(count - prev.length).fill('')];
+            }
+            return newArr.slice(0, count);
+        });
+    };
 
     const fetchAssignments = async () => {
         try {
@@ -95,13 +111,20 @@ export default function TeacherAssignmentsPage() {
                 subjectId: selectedAssignment.subjectId._id, 
                 gradeLevel: selectedAssignment.gradeId.level,
                 gradeId: selectedAssignment.gradeId._id,
-                attachments: attachments.map(a => a.url)
+                attachments: attachments.map(a => a.url),
+                isOpticTest,
+                opticOptionsCount,
+                answerKey: isOpticTest ? answerKey : []
             });
             if (res.ok) { 
                 setIsDialogOpen(false); 
                 fetchAssignments(); 
                 setFormData({ title: "", description: "", dueDate: "", assignmentId: "" }); 
                 setAttachments([]);
+                setIsOpticTest(false);
+                setQuestionCount(10);
+                setOpticOptionsCount(4);
+                setAnswerKey(Array(10).fill(''));
                 setFeedback({ type: "success", message: "Ödev oluşturuldu!" }); 
             }
             else { setFeedback({ type: "error", message: "Ödev eklenemedi." }); }
@@ -223,10 +246,57 @@ export default function TeacherAssignmentsPage() {
                             )}
                         </div>
 
+                        {/* Optic Form Section */}
+                        <div className="grid gap-2 border-t pt-4">
+                            <Label className="flex items-center gap-2 cursor-pointer w-fit">
+                                <input type="checkbox" checked={isOpticTest} onChange={e => setIsOpticTest(e.target.checked)} className="rounded border-gray-300 w-4 h-4 text-primary" />
+                                Optik Form (Cevap Anahtarı) Ekle
+                            </Label>
+                        </div>
+                        {isOpticTest && (
+                            <div className="grid gap-4 bg-muted/30 p-4 rounded-xl border border-muted mt-1">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid gap-2">
+                                        <Label>Soru Sayısı</Label>
+                                        <Input type="number" min={1} max={100} value={questionCount} onChange={e => handleQuestionCountChange(Number(e.target.value))} />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label>Şık Sayısı</Label>
+                                        <Select value={opticOptionsCount.toString()} onValueChange={v => setOpticOptionsCount(Number(v))}>
+                                            <SelectTrigger><SelectValue/></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="4">4 Şık (A, B, C, D)</SelectItem>
+                                                <SelectItem value="5">5 Şık (A, B, C, D, E)</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>Cevap Anahtarı</Label>
+                                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 max-h-48 overflow-y-auto p-1 pr-2 custom-scrollbar">
+                                        {Array.from({ length: questionCount }).map((_, i) => (
+                                            <div key={i} className="flex items-center gap-1.5 text-sm">
+                                                <span className="w-6 text-right font-medium text-muted-foreground shrink-0">{i + 1}.</span>
+                                                <Select value={answerKey[i]} onValueChange={v => setAnswerKey(prev => { const n = [...prev]; n[i] = v; return n; })}>
+                                                    <SelectTrigger className="h-8 px-2"><SelectValue placeholder="-" /></SelectTrigger>
+                                                    <SelectContent>
+                                                        {Array.from({ length: opticOptionsCount }).map((_, j) => {
+                                                            const letter = String.fromCharCode(65 + j);
+                                                            return <SelectItem key={letter} value={letter}>{letter}</SelectItem>
+                                                        })}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsDialogOpen(false)}>İptal</Button>
-                        <Button onClick={handleCreate} disabled={submitting || !formData.assignmentId || !formData.title || !formData.dueDate}>{submitting && <Loader2 className="h-4 w-4 animate-spin mr-1" />} Oluştur</Button>
+                        <Button onClick={handleCreate} disabled={submitting || !formData.assignmentId || !formData.title || !formData.dueDate || (isOpticTest && answerKey.some(k => !k))}>{submitting && <Loader2 className="h-4 w-4 animate-spin mr-1" />} Oluştur</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

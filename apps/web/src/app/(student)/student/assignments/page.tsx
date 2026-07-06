@@ -29,6 +29,9 @@ interface Assignment {
     maxScore?: number;
     instructions?: string;
     attachments?: string[];
+    isOpticTest?: boolean;
+    opticOptionsCount?: number;
+    answerKey?: string[];
 }
 
 interface Submission {
@@ -39,6 +42,7 @@ interface Submission {
     grade?: number;
     feedback?: string;
     submittedAt: string;
+    opticResult?: { correct: number, incorrect: number, empty: number, score: number };
 }
 
 type AssignmentStatus = {
@@ -58,7 +62,8 @@ export default function StudentAssignmentsPage() {
     const [note, setNote] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
-    const [submitMode, setSubmitMode] = useState<"LINK" | "FILE">("FILE");
+    const [submitMode, setSubmitMode] = useState<"LINK" | "FILE" | "OPTIC">("FILE");
+    const [studentAnswers, setStudentAnswers] = useState<string[]>([]);
     const [uploadedFileData, setUploadedFileData] = useState<string>("");
     const [uploadedFileName, setUploadedFileName] = useState<string>("");
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -140,24 +145,37 @@ export default function StudentAssignmentsPage() {
         setNote("");
         setUploadedFileData("");
         setUploadedFileName("");
-        setSubmitMode("FILE");
+        if (assign.isOpticTest) {
+            setSubmitMode("OPTIC");
+            setStudentAnswers(Array(assign.answerKey?.length || 10).fill(''));
+        } else {
+            setSubmitMode("FILE");
+        }
         setDialogOpen(true);
     };
 
     const handleSubmit = async () => {
         if (!selectedAssignment) return;
         const finalFileUrl = submitMode === "FILE" ? uploadedFileData : fileUrl.trim();
-        if (!finalFileUrl) {
+        if (submitMode !== "OPTIC" && !finalFileUrl) {
             setFeedback({ type: "error", message: submitMode === "FILE" ? "Lütfen bir dosya yükleyin." : "Lütfen bir dosya linki girin." });
             return;
         }
+        if (submitMode === "OPTIC" && studentAnswers.length === 0) {
+            setFeedback({ type: "error", message: "Lütfen en az bir şık işaretleyin." });
+            return;
+        }
+
         setSubmitting(true);
         try {
-            const res = await apiPost("/education/assignments/submit", {
+            const payload: any = {
                 assignmentId: selectedAssignment._id,
-                fileUrl: finalFileUrl,
-                note: note.trim() || "Öğrenci teslimi",
-            }, { timeout: 30000 });
+                note: note.trim() || (submitMode === "OPTIC" ? "Optik form teslimi" : "Öğrenci teslimi")
+            };
+            if (submitMode !== "OPTIC") payload.fileUrl = finalFileUrl;
+            if (submitMode === "OPTIC") payload.studentAnswers = studentAnswers;
+
+            const res = await apiPost("/education/assignments/submit", payload, { timeout: 30000 });
             if (res.ok) {
                 setDialogOpen(false);
                 setSelectedAssignment(null);
@@ -335,7 +353,18 @@ export default function StudentAssignmentsPage() {
                                                     📎 <a href={submission.fileUrl} target="_blank" rel="noopener noreferrer" className="hover:underline">{submission.fileUrl}</a>
                                                 </p>
                                             )}
-                                            {submission.feedback && <p className="text-emerald-700">💬 {submission.feedback}</p>}
+                                            {submission.opticResult && (
+                                                <div className="flex flex-col gap-1 mt-1 bg-white/50 p-2 rounded border shadow-sm">
+                                                    <p className="font-semibold text-emerald-700 mb-1">Optik Form Sonucu:</p>
+                                                    <div className="flex gap-3 text-[11px] font-medium">
+                                                        <span className="text-emerald-600">{submission.opticResult.correct} Doğru</span>
+                                                        <span className="text-rose-600">{submission.opticResult.incorrect} Yanlış</span>
+                                                        <span className="text-amber-600">{submission.opticResult.empty} Boş</span>
+                                                    </div>
+                                                    <p className="text-sm font-bold text-primary mt-0.5">Puan: {submission.opticResult.score}</p>
+                                                </div>
+                                            )}
+                                            {submission.feedback && <p className="text-emerald-700 mt-1">💬 {submission.feedback}</p>}
                                         </div>
                                     )}
                                     {/* Late submission warning */}
@@ -384,6 +413,14 @@ export default function StudentAssignmentsPage() {
 
                     {/* Mode Tabs */}
                     <div className="flex gap-1 bg-muted/50 rounded-lg p-1">
+                        {selectedAssignment?.isOpticTest && (
+                            <button
+                                className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium rounded-lg transition-all ${submitMode === "OPTIC" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}
+                                onClick={() => setSubmitMode("OPTIC")}
+                            >
+                                <CheckCircle className="h-4 w-4" /> Optik Form
+                            </button>
+                        )}
                         <button
                             className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium rounded-lg transition-all ${submitMode === "FILE" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}
                             onClick={() => setSubmitMode("FILE")}
@@ -399,7 +436,38 @@ export default function StudentAssignmentsPage() {
                     </div>
 
                     <div className="grid gap-4 py-2">
-                        {submitMode === "FILE" ? (
+                        {submitMode === "OPTIC" ? (
+                            <div className="grid gap-2">
+                                <Label>Cevap Anahtarı (Optik Form)</Label>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 max-h-64 overflow-y-auto p-2 border rounded-xl bg-muted/20 custom-scrollbar">
+                                    {studentAnswers.map((ans, i) => (
+                                        <div key={i} className="flex flex-col gap-1.5 p-2 border rounded-lg bg-white shadow-sm">
+                                            <span className="text-xs font-semibold text-center text-muted-foreground border-b pb-1">Soru {i + 1}</span>
+                                            <div className="flex justify-center gap-1 mt-1">
+                                                {Array.from({ length: selectedAssignment?.opticOptionsCount || 4 }).map((_, j) => {
+                                                    const letter = String.fromCharCode(65 + j);
+                                                    return (
+                                                        <button
+                                                            key={letter}
+                                                            onClick={() => {
+                                                                const newAns = [...studentAnswers];
+                                                                // Toggle: if already selected, unselect it
+                                                                newAns[i] = newAns[i] === letter ? '' : letter;
+                                                                setStudentAnswers(newAns);
+                                                            }}
+                                                            className={`w-6 h-6 rounded-full border flex items-center justify-center text-[10px] font-bold transition-colors ${ans === letter ? "bg-primary text-white border-primary" : "bg-white text-gray-500 hover:border-primary hover:text-primary"}`}
+                                                        >
+                                                            {letter}
+                                                        </button>
+                                                    )
+                                                })}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-1">Lütfen çözdüğünüz teste ait şıkları işaretleyiniz. Şıkkı geri almak için tekrar tıklayabilirsiniz.</p>
+                            </div>
+                        ) : submitMode === "FILE" ? (
                             <div className="grid gap-2">
                                 <Label>Dosya Yükle <span className="text-destructive">*</span></Label>
                                 <div
@@ -444,7 +512,7 @@ export default function StudentAssignmentsPage() {
                                 value={note}
                                 onChange={(e) => setNote(e.target.value)}
                                 placeholder="Teslim hakkında eklemek istediğiniz notlar..."
-                                rows={3}
+                                rows={2}
                             />
                         </div>
                     </div>
@@ -452,9 +520,9 @@ export default function StudentAssignmentsPage() {
                         <Button variant="outline" onClick={() => setDialogOpen(false)}>İptal</Button>
                         <Button
                             onClick={handleSubmit}
-                            disabled={submitting || (submitMode === "FILE" ? !uploadedFileData : !fileUrl.trim())}
+                            disabled={submitting || (submitMode === "FILE" ? !uploadedFileData : submitMode === "LINK" ? !fileUrl.trim() : studentAnswers.every(a => !a))}
                         >
-                            {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                            {submitting && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
                             {submitting ? "Gönderiliyor..." : "Gönder"}
                         </Button>
                     </DialogFooter>

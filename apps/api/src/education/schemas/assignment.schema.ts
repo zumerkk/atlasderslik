@@ -38,6 +38,16 @@ export class Assignment {
 
     @Prop({ type: [String], default: [] })
     attachments: string[]; // Öğretmenin eklediği dosyalar (resim/PDF URL)
+
+    // Optic Form (Answer Sheet) Support
+    @Prop({ default: false })
+    isOpticTest: boolean;
+
+    @Prop({ default: 4 })
+    opticOptionsCount: number; // e.g., 4 (A-D) or 5 (A-E)
+
+    @Prop({ type: [String], default: [] })
+    answerKey: string[]; // e.g., ['A', 'B', 'C', 'C']
 }
 
 export const AssignmentSchema = SchemaFactory.createForClass(Assignment);
