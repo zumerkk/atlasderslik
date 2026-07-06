@@ -248,6 +248,28 @@ export default function StudentAssignmentsPage() {
         return format(d, "dd MMMM yyyy", { locale: tr });
     };
 
+    const handleDownloadAttachment = (e: React.MouseEvent, att: string, index: number) => {
+        e.preventDefault();
+        if (att.startsWith("data:")) {
+            const a = document.createElement("a");
+            a.href = att;
+            const mime = att.split(';')[0].split(':')[1];
+            let ext = 'file';
+            if (mime) {
+                if (mime.includes('pdf')) ext = 'pdf';
+                else if (mime.includes('jpeg') || mime.includes('jpg')) ext = 'jpg';
+                else if (mime.includes('png')) ext = 'png';
+                else ext = mime.split('/')[1] || 'file';
+            }
+            a.download = `ek-dosya-${index + 1}.${ext}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        } else {
+            window.open(att, "_blank");
+        }
+    };
+
     return (
         <div className="space-y-6 animate-fade-in">
             <PageHeader title="Ödevlerim" description="Yapılacak ve tamamlanan ödevleriniz." />
@@ -294,9 +316,9 @@ export default function StudentAssignmentsPage() {
                                             <p className="text-xs font-semibold text-muted-foreground">Ekler:</p>
                                             <div className="flex flex-wrap gap-2">
                                                 {assign.attachments.map((att, i) => (
-                                                    <a key={i} href={att} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs text-blue-600 bg-blue-50 px-2.5 py-1.5 rounded-lg hover:bg-blue-100 transition-colors w-fit border border-blue-100">
+                                                    <button key={i} onClick={(e) => handleDownloadAttachment(e, att, i)} className="flex items-center gap-1.5 text-xs text-blue-600 bg-blue-50 px-2.5 py-1.5 rounded-lg hover:bg-blue-100 transition-colors w-fit border border-blue-100">
                                                         <FileText className="h-3.5 w-3.5" /> Ek Dosya {i + 1}
-                                                    </a>
+                                                    </button>
                                                 ))}
                                             </div>
                                         </div>

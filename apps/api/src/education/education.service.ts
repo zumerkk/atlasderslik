@@ -303,7 +303,15 @@ export class EducationService implements OnModuleInit {
         if (!enrollments.length) return [];
         const gradeLevels = enrollments.map((e: any) => (e.gradeId as any)?.level).filter(Boolean);
         if (!gradeLevels.length) return [];
-        return this.assignmentModel.find({ gradeLevel: { $in: gradeLevels } })
+        const gradeOids = enrollments.map((e: any) => (e.gradeId as any)?._id || e.gradeId).filter(Boolean);
+        const filterCond = {
+            $or: [
+                { gradeId: { $in: gradeOids } },
+                { gradeId: { $exists: false }, gradeLevel: { $in: gradeLevels } },
+                { gradeId: null, gradeLevel: { $in: gradeLevels } }
+            ]
+        };
+        return this.assignmentModel.find(filterCond)
             .populate('subjectId', 'name')
             .populate('gradeId', 'level label')
             .sort({ dueDate: 1 })
@@ -342,6 +350,14 @@ export class EducationService implements OnModuleInit {
             };
         }
 
+        const filterCond = {
+            $or: [
+                { gradeId: { $in: gradeOids } },
+                { gradeId: { $exists: false }, gradeLevel: { $in: gradeLevels } },
+                { gradeId: null, gradeLevel: { $in: gradeLevels } }
+            ]
+        };
+
         const [courses, liveClasses, videos, rawAssignments, submissions] = await Promise.all([
             // Courses = teacher assignments for all enrolled grades
             this.teacherAssignmentModel.find({ gradeId: { $in: gradeOids } })
@@ -350,19 +366,19 @@ export class EducationService implements OnModuleInit {
                 .populate('teacherId', 'firstName lastName email')
                 .exec(),
             // Live classes for all enrolled grades
-            this.liveClassModel.find({ gradeLevel: { $in: gradeLevels } })
+            this.liveClassModel.find(filterCond)
                 .populate('subjectId', 'name')
                 .populate('teacherId', 'firstName lastName')
                 .sort({ startTime: 1 })
                 .exec(),
             // Videos for all enrolled grades
-            this.videoModel.find({ gradeLevel: { $in: gradeLevels } })
+            this.videoModel.find(filterCond)
                 .populate('subjectId', 'name')
                 .populate('teacherId', 'firstName lastName')
                 .sort({ createdAt: -1 })
                 .exec(),
             // Assignments for all enrolled grades
-            this.assignmentModel.find({ gradeLevel: { $in: gradeLevels } })
+            this.assignmentModel.find(filterCond)
                 .populate('subjectId', 'name')
                 .populate('teacherId', 'firstName lastName')
                 .sort({ dueDate: 1 })
