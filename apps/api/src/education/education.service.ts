@@ -336,11 +336,12 @@ export class EducationService implements OnModuleInit {
         const gradeLevels = enrollments.map((e: any) => (e.gradeId as any)?.level).filter(Boolean);
         if (!gradeLevels.length) return [];
         const gradeOids = enrollments.map((e: any) => (e.gradeId as any)?._id || e.gradeId).filter(Boolean);
+        const cutoffDate = new Date('2026-07-06T00:00:00Z');
         const filterCond = {
             $or: [
                 { gradeId: { $in: gradeOids } },
-                { gradeId: { $exists: false }, gradeLevel: { $in: gradeLevels } },
-                { gradeId: null, gradeLevel: { $in: gradeLevels } }
+                { gradeId: { $exists: false }, gradeLevel: { $in: gradeLevels }, createdAt: { $lt: cutoffDate } },
+                { gradeId: null, gradeLevel: { $in: gradeLevels }, createdAt: { $lt: cutoffDate } }
             ]
         };
         return this.assignmentModel.find(filterCond)
@@ -382,11 +383,13 @@ export class EducationService implements OnModuleInit {
             };
         }
 
+        // Yalnızca eski (groups/gradeId eklenmeden önce) yüklenen verilerin fallback olarak gelmesini sağlıyoruz.
+        const cutoffDate = new Date('2026-07-06T00:00:00Z');
         const filterCond = {
             $or: [
                 { gradeId: { $in: gradeOids } },
-                { gradeId: { $exists: false }, gradeLevel: { $in: gradeLevels } },
-                { gradeId: null, gradeLevel: { $in: gradeLevels } }
+                { gradeId: { $exists: false }, gradeLevel: { $in: gradeLevels }, createdAt: { $lt: cutoffDate } },
+                { gradeId: null, gradeLevel: { $in: gradeLevels }, createdAt: { $lt: cutoffDate } }
             ]
         };
 
