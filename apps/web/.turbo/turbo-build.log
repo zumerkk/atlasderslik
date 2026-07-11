@@ -1,5 +1,4 @@
 
-
 > web@0.1.0 build /Users/zumerkekillioglu/Desktop/atls/apps/web
 > next build
 
@@ -7,9 +6,13 @@
 - Environments: .env.local
 
   Creating an optimized production build ...
-✓ Compiled successfully in 12.8s
-  Finished TypeScript in 5.7s    ✓ Finished TypeScript in 5.7s 
-  Collecting page data using 7 workers in 1364.3ms    ✓ Collecting page data using 7 workers in 1364.3ms 
+✓ Compiled successfully in 16.5s
+  Running TypeScript ...
+  Collecting page data using 7 workers ...
+  Generating static pages using 7 workers (0/54) ...
+  Generating static pages using 7 workers (13/54) 
+  Generating static pages using 7 workers (26/54) 
+  Generating static pages using 7 workers (40/54) 
 Failed to fetch packages from server: TypeError: fetch failed
     at ignore-listed frames {
   [cause]: AggregateError: 
@@ -17,8 +20,8 @@ Failed to fetch packages from server: TypeError: fetch failed
     code: 'ECONNREFUSED'
   }
 }
-✓ Generating static pages using 7 workers (54/54) in 937.5ms
-  Finalizing page optimization in 1508.7ms    ✓ Finalizing page optimization in 1508.7ms 
+✓ Generating static pages using 7 workers (54/54) in 552.8ms
+  Finalizing page optimization ...
 
 Route (app)                      Revalidate  Expire
 ┌ ○ /                                    1h      1y

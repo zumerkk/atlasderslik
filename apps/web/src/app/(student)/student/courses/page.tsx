@@ -67,7 +67,7 @@ export default function StudentCoursesPage() {
                                     <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
                                         <BookOpen className="h-5 w-5 text-primary" />
                                     </div>
-                                    <Badge variant="info">{course.gradeLabel || `${course.gradeLevel}. Sınıf`}</Badge>
+                                    <Badge variant="info" className="max-w-[120px] truncate" title={course.gradeLabel || `${course.gradeLevel}. Sınıf`}>{course.gradeLabel || `${course.gradeLevel}. Sınıf`}</Badge>
                                 </div>
                                 <CardTitle className="mt-3">{course.subject.name}</CardTitle>
                                 {course.subject.description && <CardDescription className="line-clamp-2">{course.subject.description}</CardDescription>}

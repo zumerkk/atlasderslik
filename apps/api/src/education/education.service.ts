@@ -100,6 +100,16 @@ export class EducationService implements OnModuleInit {
         return this.gradeModel.findByIdAndUpdate(id, data, { new: true }).exec();
     }
     async deleteGrade(id: string) {
+        // Cascade: deactivate schedules referencing this grade
+        try {
+            await this.scheduleModel.updateMany(
+                { gradeId: new Types.ObjectId(id) },
+                { isActive: false }
+            );
+            this.logger.log(`Deactivated schedules for deleted grade ${id}`);
+        } catch (err) {
+            this.logger.warn('Schedule cascade deactivation issue: ' + (err as any)?.message);
+        }
         return this.gradeModel.findByIdAndDelete(id).exec();
     }
 
@@ -162,7 +172,10 @@ export class EducationService implements OnModuleInit {
 
     // ─── LIVE CLASSES ───────────────────────────────────
     async createLiveClass(data: any, teacherId: string) {
-        return this.liveClassModel.create({ ...data, teacherId: new Types.ObjectId(teacherId) });
+        const classData = { ...data, teacherId: new Types.ObjectId(teacherId) };
+        if (data.gradeId) classData.gradeId = new Types.ObjectId(data.gradeId);
+        if (data.subjectId) classData.subjectId = new Types.ObjectId(data.subjectId);
+        return this.liveClassModel.create(classData);
     }
     async getTeacherLiveClasses(teacherId: string) {
         return this.liveClassModel.find({ teacherId: new Types.ObjectId(teacherId) })
@@ -197,7 +210,10 @@ export class EducationService implements OnModuleInit {
 
     // ─── VIDEOS ─────────────────────────────────────────
     async createVideo(data: any, teacherId: string) {
-        return this.videoModel.create({ ...data, teacherId: new Types.ObjectId(teacherId) });
+        const videoData = { ...data, teacherId: new Types.ObjectId(teacherId) };
+        if (data.gradeId) videoData.gradeId = new Types.ObjectId(data.gradeId);
+        if (data.subjectId) videoData.subjectId = new Types.ObjectId(data.subjectId);
+        return this.videoModel.create(videoData);
     }
     async getVideos(query: any) {
         const filter: any = {};
@@ -241,7 +257,10 @@ export class EducationService implements OnModuleInit {
 
     // ─── ASSIGNMENTS ────────────────────────────────────
     async createAssignment(data: any, teacherId: string) {
-        return this.assignmentModel.create({ ...data, teacherId: new Types.ObjectId(teacherId) });
+        const assignmentData = { ...data, teacherId: new Types.ObjectId(teacherId) };
+        if (data.gradeId) assignmentData.gradeId = new Types.ObjectId(data.gradeId);
+        if (data.subjectId) assignmentData.subjectId = new Types.ObjectId(data.subjectId);
+        return this.assignmentModel.create(assignmentData);
     }
     async getAssignments(query: any) {
         const filter: any = {};
@@ -281,8 +300,8 @@ export class EducationService implements OnModuleInit {
             isLate = new Date() > deadline;
         }
 
-        let opticResult = undefined;
-        let grade = undefined;
+        let opticResult: any = undefined;
+        let grade: any = undefined;
 
         if (assignment?.isOpticTest && data.studentAnswers) {
             const answerKey = assignment.answerKey || [];
@@ -340,6 +359,9 @@ export class EducationService implements OnModuleInit {
         const filterCond = {
             $or: [
                 { gradeId: { $in: gradeOids } },
+                // String gradeId fallback — handles cases where gradeId was saved as string instead of ObjectId
+                { gradeId: { $in: gradeOids.map((oid: any) => oid.toString()) } },
+                // Legacy fallback: old data without gradeId, created before gradeId was introduced
                 { gradeId: { $exists: false }, gradeLevel: { $in: gradeLevels }, createdAt: { $lt: cutoffDate } },
                 { gradeId: null, gradeLevel: { $in: gradeLevels }, createdAt: { $lt: cutoffDate } }
             ]
@@ -383,11 +405,13 @@ export class EducationService implements OnModuleInit {
             };
         }
 
-        // Yalnızca eski (groups/gradeId eklenmeden önce) yüklenen verilerin fallback olarak gelmesini sağlıyoruz.
         const cutoffDate = new Date('2026-07-06T00:00:00Z');
         const filterCond = {
             $or: [
                 { gradeId: { $in: gradeOids } },
+                // String gradeId fallback — handles cases where gradeId was saved as string instead of ObjectId
+                { gradeId: { $in: gradeOids.map((oid: any) => oid.toString()) } },
+                // Legacy fallback: old data without gradeId, created before gradeId was introduced
                 { gradeId: { $exists: false }, gradeLevel: { $in: gradeLevels }, createdAt: { $lt: cutoffDate } },
                 { gradeId: null, gradeLevel: { $in: gradeLevels }, createdAt: { $lt: cutoffDate } }
             ]

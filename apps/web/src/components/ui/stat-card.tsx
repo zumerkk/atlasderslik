@@ -67,7 +67,7 @@ export function StatCard({
                     </span>
                 )}
             </div>
-            <div className="text-2xl font-bold text-foreground tracking-tight">{value}</div>
+            <div className="text-2xl font-bold text-foreground tracking-tight truncate" title={String(value)}>{value}</div>
             <p className="text-xs text-muted-foreground mt-1">{title}</p>
         </div>
     )
