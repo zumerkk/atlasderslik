@@ -159,7 +159,7 @@ export class EducationController {
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.STUDENT)
     getStudentLiveClasses(@Req() req) {
-        return this.educationService.getStudentLiveClasses(Number(req.query.gradeLevel));
+        return this.educationService.getStudentLiveClasses(req.user.userId);
     }
 
     @Delete('live-classes/:id')

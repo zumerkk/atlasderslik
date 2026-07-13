@@ -100,15 +100,24 @@ export class EducationService implements OnModuleInit {
         return this.gradeModel.findByIdAndUpdate(id, data, { new: true }).exec();
     }
     async deleteGrade(id: string) {
+        const gradeOid = new Types.ObjectId(id);
         // Cascade: deactivate schedules referencing this grade
         try {
             await this.scheduleModel.updateMany(
-                { gradeId: new Types.ObjectId(id) },
+                { gradeId: gradeOid },
                 { isActive: false }
             );
             this.logger.log(`Deactivated schedules for deleted grade ${id}`);
         } catch (err) {
             this.logger.warn('Schedule cascade deactivation issue: ' + (err as any)?.message);
+        }
+        // Cascade: remove orphan enrollments and teacher assignments
+        try {
+            const enrollResult = await this.studentEnrollmentModel.deleteMany({ gradeId: gradeOid });
+            const taResult = await this.teacherAssignmentModel.deleteMany({ gradeId: gradeOid });
+            this.logger.log(`Cascade cleanup for grade ${id}: ${enrollResult.deletedCount} enrollments, ${taResult.deletedCount} teacher assignments removed`);
+        } catch (err) {
+            this.logger.warn('Cascade enrollment/TA cleanup issue: ' + (err as any)?.message);
         }
         return this.gradeModel.findByIdAndDelete(id).exec();
     }
@@ -192,10 +201,22 @@ export class EducationService implements OnModuleInit {
             .sort({ startTime: -1 })
             .exec();
     }
-    async getStudentLiveClasses(gradeLevel: number) {
+    async getStudentLiveClasses(studentId: string) {
+        const sid = new Types.ObjectId(studentId);
+        const enrollments = await this.studentEnrollmentModel.find({ studentId: sid })
+            .populate('gradeId', 'level label')
+            .exec();
+        if (!enrollments.length) return [];
+        const gradeOids = enrollments.map((e: any) => (e.gradeId as any)?._id || e.gradeId).filter(Boolean);
+        const gradeLevels = enrollments.map((e: any) => (e.gradeId as any)?.level).filter(Boolean);
         const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
         return this.liveClassModel.find({
-            gradeLevel,
+            $or: [
+                { gradeId: { $in: gradeOids } },
+                { gradeId: { $in: gradeOids.map((oid: any) => oid.toString()) } },
+                { gradeId: { $exists: false }, gradeLevel: { $in: gradeLevels } },
+                { gradeId: null, gradeLevel: { $in: gradeLevels } },
+            ],
             startTime: { $gte: twoHoursAgo },
         })
             .populate('subjectId', 'name')
@@ -693,6 +714,12 @@ export class EducationService implements OnModuleInit {
         if (query.gradeId) filter.gradeId = new Types.ObjectId(query.gradeId);
         if (query.teacherId) filter.teacherId = new Types.ObjectId(query.teacherId);
         if (query.dayOfWeek) filter.dayOfWeek = Number(query.dayOfWeek);
+        // Default to active-only unless explicitly requested
+        if (query.isActive !== undefined) {
+            filter.isActive = query.isActive === 'true' || query.isActive === true;
+        } else {
+            filter.isActive = true;
+        }
         return this.scheduleModel.find(filter)
             .populate('gradeId', 'level label')
             .populate('subjectId', 'name gradeLevel zoomUrl zoomMeetingId zoomPasscode')

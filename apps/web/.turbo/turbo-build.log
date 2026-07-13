@@ -6,7 +6,7 @@
 - Environments: .env.local
 
   Creating an optimized production build ...
-✓ Compiled successfully in 16.5s
+✓ Compiled successfully in 13.2s
   Running TypeScript ...
   Collecting page data using 7 workers ...
   Generating static pages using 7 workers (0/54) ...
@@ -20,7 +20,7 @@ Failed to fetch packages from server: TypeError: fetch failed
     code: 'ECONNREFUSED'
   }
 }
-✓ Generating static pages using 7 workers (54/54) in 552.8ms
+✓ Generating static pages using 7 workers (54/54) in 658.6ms
   Finalizing page optimization ...
 
 Route (app)                      Revalidate  Expire
