@@ -17,6 +17,9 @@ export class Package {
     @Prop({ required: true })
     price: number;
 
+    @Prop({ default: 0 })
+    originalPrice: number; // Asıl fiyat (üstü çizili gösterilir, 0 ise gösterilmez)
+
     @Prop({ required: true, default: true })
     isActive: boolean;
 

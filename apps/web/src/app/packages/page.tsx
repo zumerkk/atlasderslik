@@ -22,12 +22,14 @@ import { cachedApiGet } from "@/lib/api";
 
 interface Pkg {
     _id: string; name: string; description: string; subtitle: string;
-    price: number; features: string[]; badge: string; period: string;
+    price: number; originalPrice?: number; features: string[]; badge: string; period: string;
 }
 
 const BADGE_STYLES: Record<string, string> = {
     "VIP": "bg-gradient-to-r from-amber-500 to-orange-500",
     "En Popüler": "bg-gradient-to-r from-emerald-500 to-teal-500",
+    "Sınırlı Kontenjan": "bg-gradient-to-r from-rose-500 to-pink-500",
+    "Yaz Kampı": "bg-gradient-to-r from-orange-500 to-amber-500",
 };
 
 const COLORS = [
@@ -123,22 +125,34 @@ export default function PackagesPublicPage() {
                                     const badgeStyle = BADGE_STYLES[pkg.badge] || BADGE_STYLES["En Popüler"];
                                     return (
                                         <div key={pkg._id} className={`group relative bg-white rounded-2xl border-2 ${ci.border} shadow-md hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 flex flex-col overflow-hidden`}>
-                                            {pkg.badge && (
-                                                <div className="absolute top-4 right-4 z-10">
-                                                    <span className={`inline-flex items-center gap-1 px-3 py-1 text-xs font-bold text-white rounded-full shadow-sm ${badgeStyle}`}>
-                                                        {pkg.badge === "VIP" ? <Crown className="h-3 w-3" /> : <Star className="h-3 w-3" />}
-                                                        {pkg.badge}
-                                                    </span>
-                                                </div>
-                                            )}
 
                                             {/* Header gradient strip */}
                                             <div className={`bg-gradient-to-r ${ci.color} px-6 py-5`}>
-                                                <h3 className="text-lg font-bold text-white leading-tight mb-3">{pkg.name}</h3>
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <h3 className="text-lg font-bold text-white leading-tight">{pkg.name}</h3>
+                                                    {pkg.badge && (
+                                                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold text-white rounded-full shadow-sm shrink-0 ${badgeStyle}`}>
+                                                            {pkg.badge === "VIP" ? <Crown className="h-3 w-3" /> : <Star className="h-3 w-3" />}
+                                                            {pkg.badge}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="flex items-baseline gap-2 mt-3">
+                                                    {pkg.originalPrice && pkg.originalPrice > 0 && pkg.originalPrice > pkg.price && (
+                                                        <span className="text-lg font-semibold text-white/50 line-through">{pkg.originalPrice.toLocaleString("tr-TR")} TL</span>
+                                                    )}
+                                                </div>
                                                 <div className="flex items-baseline gap-1">
                                                     <span className="text-3xl font-extrabold text-white">{pkg.price.toLocaleString("tr-TR")} TL</span>
                                                     <span className="text-white/70 text-sm font-medium">{PERIOD_LABEL[pkg.period] || "/ Ay"}</span>
                                                 </div>
+                                                {pkg.originalPrice && pkg.originalPrice > 0 && pkg.originalPrice > pkg.price && (
+                                                    <div className="mt-2">
+                                                        <span className="inline-block bg-white/20 backdrop-blur-sm text-white text-xs font-bold px-2.5 py-1 rounded-full">
+                                                            %{Math.round(((pkg.originalPrice - pkg.price) / pkg.originalPrice) * 100)} indirim
+                                                        </span>
+                                                    </div>
+                                                )}
                                             </div>
 
                                             {/* Subtitle */}

@@ -17,11 +17,11 @@ import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/api";
 
 interface Pkg {
     _id: string; name: string; description: string; subtitle: string;
-    price: number; isActive: boolean; features: string[];
+    price: number; originalPrice: number; isActive: boolean; features: string[];
     badge: string; sortOrder: number; period: string; createdAt: string;
 }
 
-const emptyForm = { name: "", description: "", subtitle: "", price: 0, features: "", badge: "", sortOrder: 0, period: "monthly", isActive: true };
+const emptyForm = { name: "", description: "", subtitle: "", price: 0, originalPrice: 0, features: "", badge: "", sortOrder: 0, period: "monthly", isActive: true };
 
 export default function PackagesPage() {
     const [packages, setPackages] = useState<Pkg[]>([]);
@@ -45,7 +45,7 @@ export default function PackagesPage() {
         setEditingPkg(pkg);
         setForm({
             name: pkg.name, description: pkg.description, subtitle: pkg.subtitle || "",
-            price: pkg.price, features: (pkg.features || []).join(", "),
+            price: pkg.price, originalPrice: pkg.originalPrice || 0, features: (pkg.features || []).join(", "),
             badge: pkg.badge || "", sortOrder: pkg.sortOrder || 0, period: pkg.period || "monthly",
             isActive: pkg.isActive,
         });
@@ -57,7 +57,7 @@ export default function PackagesPage() {
         setSubmitting(true); setFeedback(null);
         const payload = {
             name: form.name, description: form.description, subtitle: form.subtitle,
-            price: form.price, features: form.features.split(",").map(f => f.trim()).filter(Boolean),
+            price: form.price, originalPrice: form.originalPrice, features: form.features.split(",").map(f => f.trim()).filter(Boolean),
             badge: form.badge, sortOrder: form.sortOrder, period: form.period, isActive: form.isActive,
         };
         try {
@@ -122,7 +122,12 @@ export default function PackagesPage() {
                                 <TableCell className="text-muted-foreground">{pkg.sortOrder}</TableCell>
                                 <TableCell className="font-semibold">{pkg.name}</TableCell>
                                 <TableCell className="text-muted-foreground max-w-xs truncate text-sm">{pkg.subtitle}</TableCell>
-                                <TableCell className="font-semibold">{pkg.price.toLocaleString("tr-TR")} ₺</TableCell>
+                                <TableCell>
+                                    <div className="flex flex-col">
+                                        <span className="font-semibold">{pkg.price.toLocaleString("tr-TR")} ₺</span>
+                                        {pkg.originalPrice > 0 && <span className="text-xs text-muted-foreground line-through">{pkg.originalPrice.toLocaleString("tr-TR")} ₺</span>}
+                                    </div>
+                                </TableCell>
                                 <TableCell>{pkg.badge ? <Badge variant="info">{pkg.badge}</Badge> : <span className="text-muted-foreground text-xs">—</span>}</TableCell>
                                 <TableCell>
                                     <button
@@ -160,8 +165,9 @@ export default function PackagesPage() {
                         <div className="grid gap-2"><Label>Paket Adı</Label><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required /></div>
                         <div className="grid gap-2"><Label>Açıklama</Label><Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} required /></div>
                         <div className="grid gap-2"><Label>Alt Başlık</Label><Input value={form.subtitle} onChange={e => setForm({ ...form, subtitle: e.target.value })} placeholder="Haftada 6 Ders | Maks 10 Kişi" /></div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="grid gap-2"><Label>Fiyat (TL)</Label><Input type="number" value={form.price} onChange={e => setForm({ ...form, price: parseFloat(e.target.value) })} required /></div>
+                        <div className="grid grid-cols-3 gap-4">
+                            <div className="grid gap-2"><Label>İndirimli Fiyat (TL)</Label><Input type="number" value={form.price} onChange={e => setForm({ ...form, price: parseFloat(e.target.value) })} required /></div>
+                            <div className="grid gap-2"><Label>Asıl Fiyat (TL)</Label><Input type="number" value={form.originalPrice} onChange={e => setForm({ ...form, originalPrice: parseFloat(e.target.value) || 0 })} placeholder="0 = gösterme" /></div>
                             <div className="grid gap-2"><Label>Sıra</Label><Input type="number" value={form.sortOrder} onChange={e => setForm({ ...form, sortOrder: parseInt(e.target.value) })} /></div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
