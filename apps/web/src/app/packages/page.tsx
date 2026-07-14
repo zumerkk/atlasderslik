@@ -166,16 +166,12 @@ export default function PackagesPublicPage() {
                                             <div className="px-6 pb-6">
                                                 <Button
                                                     onClick={() => {
-                                                        const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-                                                        if (token) {
-                                                            window.location.href = `/payment?packageId=${pkg._id}`;
-                                                        } else {
-                                                            window.location.href = `/login?redirect=${encodeURIComponent(`/payment?packageId=${pkg._id}`)}`;
-                                                        }
+                                                        const msg = encodeURIComponent(`Merhaba, "${pkg.name}" paketi hakkında bilgi almak istiyorum.`);
+                                                        window.open(`https://wa.me/905461191009?text=${msg}`, "_blank");
                                                     }}
                                                     className={`w-full bg-gradient-to-r ${ci.color} hover:opacity-90 text-white py-5 font-semibold shadow-md hover:shadow-lg transition-all`}
                                                 >
-                                                    Satın Al
+                                                    Bilgi Al
                                                     <ArrowRight className="ml-2 h-4 w-4" />
                                                 </Button>
                                             </div>

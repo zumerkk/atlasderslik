@@ -21,7 +21,7 @@ interface Pkg {
     badge: string; sortOrder: number; period: string; createdAt: string;
 }
 
-const emptyForm = { name: "", description: "", subtitle: "", price: 0, features: "", badge: "", sortOrder: 0, period: "monthly" };
+const emptyForm = { name: "", description: "", subtitle: "", price: 0, features: "", badge: "", sortOrder: 0, period: "monthly", isActive: true };
 
 export default function PackagesPage() {
     const [packages, setPackages] = useState<Pkg[]>([]);
@@ -47,6 +47,7 @@ export default function PackagesPage() {
             name: pkg.name, description: pkg.description, subtitle: pkg.subtitle || "",
             price: pkg.price, features: (pkg.features || []).join(", "),
             badge: pkg.badge || "", sortOrder: pkg.sortOrder || 0, period: pkg.period || "monthly",
+            isActive: pkg.isActive,
         });
         setDialogOpen(true);
     };
@@ -57,7 +58,7 @@ export default function PackagesPage() {
         const payload = {
             name: form.name, description: form.description, subtitle: form.subtitle,
             price: form.price, features: form.features.split(",").map(f => f.trim()).filter(Boolean),
-            badge: form.badge, sortOrder: form.sortOrder, period: form.period,
+            badge: form.badge, sortOrder: form.sortOrder, period: form.period, isActive: form.isActive,
         };
         try {
             const res = editingPkg
@@ -123,7 +124,20 @@ export default function PackagesPage() {
                                 <TableCell className="text-muted-foreground max-w-xs truncate text-sm">{pkg.subtitle}</TableCell>
                                 <TableCell className="font-semibold">{pkg.price.toLocaleString("tr-TR")} ₺</TableCell>
                                 <TableCell>{pkg.badge ? <Badge variant="info">{pkg.badge}</Badge> : <span className="text-muted-foreground text-xs">—</span>}</TableCell>
-                                <TableCell><Badge variant={pkg.isActive ? "success" : "destructive"}>{pkg.isActive ? "Aktif" : "Pasif"}</Badge></TableCell>
+                                <TableCell>
+                                    <button
+                                        className="cursor-pointer"
+                                        onClick={async () => {
+                                            try {
+                                                const res = await apiPatch(`/packages/${pkg._id}`, { isActive: !pkg.isActive });
+                                                if (res.ok) { setFeedback({ type: "success", message: pkg.isActive ? "Paket pasife alındı." : "Paket aktife alındı." }); fetchPackages(); }
+                                            } catch {}
+                                        }}
+                                        title={pkg.isActive ? "Pasife al" : "Aktife al"}
+                                    >
+                                        <Badge variant={pkg.isActive ? "success" : "destructive"}>{pkg.isActive ? "Aktif" : "Pasif"}</Badge>
+                                    </button>
+                                </TableCell>
                                 <TableCell className="text-right">
                                     <div className="flex items-center justify-end gap-1">
                                         <Button variant="ghost" size="sm" onClick={() => openEdit(pkg)}><Pencil className="h-4 w-4" /></Button>
@@ -160,6 +174,10 @@ export default function PackagesPage() {
                             </div>
                         </div>
                         <div className="grid gap-2"><Label>Özellikler (virgülle ayırın)</Label><Textarea value={form.features} onChange={e => setForm({ ...form, features: e.target.value })} placeholder="Canlı dersler, Ödev takibi, Soru çözüm..." rows={3} /></div>
+                        <div className="flex items-center gap-3 px-1">
+                            <input type="checkbox" id="isActive" checked={form.isActive} onChange={e => setForm({ ...form, isActive: e.target.checked })} className="h-4 w-4 rounded border-gray-300" />
+                            <Label htmlFor="isActive" className="cursor-pointer">Paket aktif (müşteriler görebilir)</Label>
+                        </div>
                         <DialogFooter>
                             <Button variant="outline" type="button" onClick={() => setDialogOpen(false)}>İptal</Button>
                             <Button type="submit" disabled={submitting}>{submitting && <Loader2 className="h-4 w-4 animate-spin" />}{editingPkg ? "Güncelle" : "Kaydet"}</Button>
