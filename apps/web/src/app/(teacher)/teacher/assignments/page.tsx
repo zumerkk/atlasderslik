@@ -8,16 +8,17 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { BookOpen, Plus, Calendar, Trash2, Loader2, CheckCircle, AlertCircle, Upload, File as FileIcon } from "lucide-react";
+import { BookOpen, Plus, Calendar, Trash2, Loader2, CheckCircle, AlertCircle, Upload, File as FileIcon, Eye, Star, MessageSquare, Download } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { format } from "date-fns";
 import { useRouter } from "next/navigation";
-import { apiGet, apiPost, apiDelete } from "@/lib/api";
+import { apiGet, apiPost, apiDelete, apiPatch } from "@/lib/api";
 
 interface TeacherAssignment { _id: string; gradeId: { _id: string; level: number; label?: string }; subjectId: { _id: string; name: string; gradeLevel: number }; }
 interface Assignment { _id: string; title: string; description: string; dueDate: string; subjectId: { _id: string; name: string }; gradeLevel: number; gradeId?: { _id: string; level: number; label?: string }; attachments?: string[]; }
+interface SubmissionItem { _id: string; studentId: { _id: string; firstName: string; lastName: string }; fileUrl?: string; note?: string; grade?: number; feedback?: string; isLate?: boolean; submittedAt: string; opticResult?: { correct: number; incorrect: number; empty: number; score: number }; studentAnswers?: string[]; }
 
 export default function TeacherAssignmentsPage() {
     const router = useRouter();
@@ -29,6 +30,13 @@ export default function TeacherAssignmentsPage() {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState<Assignment | null>(null);
     const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+    const [submissionsDialogOpen, setSubmissionsDialogOpen] = useState(false);
+    const [submissionsTarget, setSubmissionsTarget] = useState<Assignment | null>(null);
+    const [submissions, setSubmissions] = useState<SubmissionItem[]>([]);
+    const [submissionsLoading, setSubmissionsLoading] = useState(false);
+    const [gradingId, setGradingId] = useState<string | null>(null);
+    const [gradeInput, setGradeInput] = useState("");
+    const [feedbackInput, setFeedbackInput] = useState("");
 
     const [isOpticTest, setIsOpticTest] = useState(false);
     const [opticOptionsCount, setOpticOptionsCount] = useState<number>(4);
@@ -65,6 +73,36 @@ export default function TeacherAssignmentsPage() {
 
     const fetchTeacherAssignments = async () => {
         try { const res = await apiGet("/education/teacher-assignments/mine"); if (res.ok) setTeacherAssignments(await res.json()); } catch (error) { console.error(error); }
+    };
+
+    const openSubmissions = async (assignment: Assignment) => {
+        setSubmissionsTarget(assignment);
+        setSubmissionsDialogOpen(true);
+        setSubmissionsLoading(true);
+        setGradingId(null);
+        try {
+            const res = await apiGet(`/education/assignments/${assignment._id}/submissions`);
+            if (res.ok) setSubmissions(await res.json());
+            else setSubmissions([]);
+        } catch { setSubmissions([]); }
+        finally { setSubmissionsLoading(false); }
+    };
+
+    const handleGrade = async (subId: string) => {
+        if (!gradeInput) return;
+        setSubmitting(true);
+        try {
+            const res = await apiPatch(`/education/submissions/${subId}/grade`, {
+                grade: Number(gradeInput),
+                feedback: feedbackInput.trim(),
+            });
+            if (res.ok) {
+                setFeedback({ type: "success", message: "Not verildi!" });
+                setGradingId(null); setGradeInput(""); setFeedbackInput("");
+                if (submissionsTarget) openSubmissions(submissionsTarget);
+            } else { setFeedback({ type: "error", message: "Not verilemedi." }); }
+        } catch { setFeedback({ type: "error", message: "Hata oluştu." }); }
+        finally { setSubmitting(false); }
     };
 
     const selectedAssignment = teacherAssignments.find(a => a._id === formData.assignmentId);
@@ -186,7 +224,7 @@ export default function TeacherAssignmentsPage() {
                             </CardContent>
                             <CardFooter className="flex justify-between border-t pt-4">
                                 <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => { setDeleteTarget(a); setDeleteDialogOpen(true); }}><Trash2 className="h-4 w-4" /></Button>
-                                <Button size="sm" variant="outline">Teslimleri Gör</Button>
+                                <Button size="sm" variant="outline" onClick={() => openSubmissions(a)}><Eye className="h-4 w-4 mr-1" />Teslimleri Gör</Button>
                             </CardFooter>
                         </Card>
                     ))}
@@ -308,6 +346,84 @@ export default function TeacherAssignmentsPage() {
                         <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>İptal</Button>
                         <Button variant="destructive" onClick={handleDelete} disabled={submitting}>{submitting && <Loader2 className="h-4 w-4 animate-spin" />} Sil</Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Submissions Dialog */}
+            <Dialog open={submissionsDialogOpen} onOpenChange={setSubmissionsDialogOpen}>
+                <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Teslimler — {submissionsTarget?.title}</DialogTitle>
+                        <DialogDescription>Bu ödeve yapılan öğrenci teslimlerini görüntüleyin ve notlandırın.</DialogDescription>
+                    </DialogHeader>
+                    {submissionsLoading ? (
+                        <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+                    ) : submissions.length === 0 ? (
+                        <div className="text-center py-10">
+                            <EmptyState icon={BookOpen} title="Henüz teslim yok" description="Bu ödeve henüz hiçbir öğrenci teslim yapmamış." />
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            <p className="text-sm text-muted-foreground">{submissions.length} öğrenci teslim etmiş</p>
+                            {submissions.map((sub) => (
+                                <div key={sub._id} className={`p-4 rounded-xl border ${sub.isLate ? 'border-amber-200 bg-amber-50/30' : 'border-border bg-muted/20'} space-y-2`}>
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-semibold text-sm">{sub.studentId?.firstName} {sub.studentId?.lastName}</span>
+                                            {sub.isLate && <Badge variant="warning" className="text-[10px]">Geç</Badge>}
+                                        </div>
+                                        <span className="text-xs text-muted-foreground">{format(new Date(sub.submittedAt), "dd.MM.yyyy HH:mm")}</span>
+                                    </div>
+                                    {sub.note && <p className="text-sm text-muted-foreground">📝 {sub.note}</p>}
+                                    {sub.fileUrl && (
+                                        <div>
+                                            {sub.fileUrl.startsWith('data:image') ? (
+                                                <img src={sub.fileUrl} alt="Teslim" className="max-h-40 rounded-lg border object-contain" />
+                                            ) : sub.fileUrl.startsWith('data:') ? (
+                                                <a href={sub.fileUrl} download={`teslim-${sub.studentId?.lastName}`} className="inline-flex items-center gap-1.5 text-sm text-blue-600 bg-blue-50 px-3 py-2 rounded-lg hover:bg-blue-100 border border-blue-100">
+                                                    <Download className="h-3.5 w-3.5" />Dosyayı İndir
+                                                </a>
+                                            ) : (
+                                                <a href={sub.fileUrl} target="_blank" rel="noopener" className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:underline"><FileIcon className="h-3.5 w-3.5" />Dosya Linki</a>
+                                            )}
+                                        </div>
+                                    )}
+                                    {sub.opticResult && (
+                                        <div className="flex items-center gap-3 text-xs font-medium bg-white p-2 rounded-lg border">
+                                            <span className="text-emerald-600">✓ {sub.opticResult.correct} Doğru</span>
+                                            <span className="text-rose-600">✗ {sub.opticResult.incorrect} Yanlış</span>
+                                            <span className="text-amber-600">○ {sub.opticResult.empty} Boş</span>
+                                            <span className="font-bold text-primary ml-auto">Puan: {sub.opticResult.score}</span>
+                                        </div>
+                                    )}
+                                    <div className="flex items-center justify-between pt-1 border-t border-border/50">
+                                        {sub.grade != null ? (
+                                            <div className="flex items-center gap-2">
+                                                <Badge variant="success"><Star className="h-3 w-3 mr-1" />Not: {sub.grade}</Badge>
+                                                {sub.feedback && <span className="text-xs text-muted-foreground">💬 {sub.feedback}</span>}
+                                            </div>
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground">Henüz notlandırılmadı</span>
+                                        )}
+                                        {gradingId === sub._id ? (
+                                            <div className="flex items-center gap-2">
+                                                <Input type="number" min={0} max={100} placeholder="Not" value={gradeInput} onChange={e => setGradeInput(e.target.value)} className="w-20 h-8 text-sm" />
+                                                <Input placeholder="Geri bildirim" value={feedbackInput} onChange={e => setFeedbackInput(e.target.value)} className="w-36 h-8 text-sm" />
+                                                <Button size="sm" className="h-8" onClick={() => handleGrade(sub._id)} disabled={submitting || !gradeInput}>
+                                                    {submitting ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
+                                                </Button>
+                                                <Button size="sm" variant="ghost" className="h-8" onClick={() => setGradingId(null)}>İptal</Button>
+                                            </div>
+                                        ) : (
+                                            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { setGradingId(sub._id); setGradeInput(sub.grade?.toString() || ""); setFeedbackInput(sub.feedback || ""); }}>
+                                                <MessageSquare className="h-3 w-3 mr-1" />{sub.grade != null ? "Notu Düzenle" : "Notla"}
+                                            </Button>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </DialogContent>
             </Dialog>
         </div>

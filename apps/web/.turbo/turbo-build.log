@@ -6,14 +6,21 @@
 - Environments: .env.local
 
   Creating an optimized production build ...
-✓ Compiled successfully in 62s
+✓ Compiled successfully in 12.2s
   Running TypeScript ...
   Collecting page data using 7 workers ...
   Generating static pages using 7 workers (0/54) ...
   Generating static pages using 7 workers (13/54) 
   Generating static pages using 7 workers (26/54) 
+Failed to fetch packages from server: TypeError: fetch failed
+    at ignore-listed frames {
+  [cause]: AggregateError: 
+      at ignore-listed frames {
+    code: 'ECONNREFUSED'
+  }
+}
   Generating static pages using 7 workers (40/54) 
-✓ Generating static pages using 7 workers (54/54) in 1414.1ms
+✓ Generating static pages using 7 workers (54/54) in 1084.8ms
   Finalizing page optimization ...
 
 Route (app)                      Revalidate  Expire
