@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document, Types, SchemaTypes } from 'mongoose';
 
 export type LiveClassDocument = LiveClass & Document;
 
@@ -32,13 +32,13 @@ export class LiveClass {
     @Prop({ required: true })
     gradeLevel: number; // e.g., 8
 
-    @Prop({ type: Types.ObjectId, ref: 'Grade' })
+    @Prop({ type: SchemaTypes.ObjectId, ref: 'Grade' })
     gradeId: Types.ObjectId;
 
-    @Prop({ type: Types.ObjectId, ref: 'Subject', required: true })
+    @Prop({ type: SchemaTypes.ObjectId, ref: 'Subject', required: true })
     subjectId: Types.ObjectId;
 
-    @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+    @Prop({ type: SchemaTypes.ObjectId, ref: 'User', required: true })
     teacherId: Types.ObjectId;
 
     @Prop({ default: true })

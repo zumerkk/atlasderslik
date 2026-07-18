@@ -1,14 +1,14 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document, Types, SchemaTypes } from 'mongoose';
 
 export type SubmissionDocument = Submission & Document;
 
 @Schema({ timestamps: true })
 export class Submission {
-    @Prop({ type: Types.ObjectId, ref: 'Assignment', required: true })
+    @Prop({ type: SchemaTypes.ObjectId, ref: 'Assignment', required: true })
     assignmentId: Types.ObjectId;
 
-    @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+    @Prop({ type: SchemaTypes.ObjectId, ref: 'User', required: true })
     studentId: Types.ObjectId;
 
     @Prop()

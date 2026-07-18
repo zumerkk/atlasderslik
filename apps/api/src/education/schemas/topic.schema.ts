@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document, Types, SchemaTypes } from 'mongoose';
 import { Unit } from './unit.schema';
 
 export type TopicDocument = Topic & Document;
@@ -9,7 +9,7 @@ export class Topic {
     @Prop({ required: true })
     name: string;
 
-    @Prop({ type: Types.ObjectId, ref: 'Unit', required: true })
+    @Prop({ type: SchemaTypes.ObjectId, ref: 'Unit', required: true })
     unitId: Types.ObjectId;
 
     @Prop({ type: Number, default: 0 })

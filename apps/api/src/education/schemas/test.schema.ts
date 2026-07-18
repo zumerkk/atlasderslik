@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document, Types, SchemaTypes } from 'mongoose';
 
 export type TestDocument = Test & Document;
 
@@ -14,13 +14,13 @@ export class Test {
     @Prop({ required: true })
     gradeLevel: number;
 
-    @Prop({ type: Types.ObjectId, ref: 'Subject', required: true })
+    @Prop({ type: SchemaTypes.ObjectId, ref: 'Subject', required: true })
     subjectId: Types.ObjectId;
 
-    @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+    @Prop({ type: SchemaTypes.ObjectId, ref: 'User', required: true })
     teacherId: Types.ObjectId;
 
-    @Prop({ type: [{ type: Types.ObjectId, ref: 'Question' }], default: [] })
+    @Prop({ type: [{ type: SchemaTypes.ObjectId, ref: 'Question' }], default: [] })
     questionIds: Types.ObjectId[];
 
     @Prop({ default: 0 })

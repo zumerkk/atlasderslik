@@ -15,6 +15,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 import { apiGet, apiPost, apiDelete, apiPatch } from "@/lib/api";
+import { downloadDataUri, extensionFromDataUri } from "@/lib/download";
 
 interface TeacherAssignment { _id: string; gradeId: { _id: string; level: number; label?: string }; subjectId: { _id: string; name: string; gradeLevel: number }; }
 interface Assignment { _id: string; title: string; description: string; dueDate: string; subjectId: { _id: string; name: string }; gradeLevel: number; gradeId?: { _id: string; level: number; label?: string }; attachments?: string[]; }
@@ -380,9 +381,9 @@ export default function TeacherAssignmentsPage() {
                                             {sub.fileUrl.startsWith('data:image') ? (
                                                 <img src={sub.fileUrl} alt="Teslim" className="max-h-40 rounded-lg border object-contain" />
                                             ) : sub.fileUrl.startsWith('data:') ? (
-                                                <a href={sub.fileUrl} download={`teslim-${sub.studentId?.lastName}`} className="inline-flex items-center gap-1.5 text-sm text-blue-600 bg-blue-50 px-3 py-2 rounded-lg hover:bg-blue-100 border border-blue-100">
+                                                <button type="button" onClick={() => downloadDataUri(sub.fileUrl!, `teslim-${sub.studentId?.lastName || 'ogrenci'}.${extensionFromDataUri(sub.fileUrl!)}`)} className="inline-flex items-center gap-1.5 text-sm text-blue-600 bg-blue-50 px-3 py-2 rounded-lg hover:bg-blue-100 border border-blue-100">
                                                     <Download className="h-3.5 w-3.5" />Dosyayı İndir
-                                                </a>
+                                                </button>
                                             ) : (
                                                 <a href={sub.fileUrl} target="_blank" rel="noopener" className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:underline"><FileIcon className="h-3.5 w-3.5" />Dosya Linki</a>
                                             )}

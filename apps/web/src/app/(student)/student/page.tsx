@@ -63,9 +63,23 @@ export default function StudentDashboard() {
     const courseCount = data?.courses
         ? [...new Set(data.courses.map((c: any) => c.subjectId?._id))].length
         : 0;
-    const submittedIds = new Set((data?.submissions || []).map((s: any) => s.assignmentId?._id?.toString()));
+    const submittedIds = new Set(
+        (data?.submissions || []).map((s: any) =>
+            (s.assignmentId?._id ?? s.assignmentId)?.toString()
+        )
+    );
+    // Bekleyen = teslim edilmemiş VE süresi geçmemiş ödevler.
+    // Süresi geçenler "bekleyen" sayılmaz; Ödevlerim sayfasında "Süresi Doldu" olarak listelenir.
+    const isAssignmentExpired = (a: any) => {
+        if (a.isExpired !== undefined) return a.isExpired;
+        if (!a.dueDate) return false;
+        const deadline = new Date(a.dueDate);
+        if (isNaN(deadline.getTime())) return false;
+        deadline.setHours(23, 59, 59, 999);
+        return deadline < new Date();
+    };
     const pendingAssignments = (data?.assignments || []).filter(
-        (a: any) => !submittedIds.has(a._id.toString())
+        (a: any) => !submittedIds.has(a._id.toString()) && !isAssignmentExpired(a)
     );
     const upcomingClasses = (data?.liveClasses || []).filter(
         (lc: any) => new Date(lc.startTime) >= new Date()

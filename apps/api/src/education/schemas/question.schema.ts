@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document, Types, SchemaTypes } from 'mongoose';
 
 export type QuestionDocument = Question & Document;
 
@@ -20,16 +20,16 @@ export class Question {
     @Prop({ required: true })
     gradeLevel: number;
 
-    @Prop({ type: Types.ObjectId, ref: 'Subject', required: true })
+    @Prop({ type: SchemaTypes.ObjectId, ref: 'Subject', required: true })
     subjectId: Types.ObjectId;
 
-    @Prop({ type: Types.ObjectId, ref: 'Unit', required: false })
+    @Prop({ type: SchemaTypes.ObjectId, ref: 'Unit', required: false })
     unitId: Types.ObjectId;
 
-    @Prop({ type: Types.ObjectId, ref: 'Topic', required: false })
+    @Prop({ type: SchemaTypes.ObjectId, ref: 'Topic', required: false })
     topicId: Types.ObjectId;
 
-    @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+    @Prop({ type: SchemaTypes.ObjectId, ref: 'User', required: true })
     teacherId: Types.ObjectId;
 
     @Prop({ default: 'MEDIUM', enum: ['EASY', 'MEDIUM', 'HARD'] })

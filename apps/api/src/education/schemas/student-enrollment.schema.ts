@@ -1,17 +1,17 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document, Types, SchemaTypes } from 'mongoose';
 
 export type StudentEnrollmentDocument = StudentEnrollment & Document;
 
 @Schema({ timestamps: true })
 export class StudentEnrollment {
-    @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+    @Prop({ type: SchemaTypes.ObjectId, ref: 'User', required: true })
     studentId: Types.ObjectId;
 
-    @Prop({ type: Types.ObjectId, ref: 'Grade', required: true })
+    @Prop({ type: SchemaTypes.ObjectId, ref: 'Grade', required: true })
     gradeId: Types.ObjectId;
 
-    @Prop({ type: Types.ObjectId, ref: 'User', required: false })
+    @Prop({ type: SchemaTypes.ObjectId, ref: 'User', required: false })
     parentId: Types.ObjectId;
 
     @Prop({ default: Date.now })

@@ -14,6 +14,7 @@ import { Calendar, FileText, Upload, CheckCircle, AlertCircle, Loader2, Clock, A
 import { format, isPast, differenceInDays } from "date-fns";
 import { tr } from "date-fns/locale";
 import { apiGet, apiPost } from "@/lib/api";
+import { downloadDataUri, extensionFromDataUri } from "@/lib/download";
 
 interface Assignment {
     _id: string;
@@ -269,20 +270,7 @@ export default function StudentAssignmentsPage() {
     const handleDownloadAttachment = (e: React.MouseEvent, att: string, index: number) => {
         e.preventDefault();
         if (att.startsWith("data:")) {
-            const a = document.createElement("a");
-            a.href = att;
-            const mime = att.split(';')[0].split(':')[1];
-            let ext = 'file';
-            if (mime) {
-                if (mime.includes('pdf')) ext = 'pdf';
-                else if (mime.includes('jpeg') || mime.includes('jpg')) ext = 'jpg';
-                else if (mime.includes('png')) ext = 'png';
-                else ext = mime.split('/')[1] || 'file';
-            }
-            a.download = `ek-dosya-${index + 1}.${ext}`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            downloadDataUri(att, `ek-dosya-${index + 1}.${extensionFromDataUri(att)}`);
         } else {
             window.open(att, "_blank");
         }
