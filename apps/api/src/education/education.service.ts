@@ -289,9 +289,9 @@ export class EducationService implements OnModuleInit {
             const ea = isExpired(a);
             const eb = isExpired(b);
             if (ea !== eb) return ea ? 1 : -1;
-            const da = a.dueDate ? new Date(a.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
-            const db = b.dueDate ? new Date(b.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
-            return ea ? db - da : da - db;
+            const ca = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const cb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return cb - ca; // Newest first
         });
     }
 
