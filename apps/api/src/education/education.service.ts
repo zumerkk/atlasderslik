@@ -213,9 +213,7 @@ export class EducationService implements OnModuleInit {
         return this.liveClassModel.find({
             $or: [
                 { gradeId: { $in: gradeOids } },
-                { gradeId: { $in: gradeOids.map((oid: any) => oid.toString()) } },
-                { gradeId: { $exists: false }, gradeLevel: { $in: gradeLevels } },
-                { gradeId: null, gradeLevel: { $in: gradeLevels } },
+                { gradeId: { $in: gradeOids.map((oid: any) => oid.toString()) } }
             ],
             startTime: { $gte: twoHoursAgo },
         })
@@ -402,15 +400,11 @@ export class EducationService implements OnModuleInit {
         const gradeLevels = enrollments.map((e: any) => (e.gradeId as any)?.level).filter(Boolean);
         if (!gradeLevels.length) return [];
         const gradeOids = enrollments.map((e: any) => (e.gradeId as any)?._id || e.gradeId).filter(Boolean);
-        const cutoffDate = new Date('2026-07-06T00:00:00Z');
         const filterCond = {
             $or: [
                 { gradeId: { $in: gradeOids } },
                 // String gradeId fallback — handles cases where gradeId was saved as string instead of ObjectId
-                { gradeId: { $in: gradeOids.map((oid: any) => oid.toString()) } },
-                // Legacy fallback: old data without gradeId, created before gradeId was introduced
-                { gradeId: { $exists: false }, gradeLevel: { $in: gradeLevels }, createdAt: { $lt: cutoffDate } },
-                { gradeId: null, gradeLevel: { $in: gradeLevels }, createdAt: { $lt: cutoffDate } }
+                { gradeId: { $in: gradeOids.map((oid: any) => oid.toString()) } }
             ]
         };
         const assignments = await this.assignmentModel.find(filterCond)
@@ -452,15 +446,11 @@ export class EducationService implements OnModuleInit {
             };
         }
 
-        const cutoffDate = new Date('2026-07-06T00:00:00Z');
         const filterCond = {
             $or: [
                 { gradeId: { $in: gradeOids } },
                 // String gradeId fallback — handles cases where gradeId was saved as string instead of ObjectId
-                { gradeId: { $in: gradeOids.map((oid: any) => oid.toString()) } },
-                // Legacy fallback: old data without gradeId, created before gradeId was introduced
-                { gradeId: { $exists: false }, gradeLevel: { $in: gradeLevels }, createdAt: { $lt: cutoffDate } },
-                { gradeId: null, gradeLevel: { $in: gradeLevels }, createdAt: { $lt: cutoffDate } }
+                { gradeId: { $in: gradeOids.map((oid: any) => oid.toString()) } }
             ]
         };
 
