@@ -16,9 +16,10 @@ import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 import { apiGet, apiPost, apiDelete, apiPatch } from "@/lib/api";
 import { downloadDataUri, extensionFromDataUri } from "@/lib/download";
+import { OpticForm } from "@/components/ui/optic-form";
 
 interface TeacherAssignment { _id: string; gradeId: { _id: string; level: number; label?: string }; subjectId: { _id: string; name: string; gradeLevel: number }; }
-interface Assignment { _id: string; title: string; description: string; dueDate: string; subjectId: { _id: string; name: string }; gradeLevel: number; gradeId?: { _id: string; level: number; label?: string }; attachments?: string[]; }
+interface Assignment { _id: string; title: string; description: string; dueDate: string; subjectId: { _id: string; name: string }; gradeLevel: number; gradeId?: { _id: string; level: number; label?: string }; attachments?: string[]; isOpticTest?: boolean; opticOptionsCount?: number; answerKey?: string[]; }
 interface SubmissionItem { _id: string; studentId: { _id: string; firstName: string; lastName: string }; fileUrl?: string; note?: string; grade?: number; feedback?: string; isLate?: boolean; submittedAt: string; opticResult?: { correct: number; incorrect: number; empty: number; score: number }; studentAnswers?: string[]; }
 
 export default function TeacherAssignmentsPage() {
@@ -390,11 +391,23 @@ export default function TeacherAssignmentsPage() {
                                         </div>
                                     )}
                                     {sub.opticResult && (
-                                        <div className="flex items-center gap-3 text-xs font-medium bg-white p-2 rounded-lg border">
-                                            <span className="text-emerald-600">✓ {sub.opticResult.correct} Doğru</span>
-                                            <span className="text-rose-600">✗ {sub.opticResult.incorrect} Yanlış</span>
-                                            <span className="text-amber-600">○ {sub.opticResult.empty} Boş</span>
-                                            <span className="font-bold text-primary ml-auto">Puan: {sub.opticResult.score}</span>
+                                        <div className="flex flex-col gap-3 mt-2 mb-2 p-3 rounded-xl border bg-muted/20">
+                                            <div className="flex items-center gap-4 text-sm font-medium">
+                                                <span className="text-emerald-600">✓ {sub.opticResult.correct} Doğru</span>
+                                                <span className="text-rose-600">✗ {sub.opticResult.incorrect} Yanlış</span>
+                                                <span className="text-amber-600">○ {sub.opticResult.empty} Boş</span>
+                                                <span className="font-bold text-primary ml-auto">Puan: {sub.opticResult.score}</span>
+                                            </div>
+                                            <div className="max-h-64 overflow-y-auto custom-scrollbar">
+                                                <OpticForm
+                                                    mode="view"
+                                                    questionCount={submissionsTarget?.answerKey?.length || 10}
+                                                    optionsCount={submissionsTarget?.opticOptionsCount || 4}
+                                                    studentAnswers={sub.studentAnswers || []}
+                                                    answerKey={submissionsTarget?.answerKey || []}
+                                                    className="p-2"
+                                                />
+                                            </div>
                                         </div>
                                     )}
                                     <div className="flex items-center justify-between pt-1 border-t border-border/50">

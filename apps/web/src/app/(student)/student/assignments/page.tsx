@@ -15,6 +15,7 @@ import { format, isPast, differenceInDays } from "date-fns";
 import { tr } from "date-fns/locale";
 import { apiGet, apiPost } from "@/lib/api";
 import { downloadDataUri, extensionFromDataUri } from "@/lib/download";
+import { OpticForm } from "@/components/ui/optic-form";
 
 interface Assignment {
     _id: string;
@@ -43,6 +44,7 @@ interface Submission {
     grade?: number;
     feedback?: string;
     submittedAt: string;
+    studentAnswers?: string[];
     opticResult?: { correct: number, incorrect: number, empty: number, score: number };
 }
 
@@ -59,6 +61,8 @@ export default function StudentAssignmentsPage() {
     const [loading, setLoading] = useState(true);
     const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
     const [dialogOpen, setDialogOpen] = useState(false);
+    const [resultDialogOpen, setResultDialogOpen] = useState(false);
+    const [resultSubmission, setResultSubmission] = useState<{ assign: Assignment; sub: Submission } | null>(null);
     const [fileUrl, setFileUrl] = useState("");
     const [note, setNote] = useState("");
     const [submitting, setSubmitting] = useState(false);
@@ -363,17 +367,28 @@ export default function StudentAssignmentsPage() {
                                         </div>
                                     )}
                                 </CardContent>
-                                <CardFooter className="border-t pt-4">
+                                <CardFooter className="border-t pt-4 flex gap-2">
                                     {!status.canSubmit ? (
-                                        <Button variant="outline" className="w-full" disabled>
-                                            <CheckCircle className="h-4 w-4" /> {submission?.grade != null ? "Notlandırıldı" : "Teslim Edildi"}
-                                        </Button>
+                                        <>
+                                            <Button variant="outline" className="flex-1" disabled>
+                                                <CheckCircle className="h-4 w-4" /> {submission?.grade != null ? "Notlandırıldı" : "Teslim Edildi"}
+                                            </Button>
+                                            {assign.isOpticTest && submission && (
+                                                <Button 
+                                                    variant="default" 
+                                                    className="flex-1"
+                                                    onClick={() => {
+                                                        setResultSubmission({ assign, sub: submission });
+                                                        setResultDialogOpen(true);
+                                                    }}
+                                                >
+                                                    Sonucu Gör
+                                                </Button>
+                                            )}
+                                        </>
                                     ) : (
-                                        <Button
-                                            className={`w-full ${status.isLate ? "bg-amber-600 hover:bg-amber-700" : ""}`}
-                                            onClick={() => openSubmitDialog(assign)}
-                                        >
-                                            <Upload className="h-4 w-4" /> {status.isLate ? "Geç Teslim Yap" : "Ödev Yükle"}
+                                        <Button className="w-full" onClick={() => handleOpenSubmitDialog(assign)}>
+                                            <Upload className="h-4 w-4" /> {status.isLate ? "Geç Teslim Yap" : "Teslim Et"}
                                         </Button>
                                     )}
                                 </CardFooter>
@@ -427,33 +442,19 @@ export default function StudentAssignmentsPage() {
                         {submitMode === "OPTIC" ? (
                             <div className="grid gap-2">
                                 <Label>Cevap Anahtarı (Optik Form)</Label>
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 max-h-64 overflow-y-auto p-2 border rounded-xl bg-muted/20 custom-scrollbar">
-                                    {studentAnswers.map((ans, i) => (
-                                        <div key={i} className="flex flex-col gap-1.5 p-2 border rounded-lg bg-white shadow-sm">
-                                            <span className="text-xs font-semibold text-center text-muted-foreground border-b pb-1">Soru {i + 1}</span>
-                                            <div className="flex justify-center gap-1 mt-1">
-                                                {Array.from({ length: selectedAssignment?.opticOptionsCount || 4 }).map((_, j) => {
-                                                    const letter = String.fromCharCode(65 + j);
-                                                    return (
-                                                        <button
-                                                            key={letter}
-                                                            onClick={() => {
-                                                                const newAns = [...studentAnswers];
-                                                                // Toggle: if already selected, unselect it
-                                                                newAns[i] = newAns[i] === letter ? '' : letter;
-                                                                setStudentAnswers(newAns);
-                                                            }}
-                                                            className={`w-6 h-6 rounded-full border flex items-center justify-center text-[10px] font-bold transition-colors ${ans === letter ? "bg-primary text-white border-primary" : "bg-white text-gray-500 hover:border-primary hover:text-primary"}`}
-                                                        >
-                                                            {letter}
-                                                        </button>
-                                                    )
-                                                })}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                                <p className="text-xs text-muted-foreground mt-1">Lütfen çözdüğünüz teste ait şıkları işaretleyiniz. Şıkkı geri almak için tekrar tıklayabilirsiniz.</p>
+                                <OpticForm
+                                    mode="edit"
+                                    questionCount={selectedAssignment?.answerKey?.length || 10}
+                                    optionsCount={selectedAssignment?.opticOptionsCount || 4}
+                                    studentAnswers={studentAnswers}
+                                    onChange={(index, answer) => {
+                                        const newAns = [...studentAnswers];
+                                        newAns[index] = answer;
+                                        setStudentAnswers(newAns);
+                                    }}
+                                    className="max-h-80 overflow-y-auto p-4 border rounded-xl bg-muted/20 custom-scrollbar"
+                                />
+                                <p className="text-xs text-muted-foreground mt-1 text-center">Lütfen çözdüğünüz teste ait şıkları işaretleyiniz. Şıkkı geri almak için tekrar tıklayabilirsiniz.</p>
                             </div>
                         ) : submitMode === "FILE" ? (
                             <div className="grid gap-2">
@@ -514,6 +515,52 @@ export default function StudentAssignmentsPage() {
                             {submitting ? "Gönderiliyor..." : "Gönder"}
                         </Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* View Result Dialog */}
+            <Dialog open={resultDialogOpen} onOpenChange={(open) => { setResultDialogOpen(open); if (!open) setResultSubmission(null); }}>
+                <DialogContent className="sm:max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Optik Form Sonucu</DialogTitle>
+                        <DialogDescription>
+                            <strong>{resultSubmission?.assign?.title}</strong> ödevinizin optik sonuçları.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {resultSubmission && resultSubmission.sub.opticResult && (
+                        <div className="flex justify-center gap-6 my-2 p-4 bg-muted/40 rounded-xl border">
+                            <div className="flex flex-col items-center">
+                                <span className="text-2xl font-bold text-emerald-600">{resultSubmission.sub.opticResult.correct}</span>
+                                <span className="text-xs font-medium text-emerald-700">Doğru</span>
+                            </div>
+                            <div className="flex flex-col items-center">
+                                <span className="text-2xl font-bold text-rose-600">{resultSubmission.sub.opticResult.incorrect}</span>
+                                <span className="text-xs font-medium text-rose-700">Yanlış</span>
+                            </div>
+                            <div className="flex flex-col items-center">
+                                <span className="text-2xl font-bold text-amber-600">{resultSubmission.sub.opticResult.empty}</span>
+                                <span className="text-xs font-medium text-amber-700">Boş</span>
+                            </div>
+                            <div className="flex flex-col items-center border-l pl-6 ml-2">
+                                <span className="text-2xl font-bold text-primary">{resultSubmission.sub.opticResult.score}</span>
+                                <span className="text-xs font-medium text-primary">Puan</span>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="grid gap-2">
+                        {resultSubmission && (
+                            <OpticForm
+                                mode="view"
+                                questionCount={resultSubmission.assign.answerKey?.length || 10}
+                                optionsCount={resultSubmission.assign.opticOptionsCount || 4}
+                                studentAnswers={resultSubmission.sub.studentAnswers || []}
+                                answerKey={resultSubmission.assign.answerKey || []}
+                                className="max-h-96 overflow-y-auto p-4 border rounded-xl bg-muted/10 custom-scrollbar"
+                            />
+                        )}
+                    </div>
                 </DialogContent>
             </Dialog>
         </div>
