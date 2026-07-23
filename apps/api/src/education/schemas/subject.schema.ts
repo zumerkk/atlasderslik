@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document, Types, SchemaTypes } from 'mongoose';
 
 export type SubjectDocument = Subject & Document;
 
@@ -10,6 +10,9 @@ export class Subject {
 
     @Prop({ type: Number, required: true })
     gradeLevel: number; // 5, 6, 7, 8 (Easier lookup)
+
+    @Prop({ type: SchemaTypes.ObjectId, ref: 'Grade' })
+    gradeId?: Types.ObjectId; // Reference to specific grade/class (e.g. 8. Sınıf SATÜRN)
 
     @Prop()
     icon?: string;
@@ -29,5 +32,4 @@ export class Subject {
 }
 
 export const SubjectSchema = SchemaFactory.createForClass(Subject);
-// Compound index to prevent duplicate subject for same grade
-SubjectSchema.index({ name: 1, gradeLevel: 1 }, { unique: true });
+

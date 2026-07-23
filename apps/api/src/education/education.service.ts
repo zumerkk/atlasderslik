@@ -124,22 +124,49 @@ export class EducationService implements OnModuleInit {
 
     // ─── SUBJECTS ───────────────────────────────────────
     async createSubject(createSubjectDto: any) {
-        return this.subjectModel.create(createSubjectDto);
-    }
-    async getSubjects(gradeLevel: number) {
-        if (gradeLevel) {
-            return this.subjectModel.find({ gradeLevel }).exec();
+        if (createSubjectDto.gradeId) {
+            const grade = await this.gradeModel.findById(createSubjectDto.gradeId).exec();
+            if (grade) {
+                createSubjectDto.gradeLevel = grade.level;
+            }
         }
-        return this.subjectModel.find().exec();
+        try {
+            return await this.subjectModel.create(createSubjectDto);
+        } catch (err: any) {
+            if (err?.code === 11000) {
+                this.logger.warn('Duplicate key on Subject — attempting index cleanup and retry');
+                try {
+                    await this.subjectModel.collection.dropIndex('name_1_gradeLevel_1');
+                    await this.subjectModel.syncIndexes();
+                } catch { /* index already gone */ }
+                return this.subjectModel.create(createSubjectDto);
+            }
+            throw err;
+        }
+    }
+    async getSubjects(gradeLevel?: number, gradeId?: string) {
+        const filter: any = {};
+        if (gradeId) {
+            filter.gradeId = new Types.ObjectId(gradeId);
+        } else if (gradeLevel) {
+            filter.gradeLevel = Number(gradeLevel);
+        }
+        return this.subjectModel.find(filter).populate('gradeId').exec();
     }
     async getAllSubjects() {
-        return this.subjectModel.find().exec();
+        return this.subjectModel.find().populate('gradeId').exec();
     }
     async getSubjectsByIds(ids: string[]) {
-        return this.subjectModel.find({ _id: { $in: ids.map(id => new Types.ObjectId(id)) } }).exec();
+        return this.subjectModel.find({ _id: { $in: ids.map(id => new Types.ObjectId(id)) } }).populate('gradeId').exec();
     }
     async updateSubject(id: string, data: any) {
-        return this.subjectModel.findByIdAndUpdate(id, data, { new: true }).exec();
+        if (data.gradeId) {
+            const grade = await this.gradeModel.findById(data.gradeId).exec();
+            if (grade) {
+                data.gradeLevel = grade.level;
+            }
+        }
+        return this.subjectModel.findByIdAndUpdate(id, data, { new: true }).populate('gradeId').exec();
     }
     async deleteSubject(id: string) {
         return this.subjectModel.findByIdAndDelete(id).exec();

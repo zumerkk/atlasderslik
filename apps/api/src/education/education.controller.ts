@@ -48,8 +48,11 @@ export class EducationController {
     }
 
     @Get('subjects')
-    getSubjects(@Query('gradeLevel') gradeLevel: number) {
-        return this.educationService.getSubjects(gradeLevel);
+    getSubjects(
+        @Query('gradeLevel') gradeLevel?: number,
+        @Query('gradeId') gradeId?: string,
+    ) {
+        return this.educationService.getSubjects(gradeLevel, gradeId);
     }
 
     @Get('subjects/all')
