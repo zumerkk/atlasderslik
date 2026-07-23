@@ -28,6 +28,7 @@ export default function TeacherAssignmentsPage() {
     const [teacherAssignments, setTeacherAssignments] = useState<TeacherAssignment[]>([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+    const [uploadingFile, setUploadingFile] = useState(false);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState<Assignment | null>(null);
@@ -109,6 +110,31 @@ export default function TeacherAssignmentsPage() {
 
     const selectedAssignment = teacherAssignments.find(a => a._id === formData.assignmentId);
 
+    const compressImage = (file: File, maxWidth = 1200, quality = 0.7): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const img = new window.Image();
+            const objectUrl = URL.createObjectURL(file);
+            img.onload = () => {
+                URL.revokeObjectURL(objectUrl);
+                const canvas = document.createElement("canvas");
+                let w = img.width;
+                let h = img.height;
+                if (w > maxWidth) { h = Math.round((h * maxWidth) / w); w = maxWidth; }
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext("2d");
+                if (!ctx) { reject(new Error("Canvas context error")); return; }
+                ctx.drawImage(img, 0, 0, w, h);
+                resolve(canvas.toDataURL("image/jpeg", quality));
+            };
+            img.onerror = () => {
+                URL.revokeObjectURL(objectUrl);
+                reject(new Error("Image load error"));
+            };
+            img.src = objectUrl;
+        });
+    };
+
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -116,26 +142,25 @@ export default function TeacherAssignmentsPage() {
             setFeedback({ type: "error", message: "Dosya boyutu 10MB'dan küçük olmalıdır." });
             return;
         }
-        setSubmitting(true);
+        setUploadingFile(true);
         try {
-            const reader = new FileReader();
-            reader.onload = async (event) => {
-                const base64 = event.target?.result as string;
-                const res = await apiPost("/education/upload", { file: base64, filename: file.name });
-                if (res.ok) {
-                    const data = await res.json();
-                    setAttachments(prev => [...prev, { name: file.name, url: data.url }]);
-                    setFeedback({ type: "success", message: "Dosya eklendi!" });
-                } else {
-                    setFeedback({ type: "error", message: "Dosya yüklenemedi." });
-                }
-                setSubmitting(false);
-            };
-            reader.readAsDataURL(file);
+            let dataUrl: string;
+            if (file.type.startsWith("image/")) {
+                dataUrl = await compressImage(file);
+            } else {
+                dataUrl = await new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (ev) => resolve(ev.target?.result as string);
+                    reader.onerror = () => reject(new Error("Dosya okunamadı"));
+                    reader.readAsDataURL(file);
+                });
+            }
+            setAttachments(prev => [...prev, { name: file.name, url: dataUrl }]);
+            setFeedback({ type: "success", message: "Dosya eklendi!" });
         } catch {
-            setFeedback({ type: "error", message: "Hata oluştu." });
-            setSubmitting(false);
+            setFeedback({ type: "error", message: "Dosya işlenirken hata oluştu." });
         } finally {
+            setUploadingFile(false);
             if (fileInputRef.current) fileInputRef.current.value = "";
         }
     };
@@ -254,8 +279,8 @@ export default function TeacherAssignmentsPage() {
                         <div className="grid gap-2 border-t pt-4">
                             <Label className="flex items-center justify-between">
                                 Dosya Ekleri (Opsiyonel)
-                                <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={submitting} className="h-8">
-                                    {submitting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Upload className="h-3 w-3 mr-1" />}
+                                <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploadingFile || submitting} className="h-8">
+                                    {uploadingFile ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Upload className="h-3 w-3 mr-1" />}
                                     Dosya Yükle
                                 </Button>
                             </Label>
