@@ -416,23 +416,17 @@ export default function TeacherAssignmentsPage() {
                                         </div>
                                     )}
                                     {sub.opticResult && (
-                                        <div className="flex flex-col gap-3 mt-2 mb-2 p-3 rounded-xl border bg-muted/20">
-                                            <div className="flex items-center gap-4 text-sm font-medium">
-                                                <span className="text-emerald-600">✓ {sub.opticResult.correct} Doğru</span>
-                                                <span className="text-rose-600">✗ {sub.opticResult.incorrect} Yanlış</span>
-                                                <span className="text-amber-600">○ {sub.opticResult.empty} Boş</span>
-                                                <span className="font-bold text-primary ml-auto">Puan: {sub.opticResult.score}</span>
-                                            </div>
-                                            <div className="max-h-64 overflow-y-auto custom-scrollbar">
-                                                <OpticForm
-                                                    mode="view"
-                                                    questionCount={submissionsTarget?.answerKey?.length || 10}
-                                                    optionsCount={submissionsTarget?.opticOptionsCount || 4}
-                                                    studentAnswers={sub.studentAnswers || []}
-                                                    answerKey={submissionsTarget?.answerKey || []}
-                                                    className="p-2"
-                                                />
-                                            </div>
+                                        <div className="mt-2 mb-2">
+                                            <OpticForm
+                                                mode="view"
+                                                title={submissionsTarget?.title}
+                                                studentName={`${sub.studentId?.firstName || ''} ${sub.studentId?.lastName || ''}`}
+                                                questionCount={submissionsTarget?.answerKey?.length || 10}
+                                                optionsCount={submissionsTarget?.opticOptionsCount || 4}
+                                                studentAnswers={sub.studentAnswers || []}
+                                                answerKey={submissionsTarget?.answerKey || []}
+                                                className="max-h-[60vh] overflow-y-auto p-1 custom-scrollbar"
+                                            />
                                         </div>
                                     )}
                                     <div className="flex items-center justify-between pt-1 border-t border-border/50">

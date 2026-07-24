@@ -441,9 +441,9 @@ export default function StudentAssignmentsPage() {
                     <div className="grid gap-4 py-2">
                         {submitMode === "OPTIC" ? (
                             <div className="grid gap-2">
-                                <Label>Cevap Anahtarı (Optik Form)</Label>
                                 <OpticForm
                                     mode="edit"
+                                    title={selectedAssignment?.title}
                                     questionCount={selectedAssignment?.answerKey?.length || 10}
                                     optionsCount={selectedAssignment?.opticOptionsCount || 4}
                                     studentAnswers={studentAnswers}
@@ -452,7 +452,8 @@ export default function StudentAssignmentsPage() {
                                         newAns[index] = answer;
                                         setStudentAnswers(newAns);
                                     }}
-                                    className="max-h-80 overflow-y-auto p-4 border rounded-xl bg-muted/20 custom-scrollbar"
+                                    onClearAll={() => setStudentAnswers(Array(selectedAssignment?.answerKey?.length || 10).fill(''))}
+                                    className="max-h-[60vh] overflow-y-auto p-2 border rounded-xl bg-muted/20 custom-scrollbar"
                                 />
                                 <p className="text-xs text-muted-foreground mt-1 text-center">Lütfen çözdüğünüz teste ait şıkları işaretleyiniz. Şıkkı geri almak için tekrar tıklayabilirsiniz.</p>
                             </div>
@@ -553,11 +554,12 @@ export default function StudentAssignmentsPage() {
                         {resultSubmission && (
                             <OpticForm
                                 mode="view"
+                                title={resultSubmission.assign.title}
                                 questionCount={resultSubmission.assign.answerKey?.length || 10}
                                 optionsCount={resultSubmission.assign.opticOptionsCount || 4}
                                 studentAnswers={resultSubmission.sub.studentAnswers || []}
                                 answerKey={resultSubmission.assign.answerKey || []}
-                                className="max-h-96 overflow-y-auto p-4 border rounded-xl bg-muted/10 custom-scrollbar"
+                                className="max-h-[65vh] overflow-y-auto p-1 custom-scrollbar"
                             />
                         )}
                     </div>
