@@ -387,7 +387,7 @@ export default function StudentAssignmentsPage() {
                                             )}
                                         </>
                                     ) : (
-                                        <Button className="w-full" onClick={() => handleOpenSubmitDialog(assign)}>
+                                        <Button className="w-full" onClick={() => openSubmitDialog(assign)}>
                                             <Upload className="h-4 w-4" /> {status.isLate ? "Geç Teslim Yap" : "Teslim Et"}
                                         </Button>
                                     )}
