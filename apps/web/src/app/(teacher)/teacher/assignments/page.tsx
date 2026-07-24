@@ -378,7 +378,7 @@ export default function TeacherAssignmentsPage() {
 
             {/* Submissions Dialog */}
             <Dialog open={submissionsDialogOpen} onOpenChange={setSubmissionsDialogOpen}>
-                <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+                <DialogContent className="sm:max-w-3xl md:max-w-4xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Teslimler — {submissionsTarget?.title}</DialogTitle>
                         <DialogDescription>Bu ödeve yapılan öğrenci teslimlerini görüntüleyin ve notlandırın.</DialogDescription>

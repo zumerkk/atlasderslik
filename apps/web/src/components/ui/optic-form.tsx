@@ -32,7 +32,7 @@ export function OpticForm({
   // Split into columns for better layout if many questions
   // For small amounts, maybe just a grid. We'll use CSS grid.
   return (
-    <div className={cn("grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4", className)}>
+    <div className={cn("grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3", className)}>
       {Array.from({ length: questionCount }).map((_, i) => {
         const studentAns = studentAnswers[i] || "";
         const correctAns = answerKey?.[i] || "";
@@ -49,16 +49,16 @@ export function OpticForm({
           <div 
             key={i} 
             className={cn(
-                "flex items-center gap-3 p-3 rounded-xl border bg-white shadow-sm transition-all",
+                "flex items-center justify-between gap-2 p-2.5 rounded-xl border bg-white shadow-sm transition-all min-w-0",
                 mode === "view" && rowStatus === "correct" && "border-emerald-200 bg-emerald-50/50",
                 mode === "view" && rowStatus === "incorrect" && "border-rose-200 bg-rose-50/50",
                 mode === "view" && rowStatus === "empty" && "border-amber-200 bg-amber-50/50"
             )}
           >
-            <div className="w-8 text-right text-sm font-semibold text-slate-500 shrink-0">
+            <div className="w-6 text-right text-xs sm:text-sm font-semibold text-slate-500 shrink-0">
               {i + 1}.
             </div>
-            <div className="flex gap-2 flex-1 justify-center">
+            <div className="flex gap-1.5 shrink-0 justify-center items-center">
               {options.map((letter) => {
                 const isSelected = studentAns === letter;
                 const isCorrect = correctAns === letter;
@@ -67,9 +67,9 @@ export function OpticForm({
                 
                 if (mode === "edit") {
                     if (isSelected) {
-                        bubbleClass = "bg-slate-800 text-white border-slate-800";
+                        bubbleClass = "bg-slate-800 text-white border-slate-800 shadow-sm";
                     } else {
-                        bubbleClass = "bg-white text-slate-500 border-slate-200 hover:border-primary hover:text-primary";
+                        bubbleClass = "bg-white text-slate-600 border-slate-300 hover:border-primary hover:text-primary";
                     }
                 } else if (mode === "view") {
                     if (isCorrect && isSelected) {
@@ -77,7 +77,7 @@ export function OpticForm({
                     } else if (isSelected && !isCorrect) {
                         bubbleClass = "bg-rose-500 text-white border-rose-500";
                     } else if (isCorrect && !isSelected) {
-                        bubbleClass = "bg-emerald-100 text-emerald-700 border-emerald-400 border-dashed";
+                        bubbleClass = "bg-emerald-100 text-emerald-700 border-emerald-500 border-dashed font-extrabold";
                     } else {
                         bubbleClass = "bg-slate-50 text-slate-300 border-slate-200";
                     }
@@ -95,7 +95,7 @@ export function OpticForm({
                         }
                     }}
                     className={cn(
-                      "w-8 h-8 rounded-full border-2 flex items-center justify-center text-xs font-bold transition-all",
+                      "w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 flex items-center justify-center text-xs font-bold transition-all shrink-0 select-none",
                       mode === "edit" && "cursor-pointer active:scale-95",
                       mode === "view" && "cursor-default",
                       bubbleClass
@@ -109,10 +109,10 @@ export function OpticForm({
             
             {/* Show status icon in view mode */}
             {mode === "view" && (
-                <div className="w-6 shrink-0 flex items-center justify-center">
-                    {rowStatus === "correct" && <div className="text-emerald-500 font-bold text-lg">✓</div>}
-                    {rowStatus === "incorrect" && <div className="text-rose-500 font-bold text-lg">✗</div>}
-                    {rowStatus === "empty" && <div className="text-amber-500 text-xs font-bold px-1 rounded bg-amber-100">Boş</div>}
+                <div className="w-5 shrink-0 flex items-center justify-center">
+                    {rowStatus === "correct" && <div className="text-emerald-600 font-bold text-base">✓</div>}
+                    {rowStatus === "incorrect" && <div className="text-rose-600 font-bold text-base">✗</div>}
+                    {rowStatus === "empty" && <div className="text-amber-600 text-[10px] font-bold px-1 rounded bg-amber-100/80">Boş</div>}
                 </div>
             )}
           </div>

@@ -400,7 +400,7 @@ export default function StudentAssignmentsPage() {
 
             {/* Submit Dialog */}
             <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setSelectedAssignment(null); }}>
-                <DialogContent className="sm:max-w-md">
+                <DialogContent className="sm:max-w-xl md:max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Ödev Teslimi</DialogTitle>
                         <DialogDescription>
