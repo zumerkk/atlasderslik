@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { BookOpen, Plus, Calendar, Trash2, Loader2, CheckCircle, AlertCircle, Upload, File as FileIcon, Eye, Star, MessageSquare, Download } from "lucide-react";
+import { BookOpen, Plus, Calendar, Trash2, Loader2, CheckCircle, AlertCircle, Upload, File as FileIcon, Eye, Star, MessageSquare, Download, BarChart3, Sparkles, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -40,6 +40,8 @@ export default function TeacherAssignmentsPage() {
     const [gradingId, setGradingId] = useState<string | null>(null);
     const [gradeInput, setGradeInput] = useState("");
     const [feedbackInput, setFeedbackInput] = useState("");
+    const [classAnalysisOpen, setClassAnalysisOpen] = useState(false);
+    const [quickPasteText, setQuickPasteText] = useState("");
 
     const [isOpticTest, setIsOpticTest] = useState(false);
     const [opticOptionsCount, setOpticOptionsCount] = useState<number>(4);
@@ -61,6 +63,20 @@ export default function TeacherAssignmentsPage() {
             }
             return newArr.slice(0, count);
         });
+    };
+
+    const handleQuickPaste = (text: string) => {
+        setQuickPasteText(text);
+        const cleanLetters = text.toUpperCase().replace(/[^A-E]/g, "").split("");
+        if (cleanLetters.length > 0) {
+            setAnswerKey(prev => {
+                const updated = [...prev];
+                for (let i = 0; i < Math.min(questionCount, cleanLetters.length); i++) {
+                    updated[i] = cleanLetters[i];
+                }
+                return updated;
+            });
+        }
     };
 
     const fetchAssignments = async () => {
@@ -336,14 +352,53 @@ export default function TeacherAssignmentsPage() {
                                         </Select>
                                     </div>
                                 </div>
+                                <div className="flex flex-col gap-2 bg-background p-3 rounded-xl border">
+                                    <div className="flex items-center justify-between">
+                                        <Label className="text-xs font-semibold flex items-center gap-1 text-primary">
+                                            <Zap className="w-3.5 h-3.5" /> Hızlı Cevap Anahtarı Yapıştır
+                                        </Label>
+                                        <span className="text-[10px] text-muted-foreground">Örn: ABCDABCD...</span>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Input
+                                            placeholder="Harf dizisini yapıştırın (Örn: ABCDDABC...)"
+                                            value={quickPasteText}
+                                            onChange={(e) => handleQuickPaste(e.target.value)}
+                                            className="h-8 text-xs font-mono uppercase tracking-widest"
+                                        />
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-8 text-xs shrink-0 text-muted-foreground hover:text-destructive"
+                                            onClick={() => { setQuickPasteText(""); setAnswerKey(Array(questionCount).fill("")); }}
+                                        >
+                                            Sıfırla
+                                        </Button>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1 text-[11px]">
+                                        <span className="text-[10px] text-muted-foreground self-center mr-1">Hızlı Doldur:</span>
+                                        {['A', 'B', 'C', 'D', 'E'].slice(0, opticOptionsCount).map((letter) => (
+                                            <button
+                                                key={letter}
+                                                type="button"
+                                                className="px-2 py-0.5 rounded bg-muted/60 hover:bg-muted border text-[11px] font-semibold transition-colors"
+                                                onClick={() => setAnswerKey(Array(questionCount).fill(letter))}
+                                            >
+                                                Tümü {letter}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
                                 <div className="grid gap-2">
-                                    <Label>Cevap Anahtarı</Label>
-                                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 max-h-48 overflow-y-auto p-1 pr-2 custom-scrollbar">
+                                    <Label>Cevap Anahtarı ({questionCount} Soru)</Label>
+                                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 max-h-48 overflow-y-auto p-1 pr-2 custom-scrollbar border rounded-xl bg-background">
                                         {Array.from({ length: questionCount }).map((_, i) => (
                                             <div key={i} className="flex items-center gap-1.5 text-sm">
-                                                <span className="w-6 text-right font-medium text-muted-foreground shrink-0">{i + 1}.</span>
+                                                <span className="w-6 text-right font-medium text-muted-foreground shrink-0 text-xs">{i + 1}.</span>
                                                 <Select value={answerKey[i]} onValueChange={v => setAnswerKey(prev => { const n = [...prev]; n[i] = v; return n; })}>
-                                                    <SelectTrigger className="h-8 px-2"><SelectValue placeholder="-" /></SelectTrigger>
+                                                    <SelectTrigger className="h-8 px-2 text-xs"><SelectValue placeholder="-" /></SelectTrigger>
                                                     <SelectContent>
                                                         {Array.from({ length: opticOptionsCount }).map((_, j) => {
                                                             const letter = String.fromCharCode(65 + j);
@@ -379,9 +434,24 @@ export default function TeacherAssignmentsPage() {
             {/* Submissions Dialog */}
             <Dialog open={submissionsDialogOpen} onOpenChange={setSubmissionsDialogOpen}>
                 <DialogContent className="sm:max-w-3xl md:max-w-4xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle>Teslimler — {submissionsTarget?.title}</DialogTitle>
-                        <DialogDescription>Bu ödeve yapılan öğrenci teslimlerini görüntüleyin ve notlandırın.</DialogDescription>
+                    <DialogHeader className="border-b pb-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div>
+                                <DialogTitle>Teslimler — {submissionsTarget?.title}</DialogTitle>
+                                <DialogDescription>Bu ödeve yapılan öğrenci teslimlerini görüntüleyin ve notlandırın.</DialogDescription>
+                            </div>
+                            {submissionsTarget?.isOpticTest && submissions.length > 0 && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setClassAnalysisOpen(true)}
+                                    className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200 font-semibold gap-1.5 shrink-0 self-start sm:self-center"
+                                >
+                                    <BarChart3 className="w-4 h-4 text-indigo-600" /> Sınıf Optik Analiz Raporu
+                                </Button>
+                            )}
+                        </div>
                     </DialogHeader>
                     {submissionsLoading ? (
                         <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
@@ -457,6 +527,127 @@ export default function TeacherAssignmentsPage() {
                             ))}
                         </div>
                     )}
+                </DialogContent>
+            </Dialog>
+
+            {/* Class Optic Analysis Dialog */}
+            <Dialog open={classAnalysisOpen} onOpenChange={setClassAnalysisOpen}>
+                <DialogContent className="sm:max-w-3xl md:max-w-4xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-indigo-700">
+                            <BarChart3 className="w-5 h-5 text-indigo-600" />
+                            Sınıf Optik Analiz Raporu — {submissionsTarget?.title}
+                        </DialogTitle>
+                        <DialogDescription>
+                            Bu optik teste ait sınıf genel başarı istatistikleri ve soru zorluk dağılım raporu.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {submissionsTarget && submissions.length > 0 && (() => {
+                        const answerKey = submissionsTarget.answerKey || [];
+                        const optionsCount = submissionsTarget.opticOptionsCount || 4;
+                        const options = Array.from({ length: optionsCount }).map((_, j) => String.fromCharCode(65 + j));
+                        const penalty = optionsCount >= 4 ? 4 : 3;
+                        const totalSubmissions = submissions.length;
+
+                        const scores = submissions.map(s => s.opticResult?.score ?? 0);
+                        const avgScore = Math.round(scores.reduce((a, b) => a + b, 0) / Math.max(1, totalSubmissions));
+                        const maxScore = Math.max(...scores);
+                        const minScore = Math.min(...scores);
+
+                        const nets = submissions.map(s => {
+                            const c = s.opticResult?.correct ?? 0;
+                            const i = s.opticResult?.incorrect ?? 0;
+                            return Math.max(0, c - (i / penalty));
+                        });
+                        const avgNet = (nets.reduce((a, b) => a + b, 0) / Math.max(1, totalSubmissions)).toFixed(2);
+
+                        return (
+                            <div className="space-y-4 py-2">
+                                {/* Summary Cards */}
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                    <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl text-center shadow-sm">
+                                        <span className="text-xs text-indigo-600 font-medium">Katılan Öğrenci</span>
+                                        <div className="text-xl font-black text-indigo-900">{totalSubmissions}</div>
+                                    </div>
+                                    <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-center shadow-sm">
+                                        <span className="text-xs text-emerald-600 font-medium">Sınıf Ort. Net</span>
+                                        <div className="text-xl font-black text-emerald-900">{avgNet}</div>
+                                    </div>
+                                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-center shadow-sm">
+                                        <span className="text-xs text-blue-600 font-medium">Sınıf Ort. Puan</span>
+                                        <div className="text-xl font-black text-blue-900">{avgScore}</div>
+                                    </div>
+                                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-center shadow-sm">
+                                        <span className="text-xs text-amber-600 font-medium">En Yüksek / Düşük</span>
+                                        <div className="text-lg font-black text-amber-900">{maxScore} / {minScore}</div>
+                                    </div>
+                                </div>
+
+                                {/* Question Item Analysis Table */}
+                                <div className="border rounded-2xl p-4 bg-card space-y-3 shadow-sm">
+                                    <h4 className="font-semibold text-sm flex items-center gap-1.5 text-foreground">
+                                        <Sparkles className="w-4 h-4 text-amber-500" /> Soru Bazlı Şık Dağılımı ve Başarı Analizi
+                                    </h4>
+                                    <div className="space-y-3 max-h-96 overflow-y-auto custom-scrollbar pr-1">
+                                        {answerKey.map((key, qIdx) => {
+                                            const qNumber = qIdx + 1;
+                                            let correctStudents = 0;
+                                            let emptyStudents = 0;
+                                            const choiceCounts: Record<string, number> = {};
+                                            options.forEach(o => choiceCounts[o] = 0);
+
+                                            submissions.forEach(s => {
+                                                const ans = s.studentAnswers?.[qIdx] || "";
+                                                if (!ans) emptyStudents++;
+                                                else {
+                                                    choiceCounts[ans] = (choiceCounts[ans] || 0) + 1;
+                                                    if (ans === key) correctStudents++;
+                                                }
+                                            });
+
+                                            const correctPct = Math.round((correctStudents / Math.max(1, totalSubmissions)) * 100);
+                                            const isHard = correctPct < 50;
+
+                                            return (
+                                                <div key={qIdx} className={`p-3 rounded-xl border ${isHard ? 'bg-rose-50/40 border-rose-200' : 'bg-muted/20 border-border'} space-y-2`}>
+                                                    <div className="flex items-center justify-between text-xs">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-bold text-sm bg-background border px-2 py-0.5 rounded-lg">{qNumber}. Soru</span>
+                                                            <span className="text-muted-foreground">Doğru Cevap: <strong className="text-emerald-600 font-bold">{key}</strong></span>
+                                                            {isHard && <Badge variant="destructive" className="text-[10px]">🔥 Zor Soru (%{100 - correctPct} Yanlış)</Badge>}
+                                                        </div>
+                                                        <span className="font-semibold text-emerald-700">Başarı: %{correctPct} ({correctStudents}/{totalSubmissions})</span>
+                                                    </div>
+
+                                                    {/* Progress breakdown bar */}
+                                                    <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 text-[11px] pt-1">
+                                                        {options.map((opt) => {
+                                                            const count = choiceCounts[opt] || 0;
+                                                            const pct = Math.round((count / Math.max(1, totalSubmissions)) * 100);
+                                                            const isCorrectOpt = opt === key;
+                                                            return (
+                                                                <div key={opt} className={`p-1.5 rounded-lg border text-center ${isCorrectOpt ? 'bg-emerald-100 border-emerald-300 font-bold text-emerald-800' : 'bg-background border-border text-muted-foreground'}`}>
+                                                                    <span>{opt}: </span>
+                                                                    <strong>%{pct}</strong>
+                                                                    <span className="text-[10px] opacity-75"> ({count})</span>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                        <div className="p-1.5 rounded-lg border text-center bg-amber-50 border-amber-200 text-amber-800">
+                                                            <span>Boş: </span>
+                                                            <strong>%{Math.round((emptyStudents / Math.max(1, totalSubmissions)) * 100)}</strong>
+                                                            <span className="text-[10px] opacity-75"> ({emptyStudents})</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })()}
                 </DialogContent>
             </Dialog>
         </div>

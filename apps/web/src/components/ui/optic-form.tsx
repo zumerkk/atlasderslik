@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, XCircle, HelpCircle, RotateCcw, Award, Check, Sparkles, Filter } from "lucide-react";
+import { CheckCircle2, XCircle, HelpCircle, RotateCcw, Sparkles, Filter, Printer, Navigation } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -32,6 +32,7 @@ export function OpticForm({
   className,
 }: OpticFormProps) {
   const [activeFilter, setActiveFilter] = useState<"ALL" | "CORRECT" | "INCORRECT" | "EMPTY">("ALL");
+  const [activeQuestionIndex, setActiveQuestionIndex] = useState<number>(0);
 
   // Options A, B, C, D, E...
   const options = Array.from({ length: optionsCount }).map((_, j) => String.fromCharCode(65 + j));
@@ -73,6 +74,42 @@ export function OpticForm({
 
   const perfRating = getPerformanceBadge(accuracyPct);
 
+  // Scroll to question helper
+  const scrollToQuestion = (idx: number) => {
+    setActiveQuestionIndex(idx);
+    const el = document.getElementById(`optic-question-${idx}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  };
+
+  // Keyboard Navigation Support in edit mode
+  useEffect(() => {
+    if (mode !== "edit") return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const key = e.key.toUpperCase();
+      
+      // Arrow keys navigation
+      if (e.key === "ArrowDown" || e.key === "ArrowRight") {
+        e.preventDefault();
+        setActiveQuestionIndex((prev) => Math.min(questionCount - 1, prev + 1));
+        scrollToQuestion(Math.min(questionCount - 1, activeQuestionIndex + 1));
+      } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
+        e.preventDefault();
+        setActiveQuestionIndex((prev) => Math.max(0, prev - 1));
+        scrollToQuestion(Math.max(0, activeQuestionIndex - 1));
+      }
+      // Options A, B, C, D, E
+      else if (options.includes(key) && onChange) {
+        onChange(activeQuestionIndex, studentAnswers[activeQuestionIndex] === key ? "" : key);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [mode, activeQuestionIndex, questionCount, options, studentAnswers, onChange]);
+
   // Filtered Questions Index List
   const questionIndices = Array.from({ length: questionCount }).map((_, i) => i).filter((i) => {
     if (mode === "edit" || activeFilter === "ALL") return true;
@@ -85,25 +122,25 @@ export function OpticForm({
   });
 
   return (
-    <div className={cn("space-y-4 font-sans select-none", className)}>
+    <div className={cn("space-y-4 font-sans select-none print:space-y-2", className)}>
       {/* ─── OPTIC HEADER BANNER ────────────────────────────────────────────── */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-2xl p-4 shadow-lg border border-slate-800 relative overflow-hidden">
-        <div className="absolute -right-6 -top-6 w-32 h-32 bg-primary/20 rounded-full blur-2xl pointer-events-none" />
+      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-2xl p-4 shadow-lg border border-slate-800 relative overflow-hidden print:bg-white print:text-black print:border-black print:p-2">
+        <div className="absolute -right-6 -top-6 w-32 h-32 bg-primary/20 rounded-full blur-2xl pointer-events-none print:hidden" />
         
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative z-10">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-indigo-300 bg-indigo-500/20 px-2.5 py-0.5 rounded-full border border-indigo-400/30 flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-amber-300" />
+              <span className="text-xs font-semibold uppercase tracking-wider text-indigo-300 bg-indigo-500/20 px-2.5 py-0.5 rounded-full border border-indigo-400/30 flex items-center gap-1 print:border-slate-400 print:text-slate-800">
+                <Sparkles className="w-3 h-3 text-amber-300 print:hidden" />
                 {mode === "edit" ? "ÖSYM / LGS Optik Form" : "Optik Sınav Analiz Raporu"}
               </span>
               {studentName && (
-                <span className="text-xs text-slate-300 font-medium border-l border-slate-700 pl-2">
+                <span className="text-xs text-slate-300 font-medium border-l border-slate-700 pl-2 print:text-slate-800 print:border-slate-400">
                   👤 {studentName}
                 </span>
               )}
             </div>
-            <h3 className="text-base sm:text-lg font-bold text-white mt-1 tracking-tight">
+            <h3 className="text-base sm:text-lg font-bold text-white mt-1 tracking-tight print:text-slate-900">
               {title || "Optik Cevap Anahtarı"}
             </h3>
           </div>
@@ -123,7 +160,7 @@ export function OpticForm({
                   variant="ghost"
                   size="sm"
                   onClick={onClearAll}
-                  className="h-8 text-xs text-rose-300 hover:text-rose-100 hover:bg-rose-500/20 px-2.5 border border-rose-500/30"
+                  className="h-8 text-xs text-rose-300 hover:text-rose-100 hover:bg-rose-500/20 px-2.5 border border-rose-500/30 print:hidden"
                 >
                   <RotateCcw className="w-3 h-3 mr-1" /> Temizle
                 </Button>
@@ -133,26 +170,36 @@ export function OpticForm({
 
           {/* View Mode Summary Scorecard Header */}
           {mode === "view" && (
-            <div className="flex items-center gap-4 bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 shadow-inner">
+            <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 shadow-inner print:bg-slate-100 print:text-black">
               <div className="text-center">
-                <div className="text-xs text-slate-300 font-medium">Net Score</div>
-                <div className="text-lg font-black text-amber-300">{netScore}</div>
+                <div className="text-[10px] text-slate-300 print:text-slate-600 font-medium">Net Score</div>
+                <div className="text-base sm:text-lg font-black text-amber-300 print:text-amber-800">{netScore}</div>
               </div>
-              <div className="h-7 w-[1px] bg-white/20" />
+              <div className="h-7 w-[1px] bg-white/20 print:bg-slate-300" />
               <div className="text-center">
-                <div className="text-xs text-slate-300 font-medium">Başarı</div>
-                <div className="text-lg font-black text-emerald-400">%{accuracyPct}</div>
+                <div className="text-[10px] text-slate-300 print:text-slate-600 font-medium">Başarı</div>
+                <div className="text-base sm:text-lg font-black text-emerald-400 print:text-emerald-800">%{accuracyPct}</div>
               </div>
-              <Badge variant="outline" className={cn("text-xs font-bold px-2 py-0.5 ml-1 border shadow-sm", perfRating.color)}>
+              <Badge variant="outline" className={cn("text-xs font-bold px-2 py-0.5 ml-1 border shadow-sm print:border-slate-400", perfRating.color)}>
                 {perfRating.label}
               </Badge>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => window.print()}
+                className="h-8 px-2 text-xs text-slate-200 hover:bg-white/20 print:hidden border border-white/20 ml-2"
+                title="Raporu Yazdır / PDF İndir"
+              >
+                <Printer className="w-3.5 h-3.5 mr-1" /> PDF
+              </Button>
             </div>
           )}
         </div>
 
         {/* Progress Bar for Edit Mode */}
         {mode === "edit" && (
-          <div className="mt-3 w-full bg-slate-800/80 rounded-full h-2 p-0.5 border border-slate-700/50">
+          <div className="mt-3 w-full bg-slate-800/80 rounded-full h-2 p-0.5 border border-slate-700/50 print:hidden">
             <div
               className="bg-gradient-to-r from-indigo-500 to-emerald-400 h-1.5 rounded-full transition-all duration-300 shadow-sm"
               style={{ width: `${completionPct}%` }}
@@ -161,9 +208,56 @@ export function OpticForm({
         )}
       </div>
 
+      {/* ─── QUESTION NAVIGATION PALETTE GRID ───────────────────────────── */}
+      <div className="bg-slate-50 dark:bg-slate-900/60 p-2 rounded-xl border border-slate-200 dark:border-slate-800 print:hidden">
+        <div className="flex items-center justify-between px-1 mb-1.5 text-[11px] font-medium text-slate-500">
+          <span className="flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-300">
+            <Navigation className="w-3 h-3 text-primary" /> Soru Navigasyon Paleti ({questionCount} Soru):
+          </span>
+          {mode === "edit" && (
+            <span className="text-[10px] text-indigo-600 dark:text-indigo-400">
+              ⌨️ Klavye: A, B, C, D, E &amp; Ok Tuşları
+            </span>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto custom-scrollbar p-0.5">
+          {Array.from({ length: questionCount }).map((_, i) => {
+            const studentAns = studentAnswers[i] || "";
+            const correctAns = answerKey?.[i] || "";
+            let btnBg = "bg-white text-slate-600 border-slate-200 hover:border-slate-400";
+
+            if (mode === "edit") {
+              if (studentAns !== "") btnBg = "bg-slate-900 text-white border-slate-900 shadow-sm font-bold";
+            } else if (mode === "view" && correctAns) {
+              if (studentAns === correctAns) btnBg = "bg-emerald-500 text-white border-emerald-500 font-bold";
+              else if (studentAns === "") btnBg = "bg-amber-100 text-amber-800 border-amber-300 font-semibold";
+              else btnBg = "bg-rose-500 text-white border-rose-500 font-bold";
+            }
+
+            const isCurrent = activeQuestionIndex === i;
+
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => scrollToQuestion(i)}
+                className={cn(
+                  "w-6 h-6 rounded-lg border text-[11px] font-semibold flex items-center justify-center transition-all shrink-0",
+                  btnBg,
+                  isCurrent && "ring-2 ring-primary ring-offset-1 scale-110 shadow-md z-10"
+                )}
+                title={`Soru ${i + 1}`}
+              >
+                {i + 1}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* ─── REVIEW FILTER BAR (VIEW MODE ONLY) ───────────────────────────── */}
       {mode === "view" && (
-        <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-100 dark:bg-slate-900 p-1.5 rounded-xl border">
+        <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-100 dark:bg-slate-900 p-1.5 rounded-xl border print:hidden">
           <div className="flex items-center gap-1 text-xs font-medium text-slate-600 dark:text-slate-300 pl-2">
             <Filter className="w-3.5 h-3.5 text-primary" /> Soruları Filtrele:
           </div>
@@ -233,6 +327,7 @@ export function OpticForm({
           {questionIndices.map((i) => {
             const studentAns = studentAnswers[i] || "";
             const correctAns = answerKey?.[i] || "";
+            const isFocused = activeQuestionIndex === i;
 
             let rowStatus: "correct" | "incorrect" | "empty" | "none" = "none";
             if (mode === "view" && correctAns) {
@@ -244,10 +339,13 @@ export function OpticForm({
             return (
               <div
                 key={i}
+                id={`optic-question-${i}`}
+                onClick={() => setActiveQuestionIndex(i)}
                 className={cn(
-                  "relative flex flex-col gap-2 p-3 rounded-2xl border transition-all duration-200 shadow-sm min-w-0 group",
-                  mode === "edit" && studentAns !== "" && "border-slate-400 bg-slate-50/80 shadow-md ring-1 ring-slate-400/30",
-                  mode === "edit" && studentAns === "" && "border-slate-200 bg-white hover:border-slate-300 hover:shadow-md",
+                  "relative flex flex-col gap-2 p-3 rounded-2xl border transition-all duration-200 shadow-sm min-w-0 group cursor-pointer",
+                  isFocused && "ring-2 ring-primary border-primary shadow-md",
+                  mode === "edit" && studentAns !== "" && "border-slate-400 bg-slate-50/80 shadow-md",
+                  mode === "edit" && studentAns === "" && !isFocused && "border-slate-200 bg-white hover:border-slate-300 hover:shadow-md",
                   mode === "view" && rowStatus === "correct" && "border-emerald-300 bg-emerald-50/40 hover:bg-emerald-50/70",
                   mode === "view" && rowStatus === "incorrect" && "border-rose-300 bg-rose-50/40 hover:bg-rose-50/70",
                   mode === "view" && rowStatus === "empty" && "border-amber-300 bg-amber-50/40 hover:bg-amber-50/70"
@@ -287,7 +385,10 @@ export function OpticForm({
                   {mode === "edit" && studentAns !== "" && (
                     <button
                       type="button"
-                      onClick={() => onChange && onChange(i, "")}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onChange) onChange(i, "");
+                      }}
                       className="text-[10px] text-slate-400 hover:text-rose-600 transition-colors font-medium px-1"
                       title="İşareti Temizle"
                     >
@@ -330,7 +431,8 @@ export function OpticForm({
                         key={letter}
                         type="button"
                         disabled={mode === "view"}
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           if (mode === "edit" && onChange) {
                             onChange(i, isSelected ? "" : letter);
                           }
