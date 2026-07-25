@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, XCircle, HelpCircle, RotateCcw, Sparkles, Filter, Printer, Navigation } from "lucide-react";
+import { CheckCircle2, XCircle, HelpCircle, RotateCcw, Sparkles, Filter, Printer, Navigation, Timer, Lightbulb, BookOpen, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -14,8 +14,11 @@ interface OpticFormProps {
   answerKey?: string[];
   title?: string;
   studentName?: string;
+  durationMinutes?: number; // Optional exam timer duration in minutes
+  questionTopics?: Record<number, string>; // Optional topic name per question index
   onChange?: (index: number, answer: string) => void;
   onClearAll?: () => void;
+  onTimeExpired?: () => void;
   className?: string;
 }
 
@@ -27,15 +30,48 @@ export function OpticForm({
   answerKey,
   title,
   studentName,
+  durationMinutes,
+  questionTopics,
   onChange,
   onClearAll,
+  onTimeExpired,
   className,
 }: OpticFormProps) {
   const [activeFilter, setActiveFilter] = useState<"ALL" | "CORRECT" | "INCORRECT" | "EMPTY">("ALL");
   const [activeQuestionIndex, setActiveQuestionIndex] = useState<number>(0);
+  
+  // Timer State
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(
+    durationMinutes ? durationMinutes * 60 : null
+  );
 
   // Options A, B, C, D, E...
   const options = Array.from({ length: optionsCount }).map((_, j) => String.fromCharCode(65 + j));
+
+  // Exam Countdown Timer Effect
+  useEffect(() => {
+    if (mode !== "edit" || secondsLeft === null || secondsLeft <= 0) return;
+
+    const timer = setInterval(() => {
+      setSecondsLeft((prev) => {
+        if (prev === null || prev <= 1) {
+          clearInterval(timer);
+          if (onTimeExpired) onTimeExpired();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [mode, secondsLeft, onTimeExpired]);
+
+  // Format Timer String
+  const formatTimer = (totalSec: number) => {
+    const mins = Math.floor(totalSec / 60);
+    const secs = totalSec % 60;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  };
 
   // Compute Statistics
   let correctCount = 0;
@@ -73,6 +109,24 @@ export function OpticForm({
   };
 
   const perfRating = getPerformanceBadge(accuracyPct);
+
+  // Topic Analysis Computing (View Mode)
+  const topicStats: Record<string, { total: number; correct: number; incorrect: number; empty: number }> = {};
+  
+  if (mode === "view" && questionTopics) {
+    Object.entries(questionTopics).forEach(([qIdxStr, topicName]) => {
+      const qIdx = Number(qIdxStr);
+      if (!topicStats[topicName]) {
+        topicStats[topicName] = { total: 0, correct: 0, incorrect: 0, empty: 0 };
+      }
+      topicStats[topicName].total++;
+      const studentAns = studentAnswers[qIdx] || "";
+      const correctAns = answerKey?.[qIdx] || "";
+      if (!studentAns) topicStats[topicName].empty++;
+      else if (correctAns && studentAns === correctAns) topicStats[topicName].correct++;
+      else if (correctAns && studentAns !== correctAns) topicStats[topicName].incorrect++;
+    });
+  }
 
   // Scroll to question helper
   const scrollToQuestion = (idx: number) => {
@@ -145,9 +199,24 @@ export function OpticForm({
             </h3>
           </div>
 
-          {/* Edit Mode Header Actions & Progress */}
+          {/* Edit Mode Header Actions, Timer & Progress */}
           {mode === "edit" && (
-            <div className="flex items-center gap-3 self-end sm:self-center">
+            <div className="flex flex-wrap items-center gap-3 self-end sm:self-center">
+              {/* Countdown Timer */}
+              {secondsLeft !== null && (
+                <div
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1 rounded-xl font-mono text-sm font-bold border transition-all shadow-sm",
+                    secondsLeft <= 300
+                      ? "bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse"
+                      : "bg-white/10 text-amber-300 border-white/20"
+                  )}
+                >
+                  <Timer className="w-4 h-4 text-amber-400" />
+                  <span>{formatTimer(secondsLeft)}</span>
+                </div>
+              )}
+
               <div className="text-right">
                 <div className="text-xs font-semibold text-slate-300">
                   <span className="text-white font-extrabold text-sm">{answeredCount}</span> / {questionCount} Soru
@@ -207,6 +276,45 @@ export function OpticForm({
           </div>
         )}
       </div>
+
+      {/* ─── AI TOPIC ANALYSIS & LEARNING INSIGHTS (VIEW MODE ONLY) ─────────── */}
+      {mode === "view" && Object.keys(topicStats).length > 0 && (
+        <div className="p-3.5 rounded-2xl border bg-gradient-to-r from-indigo-50/50 via-white to-blue-50/50 dark:from-slate-900 dark:to-slate-800 space-y-2.5 shadow-sm">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-900 dark:text-indigo-300">
+            <Lightbulb className="w-4 h-4 text-amber-500" />
+            Konu Bazlı Başarı &amp; Akıllı Öğrenme Tavsiyeleri
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {Object.entries(topicStats).map(([tName, stat]) => {
+              const tPct = Math.round((stat.correct / Math.max(1, stat.total)) * 100);
+              let advice = "🌟 Harika! Bu konudaki tüm soruları başarıyla tamamladınız.";
+              let adviceColor = "text-emerald-700 bg-emerald-50 border-emerald-200";
+
+              if (tPct < 50) {
+                advice = "💡 Bu konuda eksikleriniz var. İlgili ders videosunu izleyip soru çözümünü tekrar etmeniz önerilir.";
+                adviceColor = "text-rose-700 bg-rose-50 border-rose-200";
+              } else if (tPct < 80) {
+                advice = "👍 Konuda iyi durumdasınız, pekiştirmek için 1-2 test daha çözebilirsiniz.";
+                adviceColor = "text-amber-700 bg-amber-50 border-amber-200";
+              }
+
+              return (
+                <div key={tName} className="p-2.5 rounded-xl border bg-white dark:bg-slate-800 space-y-1 text-xs shadow-xs">
+                  <div className="flex items-center justify-between font-semibold">
+                    <span className="text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                      <BookOpen className="w-3.5 h-3.5 text-primary" /> {tName}
+                    </span>
+                    <span className="text-primary font-bold">%{tPct} ({stat.correct}/{stat.total})</span>
+                  </div>
+                  <p className={cn("text-[11px] p-1.5 rounded-lg border leading-tight font-medium", adviceColor)}>
+                    {advice}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ─── QUESTION NAVIGATION PALETTE GRID ───────────────────────────── */}
       <div className="bg-slate-50 dark:bg-slate-900/60 p-2 rounded-xl border border-slate-200 dark:border-slate-800 print:hidden">
@@ -328,6 +436,7 @@ export function OpticForm({
             const studentAns = studentAnswers[i] || "";
             const correctAns = answerKey?.[i] || "";
             const isFocused = activeQuestionIndex === i;
+            const topicName = questionTopics?.[i];
 
             let rowStatus: "correct" | "incorrect" | "empty" | "none" = "none";
             if (mode === "view" && correctAns) {
@@ -358,6 +467,11 @@ export function OpticForm({
                       {i + 1}
                     </span>
                     Soru
+                    {topicName && (
+                      <span className="text-[10px] font-normal text-muted-foreground truncate max-w-[100px]" title={topicName}>
+                        ({topicName})
+                      </span>
+                    )}
                   </span>
 
                   {/* Status Indicator Badges in View Mode */}

@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Calendar, FileText, Upload, CheckCircle, AlertCircle, Loader2, Clock, AlertTriangle, Link2, Image } from "lucide-react";
+import { Calendar, FileText, Upload, CheckCircle, AlertCircle, Loader2, Clock, AlertTriangle, Link2, Image, Sparkles } from "lucide-react";
 import { format, isPast, differenceInDays } from "date-fns";
 import { tr } from "date-fns/locale";
 import { apiGet, apiPost } from "@/lib/api";
@@ -34,6 +34,7 @@ interface Assignment {
     isOpticTest?: boolean;
     opticOptionsCount?: number;
     answerKey?: string[];
+    durationMinutes?: number;
 }
 
 interface Submission {
@@ -280,9 +281,59 @@ export default function StudentAssignmentsPage() {
         }
     };
 
+    const opticSubmissions = submissions.filter(s => s.opticResult);
+    const totalOpticCount = opticSubmissions.length;
+    const totalCorrect = opticSubmissions.reduce((acc, s) => acc + (s.opticResult?.correct || 0), 0);
+    const totalIncorrect = opticSubmissions.reduce((acc, s) => acc + (s.opticResult?.incorrect || 0), 0);
+    const totalEmpty = opticSubmissions.reduce((acc, s) => acc + (s.opticResult?.empty || 0), 0);
+    const totalNet = opticSubmissions.reduce((acc, s) => acc + Math.max(0, (s.opticResult?.correct || 0) - ((s.opticResult?.incorrect || 0) / 4)), 0);
+    const avgNet = totalOpticCount > 0 ? (totalNet / totalOpticCount).toFixed(2) : "0.00";
+    const avgScore = totalOpticCount > 0 ? Math.round(opticSubmissions.reduce((acc, s) => acc + (s.opticResult?.score || 0), 0) / totalOpticCount) : 0;
+
     return (
         <div className="space-y-6 animate-fade-in">
             <PageHeader title="Ödevlerim" description="Yapılacak ve tamamlanan ödevleriniz." />
+
+            {/* Overall Student Optic Performance Dashboard Header */}
+            {totalOpticCount > 0 && (
+                <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-2xl p-4 shadow-lg border border-slate-800 space-y-3">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <span className="p-1.5 bg-indigo-500/20 text-indigo-300 rounded-lg border border-indigo-400/30">
+                                <Sparkles className="w-4 h-4 text-amber-300" />
+                            </span>
+                            <div>
+                                <h3 className="text-base font-bold">📈 Genel Optik Başarı Karnem</h3>
+                                <p className="text-xs text-slate-400">Çözdüğünüz tüm optik sınavların birikimli net ve puan ortalamaları</p>
+                            </div>
+                        </div>
+                        <Badge variant="outline" className="bg-emerald-500/15 text-emerald-300 border-emerald-400/40 text-xs px-2.5 py-1 font-bold">
+                            {avgScore >= 85 ? "Mükemmel 🌟" : avgScore >= 60 ? "Başarılı 👍" : "Geliştirilebilir 💡"}
+                        </Badge>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center pt-1">
+                        <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
+                            <div className="text-[11px] text-slate-400 font-medium">Çözülen Optik Test</div>
+                            <div className="text-lg font-black text-white">{totalOpticCount} Test</div>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
+                            <div className="text-[11px] text-slate-400 font-medium">Ortalama Net</div>
+                            <div className="text-lg font-black text-amber-300">{avgNet} Net</div>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
+                            <div className="text-[11px] text-slate-400 font-medium">Ortalama Puan</div>
+                            <div className="text-lg font-black text-emerald-400">{avgScore} / 100</div>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
+                            <div className="text-[11px] text-slate-400 font-medium">Doğru / Yanlış / Boş</div>
+                            <div className="text-xs font-bold text-slate-200 mt-1">
+                                <span className="text-emerald-400">{totalCorrect}D</span> • <span className="text-rose-400">{totalIncorrect}Y</span> • <span className="text-amber-300">{totalEmpty}B</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {feedback && (
                 <div className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm animate-toast-in ${feedback.type === "success" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-rose-50 text-rose-700 border border-rose-200"}`}>

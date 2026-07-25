@@ -19,7 +19,7 @@ import { downloadDataUri, extensionFromDataUri } from "@/lib/download";
 import { OpticForm } from "@/components/ui/optic-form";
 
 interface TeacherAssignment { _id: string; gradeId: { _id: string; level: number; label?: string }; subjectId: { _id: string; name: string; gradeLevel: number }; }
-interface Assignment { _id: string; title: string; description: string; dueDate: string; subjectId: { _id: string; name: string }; gradeLevel: number; gradeId?: { _id: string; level: number; label?: string }; attachments?: string[]; isOpticTest?: boolean; opticOptionsCount?: number; answerKey?: string[]; }
+interface Assignment { _id: string; title: string; description: string; dueDate: string; subjectId: { _id: string; name: string }; gradeLevel: number; gradeId?: { _id: string; level: number; label?: string }; attachments?: string[]; isOpticTest?: boolean; opticOptionsCount?: number; answerKey?: string[]; durationMinutes?: number; }
 interface SubmissionItem { _id: string; studentId: { _id: string; firstName: string; lastName: string }; fileUrl?: string; note?: string; grade?: number; feedback?: string; isLate?: boolean; submittedAt: string; opticResult?: { correct: number; incorrect: number; empty: number; score: number }; studentAnswers?: string[]; }
 
 export default function TeacherAssignmentsPage() {
@@ -47,6 +47,7 @@ export default function TeacherAssignmentsPage() {
     const [opticOptionsCount, setOpticOptionsCount] = useState<number>(4);
     const [questionCount, setQuestionCount] = useState<number>(10);
     const [answerKey, setAnswerKey] = useState<string[]>(Array(10).fill(''));
+    const [durationMinutes, setDurationMinutes] = useState<number | "">(30);
     const [formData, setFormData] = useState({ title: "", description: "", dueDate: "", assignmentId: "" });
     const [attachments, setAttachments] = useState<{name: string, url: string}[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -195,6 +196,7 @@ export default function TeacherAssignmentsPage() {
                 attachments: attachments.map(a => a.url),
                 isOpticTest,
                 opticOptionsCount,
+                durationMinutes: isOpticTest ? (Number(durationMinutes) || 30) : undefined,
                 answerKey: isOpticTest ? answerKey : []
             });
             if (res.ok) { 
@@ -336,13 +338,13 @@ export default function TeacherAssignmentsPage() {
                         </div>
                         {isOpticTest && (
                             <div className="grid gap-4 bg-muted/30 p-4 rounded-xl border border-muted mt-1">
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-3 gap-3">
                                     <div className="grid gap-2">
-                                        <Label>Soru Sayısı</Label>
+                                        <Label className="text-xs">Soru Sayısı</Label>
                                         <Input type="number" min={1} max={100} value={questionCount} onChange={e => handleQuestionCountChange(Number(e.target.value))} />
                                     </div>
                                     <div className="grid gap-2">
-                                        <Label>Şık Sayısı</Label>
+                                        <Label className="text-xs">Şık Sayısı</Label>
                                         <Select value={opticOptionsCount.toString()} onValueChange={v => setOpticOptionsCount(Number(v))}>
                                             <SelectTrigger><SelectValue/></SelectTrigger>
                                             <SelectContent>
@@ -350,6 +352,10 @@ export default function TeacherAssignmentsPage() {
                                                 <SelectItem value="5">5 Şık (A, B, C, D, E)</SelectItem>
                                             </SelectContent>
                                         </Select>
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label className="text-xs flex items-center gap-1">⏱️ Süre (Dk)</Label>
+                                        <Input type="number" min={5} max={300} placeholder="Süre" value={durationMinutes} onChange={e => setDurationMinutes(Number(e.target.value))} />
                                     </div>
                                 </div>
                                 <div className="flex flex-col gap-2 bg-background p-3 rounded-xl border">
