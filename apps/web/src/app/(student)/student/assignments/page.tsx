@@ -23,6 +23,7 @@ import { PomodoroTimer } from "@/components/ui/pomodoro-timer";
 import { ChampionsBoard } from "@/components/ui/champions-board";
 import { AIStudyCoach } from "@/components/ui/ai-study-coach";
 import { WeakSpotRadar } from "@/components/ui/weak-spot-radar";
+import { is3DayTrialActive, TrialBadge } from "@/lib/feature-flags";
 
 interface Assignment {
     _id: string;
@@ -301,23 +302,30 @@ export default function StudentAssignmentsPage() {
         <div className="space-y-6 animate-fade-in">
             <PageHeader title="Ödevlerim" description="Yapılacak ve tamamlanan ödevleriniz." />
 
-            {/* AI Study Coach & Motivation Assistant */}
-            <AIStudyCoach />
+            {/* 3-Day Trial Feature Control Section */}
+            {is3DayTrialActive() && (
+                <div className="space-y-4">
+                    <TrialBadge />
 
-            {/* Daily Challenge Quiz Widget */}
-            <DailyChallenge />
+                    {/* AI Study Coach & Motivation Assistant */}
+                    <AIStudyCoach />
 
-            {/* Student Gamification Streak & Badges Bar */}
-            <StudentStreak streakDays={5} completedCount={totalOpticCount} />
+                    {/* Daily Challenge Quiz Widget */}
+                    <DailyChallenge />
 
-            {/* Pomodoro Timer & Champions Board Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <PomodoroTimer />
-                <ChampionsBoard />
-            </div>
+                    {/* Student Gamification Streak & Badges Bar */}
+                    <StudentStreak streakDays={5} completedCount={totalOpticCount} />
 
-            {/* Subject Mastery & Weak Spot Radar */}
-            <WeakSpotRadar />
+                    {/* Pomodoro Timer & Champions Board Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <PomodoroTimer />
+                        <ChampionsBoard />
+                    </div>
+
+                    {/* Subject Mastery & Weak Spot Radar */}
+                    <WeakSpotRadar />
+                </div>
+            )}
 
             {/* Overall Student Optic Performance Dashboard Header */}
             {totalOpticCount > 0 && (
