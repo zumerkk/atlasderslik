@@ -23,6 +23,8 @@ import { PomodoroTimer } from "@/components/ui/pomodoro-timer";
 import { ChampionsBoard } from "@/components/ui/champions-board";
 import { AIStudyCoach } from "@/components/ui/ai-study-coach";
 import { WeakSpotRadar } from "@/components/ui/weak-spot-radar";
+import { GamificationStore } from "@/components/ui/gamification-store";
+import { CalendarSync } from "@/components/ui/calendar-sync";
 import { is3DayTrialActive, TrialBadge } from "@/lib/feature-flags";
 
 interface Assignment {
@@ -324,6 +326,17 @@ export default function StudentAssignmentsPage() {
 
                     {/* Subject Mastery & Weak Spot Radar */}
                     <WeakSpotRadar />
+
+                    {/* XP Rewards & Avatar Title Store */}
+                    <GamificationStore />
+
+                    {/* Google & Apple iCal Calendar Sync Bar */}
+                    <div className="p-3 rounded-2xl bg-card border border-border flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                            <CalendarSync title="Ödev & Sınav Takvimi" />
+                        </div>
+                        <span className="text-[10px] text-muted-foreground">Etkinlikleri telefon takviminize tek tıkla aktarın</span>
+                    </div>
                 </div>
             )}
 

@@ -17,6 +17,9 @@ import { useRouter } from "next/navigation";
 import { apiGet, apiPost, apiDelete, apiPatch } from "@/lib/api";
 import { downloadDataUri, extensionFromDataUri } from "@/lib/download";
 import { OpticForm } from "@/components/ui/optic-form";
+import { AIQuizBuilder } from "@/components/ui/ai-quiz-builder";
+import { WhatsAppSender } from "@/components/ui/whatsapp-sender";
+import { is3DayTrialActive } from "@/lib/feature-flags";
 
 interface TeacherAssignment { _id: string; gradeId: { _id: string; level: number; label?: string }; subjectId: { _id: string; name: string; gradeLevel: number }; }
 interface Assignment { _id: string; title: string; description: string; dueDate: string; subjectId: { _id: string; name: string }; gradeLevel: number; gradeId?: { _id: string; level: number; label?: string }; attachments?: string[]; isOpticTest?: boolean; opticOptionsCount?: number; answerKey?: string[]; durationMinutes?: number; }
@@ -353,11 +356,21 @@ export default function TeacherAssignmentsPage() {
                                             </SelectContent>
                                         </Select>
                                     </div>
-                                    <div className="grid gap-2">
-                                        <Label className="text-xs flex items-center gap-1">⏱️ Süre (Dk)</Label>
-                                        <Input type="number" min={5} max={300} placeholder="Süre" value={durationMinutes} onChange={e => setDurationMinutes(Number(e.target.value))} />
-                                    </div>
-                                </div>
+                                     <div className="grid gap-2">
+                                         <Label className="text-xs flex items-center gap-1">⏱️ Süre (Dk)</Label>
+                                         <Input type="number" min={5} max={300} placeholder="Süre" value={durationMinutes} onChange={e => setDurationMinutes(Number(e.target.value))} />
+                                     </div>
+                                 </div>
+
+                                 {is3DayTrialActive() && (
+                                     <AIQuizBuilder
+                                         onGenerated={(title, count, keys) => {
+                                             setFormData(prev => ({ ...prev, title }));
+                                             handleQuestionCountChange(count);
+                                             setAnswerKey(keys);
+                                         }}
+                                     />
+                                 )}
                                 <div className="flex flex-col gap-2 bg-background p-3 rounded-xl border">
                                     <div className="flex items-center justify-between">
                                         <Label className="text-xs font-semibold flex items-center gap-1 text-primary">
@@ -524,9 +537,22 @@ export default function TeacherAssignmentsPage() {
                                                 <Button size="sm" variant="ghost" className="h-8" onClick={() => setGradingId(null)}>İptal</Button>
                                             </div>
                                         ) : (
-                                            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { setGradingId(sub._id); setGradeInput(sub.grade?.toString() || ""); setFeedbackInput(sub.feedback || ""); }}>
-                                                <MessageSquare className="h-3 w-3 mr-1" />{sub.grade != null ? "Notu Düzenle" : "Notla"}
-                                            </Button>
+                                            <div className="flex items-center gap-2">
+                                                {is3DayTrialActive() && (
+                                                    <WhatsAppSender
+                                                        studentName={`${sub.studentId?.firstName || ''} ${sub.studentId?.lastName || ''}`}
+                                                        testTitle={submissionsTarget?.title}
+                                                        score={sub.opticResult?.score ?? sub.grade ?? 0}
+                                                        correct={sub.opticResult?.correct ?? 0}
+                                                        incorrect={sub.opticResult?.incorrect ?? 0}
+                                                        empty={sub.opticResult?.empty ?? 0}
+                                                        net={(sub.opticResult?.correct ?? 0) - ((sub.opticResult?.incorrect ?? 0) / 4)}
+                                                    />
+                                                )}
+                                                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { setGradingId(sub._id); setGradeInput(sub.grade?.toString() || ""); setFeedbackInput(sub.feedback || ""); }}>
+                                                    <MessageSquare className="h-3 w-3 mr-1" />{sub.grade != null ? "Notu Düzenle" : "Notla"}
+                                                </Button>
+                                            </div>
                                         )}
                                     </div>
                                 </div>
