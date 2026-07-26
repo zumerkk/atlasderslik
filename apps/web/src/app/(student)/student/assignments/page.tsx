@@ -374,11 +374,17 @@ export default function StudentAssignmentsPage() {
                                     {/* Show Teacher Attachments */}
                                     {assign.attachments && assign.attachments.length > 0 && (
                                         <div className="flex flex-col gap-1.5 mt-2">
-                                            <p className="text-xs font-semibold text-muted-foreground">Ekler:</p>
+                                            <p className="text-xs font-semibold text-muted-foreground">Ödev Ek Dosyaları ({assign.attachments.length}):</p>
                                             <div className="flex flex-wrap gap-2">
                                                 {assign.attachments.map((att, i) => (
-                                                    <button key={i} onClick={(e) => handleDownloadAttachment(e, att, i)} className="flex items-center gap-1.5 text-xs text-blue-600 bg-blue-50 px-2.5 py-1.5 rounded-lg hover:bg-blue-100 transition-colors w-fit border border-blue-100">
-                                                        <FileText className="h-3.5 w-3.5" /> Ek Dosya {i + 1}
+                                                    <button
+                                                        key={i}
+                                                        type="button"
+                                                        onClick={(e) => handleDownloadAttachment(e, att, i)}
+                                                        className="flex items-center gap-1.5 text-xs text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-xl font-medium transition-all border border-blue-200/80 shadow-xs"
+                                                        title="Dosyayı İndir veya iPad/iPhone'da Görüntüle"
+                                                    >
+                                                        <FileText className="h-3.5 w-3.5 text-blue-600" /> Ek Dosya {i + 1} (İndir / Görüntüle)
                                                     </button>
                                                 ))}
                                             </div>
