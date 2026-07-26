@@ -16,6 +16,8 @@ import { tr } from "date-fns/locale";
 import { apiGet, apiPost } from "@/lib/api";
 import { downloadDataUri, extensionFromDataUri } from "@/lib/download";
 import { OpticForm } from "@/components/ui/optic-form";
+import { ExamSimulator } from "@/components/ui/exam-simulator";
+import { StudentStreak } from "@/components/ui/student-streak";
 
 interface Assignment {
     _id: string;
@@ -294,6 +296,9 @@ export default function StudentAssignmentsPage() {
         <div className="space-y-6 animate-fade-in">
             <PageHeader title="Ödevlerim" description="Yapılacak ve tamamlanan ödevleriniz." />
 
+            {/* Student Gamification Streak & Badges Bar */}
+            <StudentStreak streakDays={5} completedCount={totalOpticCount} />
+
             {/* Overall Student Optic Performance Dashboard Header */}
             {totalOpticCount > 0 && (
                 <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-2xl p-4 shadow-lg border border-slate-800 space-y-3">
@@ -334,6 +339,9 @@ export default function StudentAssignmentsPage() {
                     </div>
                 </div>
             )}
+
+            {/* AI LGS/YKS Net & Target Simulator */}
+            <ExamSimulator gradeLevel={8} averageNet={Number(avgNet) || 14.5} completedTestsCount={totalOpticCount} />
 
             {feedback && (
                 <div className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm animate-toast-in ${feedback.type === "success" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-rose-50 text-rose-700 border border-rose-200"}`}>
