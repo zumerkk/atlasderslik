@@ -21,6 +21,8 @@ import { StudentStreak } from "@/components/ui/student-streak";
 import { DailyChallenge } from "@/components/ui/daily-challenge";
 import { PomodoroTimer } from "@/components/ui/pomodoro-timer";
 import { ChampionsBoard } from "@/components/ui/champions-board";
+import { AIStudyCoach } from "@/components/ui/ai-study-coach";
+import { WeakSpotRadar } from "@/components/ui/weak-spot-radar";
 
 interface Assignment {
     _id: string;
@@ -299,6 +301,9 @@ export default function StudentAssignmentsPage() {
         <div className="space-y-6 animate-fade-in">
             <PageHeader title="Ödevlerim" description="Yapılacak ve tamamlanan ödevleriniz." />
 
+            {/* AI Study Coach & Motivation Assistant */}
+            <AIStudyCoach />
+
             {/* Daily Challenge Quiz Widget */}
             <DailyChallenge />
 
@@ -310,6 +315,9 @@ export default function StudentAssignmentsPage() {
                 <PomodoroTimer />
                 <ChampionsBoard />
             </div>
+
+            {/* Subject Mastery & Weak Spot Radar */}
+            <WeakSpotRadar />
 
             {/* Overall Student Optic Performance Dashboard Header */}
             {totalOpticCount > 0 && (
