@@ -18,6 +18,9 @@ import { downloadDataUri, extensionFromDataUri } from "@/lib/download";
 import { OpticForm } from "@/components/ui/optic-form";
 import { ExamSimulator } from "@/components/ui/exam-simulator";
 import { StudentStreak } from "@/components/ui/student-streak";
+import { DailyChallenge } from "@/components/ui/daily-challenge";
+import { PomodoroTimer } from "@/components/ui/pomodoro-timer";
+import { ChampionsBoard } from "@/components/ui/champions-board";
 
 interface Assignment {
     _id: string;
@@ -296,8 +299,17 @@ export default function StudentAssignmentsPage() {
         <div className="space-y-6 animate-fade-in">
             <PageHeader title="Ödevlerim" description="Yapılacak ve tamamlanan ödevleriniz." />
 
+            {/* Daily Challenge Quiz Widget */}
+            <DailyChallenge />
+
             {/* Student Gamification Streak & Badges Bar */}
             <StudentStreak streakDays={5} completedCount={totalOpticCount} />
+
+            {/* Pomodoro Timer & Champions Board Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <PomodoroTimer />
+                <ChampionsBoard />
+            </div>
 
             {/* Overall Student Optic Performance Dashboard Header */}
             {totalOpticCount > 0 && (
