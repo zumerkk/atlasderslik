@@ -20,6 +20,7 @@ import {
     Video,
 } from "lucide-react";
 import Link from "next/link";
+import { apiGet } from "@/lib/api";
 
 export default function TeacherDashboard() {
     const [stats, setStats] = useState<any>(null);
@@ -32,14 +33,9 @@ export default function TeacherDashboard() {
                 const userStr = localStorage.getItem("user");
                 if (userStr) setUser(JSON.parse(userStr));
 
-                const token = localStorage.getItem("token");
                 const [res, scheduleRes] = await Promise.all([
-                    fetch(process.env.NEXT_PUBLIC_API_URL + "/statistics/teacher", {
-                        headers: { Authorization: `Bearer ${token}` },
-                    }),
-                    fetch(process.env.NEXT_PUBLIC_API_URL + "/education/schedules/teacher", {
-                        headers: { Authorization: `Bearer ${token}` },
-                    })
+                    apiGet("/statistics/teacher"),
+                    apiGet("/education/schedules/teacher")
                 ]);
 
                 if (res.ok) {

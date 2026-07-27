@@ -25,6 +25,7 @@ import {
     Users,
 } from "lucide-react";
 import Link from "next/link";
+import { apiGet } from "@/lib/api";
 
 export default function StudentDashboard() {
     const [data, setData] = useState<any>(null);
@@ -37,13 +38,7 @@ export default function StudentDashboard() {
                 const userStr = localStorage.getItem("user");
                 if (userStr) setUser(JSON.parse(userStr));
 
-                const token = localStorage.getItem("token");
-                const headers = { Authorization: `Bearer ${token}` };
-
-                const res = await fetch(
-                    process.env.NEXT_PUBLIC_API_URL + "/education/student/dashboard",
-                    { headers }
-                );
+                const res = await apiGet("/education/student/dashboard");
 
                 if (res.ok) {
                     setData(await res.json());

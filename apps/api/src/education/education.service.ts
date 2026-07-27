@@ -73,6 +73,20 @@ export class EducationService implements OnModuleInit {
         } catch (err) {
             this.logger.warn('StudentEnrollment index cleanup issue: ' + (err as any)?.message);
         }
+
+        // Ensure performance indexes exist
+        try {
+            await this.assignmentModel.collection.createIndex({ gradeLevel: 1 });
+            await this.assignmentModel.collection.createIndex({ gradeId: 1 });
+            await this.assignmentModel.collection.createIndex({ teacherId: 1 });
+            await this.submissionModel.collection.createIndex({ studentId: 1 });
+            await this.submissionModel.collection.createIndex({ assignmentId: 1, studentId: 1 });
+            await this.liveClassModel.collection.createIndex({ gradeLevel: 1 });
+            await this.videoModel.collection.createIndex({ gradeLevel: 1 });
+            this.logger.log('Performance indexes ensured');
+        } catch (err) {
+            this.logger.warn('Index creation issue: ' + (err as any)?.message);
+        }
     }
 
     // ─── GRADES ─────────────────────────────────────────
@@ -326,6 +340,7 @@ export class EducationService implements OnModuleInit {
         const assignmentData = { ...data, teacherId: new Types.ObjectId(teacherId) };
         if (data.gradeId) assignmentData.gradeId = new Types.ObjectId(data.gradeId); else delete assignmentData.gradeId;
         if (data.subjectId) assignmentData.subjectId = new Types.ObjectId(data.subjectId); else delete assignmentData.subjectId;
+        if (data.gradeLevel !== undefined) assignmentData.gradeLevel = Number(data.gradeLevel);
         return this.assignmentModel.create(assignmentData);
     }
     async getAssignments(query: any) {
@@ -431,24 +446,34 @@ export class EducationService implements OnModuleInit {
     async getStudentAssignments(studentId: string) {
         const enrollments = await this.studentEnrollmentModel.find({ studentId: new Types.ObjectId(studentId) })
             .populate('gradeId', 'level label')
-            .exec();
+            .lean().exec();
         if (!enrollments.length) return [];
         const gradeLevels = enrollments.map((e: any) => (e.gradeId as any)?.level).filter(Boolean);
         const gradeOids = enrollments.map((e: any) => (e.gradeId as any)?._id || e.gradeId).filter(Boolean);
         if (!gradeLevels.length && !gradeOids.length) return [];
+
+        // Also find teacher IDs assigned to these grades
+        const teacherAssignmentsForGrades = await this.teacherAssignmentModel.find(
+            { gradeId: { $in: gradeOids } }
+        ).lean().exec();
+        const linkedTeacherIds = [...new Set(teacherAssignmentsForGrades.map((ta: any) => ta.teacherId.toString()))];
+
         const filterCond = {
             $or: [
                 { gradeId: { $in: gradeOids } },
                 { gradeId: { $in: gradeOids.map((oid: any) => oid.toString()) } },
                 { gradeLevel: { $in: gradeLevels } },
                 { gradeLevel: { $in: gradeLevels.map((l: any) => Number(l)) } },
-                { gradeLevel: { $in: gradeLevels.map((l: any) => String(l)) } }
+                { gradeLevel: { $in: gradeLevels.map((l: any) => String(l)) } },
+                ...(linkedTeacherIds.length > 0 ? [{
+                    teacherId: { $in: linkedTeacherIds.map((id: string) => new Types.ObjectId(id)) }
+                }] : []),
             ]
         };
         const assignments = await this.assignmentModel.find(filterCond)
             .populate('subjectId', 'name')
             .populate('gradeId', 'level label')
-            .exec();
+            .lean().exec();
         return this.sortAssignmentsActiveFirst(assignments);
     }
 
@@ -494,36 +519,56 @@ export class EducationService implements OnModuleInit {
             ]
         };
 
+        // Find teacher IDs assigned to these grades for fallback assignment lookup
+        const teacherAssignmentsForGrades = await this.teacherAssignmentModel.find(
+            { gradeId: { $in: gradeOids } }
+        ).lean().exec();
+        const linkedTeacherIds = [...new Set(teacherAssignmentsForGrades.map((ta: any) => ta.teacherId.toString()))];
+
+        const assignmentFilter = {
+            $or: [
+                { gradeId: { $in: gradeOids } },
+                { gradeId: { $in: gradeOids.map((oid: any) => oid.toString()) } },
+                { gradeLevel: { $in: gradeLevels } },
+                { gradeLevel: { $in: gradeLevels.map((l: any) => Number(l)) } },
+                { gradeLevel: { $in: gradeLevels.map((l: any) => String(l)) } },
+                // Fallback: assignments from teachers assigned to student's grades
+                ...(linkedTeacherIds.length > 0 ? [{
+                    teacherId: { $in: linkedTeacherIds.map((id: string) => new Types.ObjectId(id)) },
+                    $or: [
+                        { gradeLevel: { $in: [...gradeLevels, ...gradeLevels.map((l: any) => Number(l)), ...gradeLevels.map((l: any) => String(l))] } },
+                        { gradeId: { $exists: false } },
+                        { gradeId: null },
+                    ]
+                }] : []),
+            ]
+        };
+
         const [courses, liveClasses, videos, rawAssignments, submissions] = await Promise.all([
-            // Courses = teacher assignments for all enrolled grades
             this.teacherAssignmentModel.find({ gradeId: { $in: gradeOids } })
                 .populate('gradeId', 'level label')
                 .populate('subjectId', 'name gradeLevel description zoomUrl zoomMeetingId zoomPasscode')
                 .populate('teacherId', 'firstName lastName email')
-                .exec(),
-            // Live classes for all enrolled grades
+                .lean().exec(),
             this.liveClassModel.find(filterCond)
                 .populate('subjectId', 'name')
                 .populate('teacherId', 'firstName lastName')
                 .sort({ startTime: 1 })
-                .exec(),
-            // Videos for all enrolled grades
+                .lean().exec(),
             this.videoModel.find(filterCond)
                 .populate('subjectId', 'name')
                 .populate('teacherId', 'firstName lastName')
                 .sort({ createdAt: -1 })
-                .exec(),
-            // Assignments for all enrolled grades
-            this.assignmentModel.find(filterCond)
+                .lean().exec(),
+            this.assignmentModel.find(assignmentFilter)
                 .populate('subjectId', 'name')
                 .populate('teacherId', 'firstName lastName')
                 .sort({ dueDate: 1 })
-                .exec(),
-            // This student's submissions
+                .lean().exec(),
             this.submissionModel.find({ studentId: sid })
                 .populate('assignmentId', 'title gradeLevel maxScore')
                 .sort({ submittedAt: -1 })
-                .exec(),
+                .lean().exec(),
         ]);
 
         // Enrich assignments with server-computed isExpired / canSubmit flags
@@ -535,7 +580,7 @@ export class EducationService implements OnModuleInit {
         });
 
         const assignments = this.sortAssignmentsActiveFirst(rawAssignments.map((a: any) => {
-            const obj = a.toObject ? a.toObject() : { ...a };
+            const obj = { ...a } as any;
             const hasSubmission = submissionMap.has(obj._id.toString());
             let isExpired = false;
             if (obj.dueDate) {
@@ -555,6 +600,8 @@ export class EducationService implements OnModuleInit {
         if (student && student.parentId) {
             parentInfo = student.parentId;
         }
+
+        this.logger.log(`Dashboard for student ${studentId}: ${gradeLevels.length} gradeLevels=[${gradeLevels}], ${gradeOids.length} gradeOids, ${assignments.length} assignments, ${submissions.length} submissions`);
 
         return { enrolled: true, gradeLevels, gradeLabels, gradeLevel: gradeLevels[0], courses, liveClasses, videos, assignments, submissions, parent: parentInfo };
     }

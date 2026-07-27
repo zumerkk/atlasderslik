@@ -79,7 +79,7 @@ export async function cachedApiGet<T = any>(
 export async function api(endpoint: string, options: ApiOptions = {}): Promise<Response> {
     const {
         skipAuth,
-        timeout = 10000,
+        timeout = 30000,
         retries = 0,
         onRetry,
         ...fetchOptions
