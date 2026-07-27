@@ -304,9 +304,114 @@ export default function StudentAssignmentsPage() {
         <div className="space-y-6 animate-fade-in">
             <PageHeader title="Ödevlerim" description="Yapılacak ve tamamlanan ödevleriniz." />
 
-            {/* 3-Day Trial Feature Control Section */}
+            {feedback && (
+                <div className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm animate-toast-in ${feedback.type === "success" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-rose-50 text-rose-700 border border-rose-200"}`}>
+                    {feedback.type === "success" ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}{feedback.message}
+                </div>
+            )}
+
+            {/* 📋 REAL SCHOOL ASSIGNMENTS LIST — ALWAYS FIRST */}
+            <div className="space-y-3">
+                <div className="flex items-center justify-between border-b pb-2">
+                    <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                        <FileText className="w-5 h-5 text-primary" /> 📋 Aktif Ödevlerim &amp; Optik Testlerim
+                    </h3>
+                    <Badge variant="outline" className="text-xs font-semibold">
+                        {assignments.length} Ödev Bulundu
+                    </Badge>
+                </div>
+
+                {loading ? (
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">{[1, 2, 3].map(i => <div key={i} className="skeleton h-64 rounded-2xl" />)}</div>
+                ) : assignments.length === 0 ? (
+                    <EmptyState icon={FileText} title="Aktif ödev yok" description="Şu an aktif ödeviniz bulunmamaktadır." />
+                ) : (
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        {assignments.map((assign) => {
+                            const status = getStatus(assign._id);
+                            const submission = submissionMap.get(assign._id);
+                            return (
+                                <Card key={assign._id} className={`hover:shadow-md transition-shadow ${status.isLate && !submission ? "border-red-200" : ""}`}>
+                                    <CardHeader className="pb-2">
+                                        <div className="flex justify-between items-start gap-2">
+                                            <Badge variant="secondary">{assign.subjectId?.name || "Ders"}</Badge>
+                                            <Badge variant={status.variant}>{status.label}</Badge>
+                                        </div>
+                                        <CardTitle className="text-lg truncate mt-2">{assign.title}</CardTitle>
+                                        <p className="text-sm text-muted-foreground">{assign.teacherId?.firstName} {assign.teacherId?.lastName}</p>
+                                    </CardHeader>
+                                    <CardContent className="space-y-3">
+                                        {assign.description && (
+                                            <p className="text-sm text-muted-foreground line-clamp-3">{assign.description}</p>
+                                        )}
+                                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                            <Calendar className="h-4 w-4" />
+                                            <span>Son Tarih: <strong>{formatDueDate(assign.dueDate)}</strong></span>
+                                        </div>
+                                        {assign.instructions && (
+                                            <p className="text-xs text-muted-foreground italic">📋 {assign.instructions}</p>
+                                        )}
+                                        {/* Show Teacher Attachments */}
+                                        {assign.attachments && assign.attachments.length > 0 && (
+                                            <div className="flex flex-col gap-1.5 mt-2">
+                                                <p className="text-xs font-semibold text-muted-foreground">Ödev Ek Dosyaları ({assign.attachments.length}):</p>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {assign.attachments.map((att, i) => (
+                                                        <button
+                                                            key={i}
+                                                            type="button"
+                                                            onClick={(e) => handleDownloadAttachment(e, att, i)}
+                                                            className="flex items-center gap-1.5 text-xs text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-xl font-medium transition-all border border-blue-200/80 shadow-xs"
+                                                            title="Dosyayı İndir veya iPad/iPhone'da Görüntüle"
+                                                        >
+                                                            <FileText className="h-3.5 w-3.5 text-blue-600" /> Ek Dosya {i + 1} (İndir / Görüntüle)
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                        {/* Submission details */}
+                                        {submission && (
+                                            <div className="mt-2 p-3 rounded-xl bg-muted/40 text-xs space-y-1.5">
+                                                <p className="text-muted-foreground">
+                                                    <Clock className="inline h-3 w-3 mr-1" />
+                                                    Teslim: {format(new Date(submission.submittedAt), "dd.MM.yyyy HH:mm")}
+                                                </p>
+                                                {submission.fileUrl && (
+                                                    <p className="text-blue-600 truncate">
+                                                        📁 Teslim Dosyası: <a href={submission.fileUrl} target="_blank" rel="noreferrer" className="underline font-semibold">Görüntüle</a>
+                                                    </p>
+                                                )}
+                                                {submission.note && <p className="italic text-muted-foreground">"{submission.note}"</p>}
+                                                {submission.feedback && (
+                                                    <div className="p-2 rounded-lg bg-emerald-50 text-emerald-800 font-medium">
+                                                        💬 Öğretmen Notu: {submission.feedback}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                        <div className="pt-2">
+                                            {status.canSubmit ? (
+                                                <Button className="w-full" onClick={() => openSubmitDialog(assign)}>
+                                                    {assign.isOpticTest ? "📝 Optik Formu Doldur & Teslim Et" : "Ödevi Teslim Et"}
+                                                </Button>
+                                            ) : (
+                                                <Button variant="outline" className="w-full" disabled>
+                                                    Teslim Edildi
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
+            {/* ⚡ 3-DAY TRIAL FEATURE CONTROL SECTION — PLACED NEATLY BELOW ASSIGNMENTS */}
             {is3DayTrialActive() && (
-                <div className="space-y-4">
+                <div className="space-y-4 pt-4 border-t border-border/80">
                     <TrialBadge />
 
                     {/* AI Study Coach & Motivation Assistant */}
@@ -384,125 +489,7 @@ export default function StudentAssignmentsPage() {
             {/* AI LGS/YKS Net & Target Simulator */}
             <ExamSimulator gradeLevel={8} averageNet={Number(avgNet) || 14.5} completedTestsCount={totalOpticCount} />
 
-            {feedback && (
-                <div className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm animate-toast-in ${feedback.type === "success" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-rose-50 text-rose-700 border border-rose-200"}`}>
-                    {feedback.type === "success" ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}{feedback.message}
-                </div>
-            )}
 
-            {loading ? (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">{[1, 2, 3].map(i => <div key={i} className="skeleton h-64 rounded-2xl" />)}</div>
-            ) : assignments.length === 0 ? (
-                <EmptyState icon={FileText} title="Aktif ödev yok" description="Şu an aktif ödeviniz bulunmamaktadır." />
-            ) : (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {assignments.map((assign) => {
-                        const status = getStatus(assign._id);
-                        const submission = submissionMap.get(assign._id);
-                        return (
-                            <Card key={assign._id} className={`hover:shadow-md transition-shadow ${status.isLate && !submission ? "border-red-200" : ""}`}>
-                                <CardHeader className="pb-2">
-                                    <div className="flex justify-between items-start gap-2">
-                                        <Badge variant="secondary">{assign.subjectId?.name || "Ders"}</Badge>
-                                        <Badge variant={status.variant}>{status.label}</Badge>
-                                    </div>
-                                    <CardTitle className="text-lg truncate mt-2">{assign.title}</CardTitle>
-                                    <p className="text-sm text-muted-foreground">{assign.teacherId?.firstName} {assign.teacherId?.lastName}</p>
-                                </CardHeader>
-                                <CardContent className="space-y-3">
-                                    {assign.description && (
-                                        <p className="text-sm text-muted-foreground line-clamp-3">{assign.description}</p>
-                                    )}
-                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                        <Calendar className="h-4 w-4" />
-                                        <span>Son Tarih: <strong>{formatDueDate(assign.dueDate)}</strong></span>
-                                    </div>
-                                    {assign.instructions && (
-                                        <p className="text-xs text-muted-foreground italic">📋 {assign.instructions}</p>
-                                    )}
-                                    {/* Show Teacher Attachments */}
-                                    {assign.attachments && assign.attachments.length > 0 && (
-                                        <div className="flex flex-col gap-1.5 mt-2">
-                                            <p className="text-xs font-semibold text-muted-foreground">Ödev Ek Dosyaları ({assign.attachments.length}):</p>
-                                            <div className="flex flex-wrap gap-2">
-                                                {assign.attachments.map((att, i) => (
-                                                    <button
-                                                        key={i}
-                                                        type="button"
-                                                        onClick={(e) => handleDownloadAttachment(e, att, i)}
-                                                        className="flex items-center gap-1.5 text-xs text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-xl font-medium transition-all border border-blue-200/80 shadow-xs"
-                                                        title="Dosyayı İndir veya iPad/iPhone'da Görüntüle"
-                                                    >
-                                                        <FileText className="h-3.5 w-3.5 text-blue-600" /> Ek Dosya {i + 1} (İndir / Görüntüle)
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                    {/* Submission details */}
-                                    {submission && (
-                                        <div className="mt-2 p-3 rounded-xl bg-muted/40 text-xs space-y-1.5">
-                                            <p className="text-muted-foreground">
-                                                <Clock className="inline h-3 w-3 mr-1" />
-                                                Teslim: {format(new Date(submission.submittedAt), "dd.MM.yyyy HH:mm")}
-                                            </p>
-                                            {submission.fileUrl && (
-                                                <p className="text-blue-600 truncate">
-                                                    📎 <a href={submission.fileUrl} target="_blank" rel="noopener noreferrer" className="hover:underline">{submission.fileUrl}</a>
-                                                </p>
-                                            )}
-                                            {submission.opticResult && (
-                                                <div className="flex flex-col gap-1 mt-1 bg-white/50 p-2 rounded border shadow-sm">
-                                                    <p className="font-semibold text-emerald-700 mb-1">Optik Form Sonucu:</p>
-                                                    <div className="flex gap-3 text-[11px] font-medium">
-                                                        <span className="text-emerald-600">{submission.opticResult.correct} Doğru</span>
-                                                        <span className="text-rose-600">{submission.opticResult.incorrect} Yanlış</span>
-                                                        <span className="text-amber-600">{submission.opticResult.empty} Boş</span>
-                                                    </div>
-                                                    <p className="text-sm font-bold text-primary mt-0.5">Puan: {submission.opticResult.score}</p>
-                                                </div>
-                                            )}
-                                            {submission.feedback && <p className="text-emerald-700 mt-1">💬 {submission.feedback}</p>}
-                                        </div>
-                                    )}
-                                    {/* Late submission warning */}
-                                    {status.isLate && status.canSubmit && (
-                                        <div className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-lg">
-                                            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                                            <span>Son tarih geçti. Geç teslim yapabilirsiniz.</span>
-                                        </div>
-                                    )}
-                                </CardContent>
-                                <CardFooter className="border-t pt-4 flex gap-2">
-                                    {!status.canSubmit ? (
-                                        <>
-                                            <Button variant="outline" className="flex-1" disabled>
-                                                <CheckCircle className="h-4 w-4" /> {submission?.grade != null ? "Notlandırıldı" : "Teslim Edildi"}
-                                            </Button>
-                                            {assign.isOpticTest && submission && (
-                                                <Button 
-                                                    variant="default" 
-                                                    className="flex-1"
-                                                    onClick={() => {
-                                                        setResultSubmission({ assign, sub: submission });
-                                                        setResultDialogOpen(true);
-                                                    }}
-                                                >
-                                                    Sonucu Gör
-                                                </Button>
-                                            )}
-                                        </>
-                                    ) : (
-                                        <Button className="w-full" onClick={() => openSubmitDialog(assign)}>
-                                            <Upload className="h-4 w-4" /> {status.isLate ? "Geç Teslim Yap" : "Teslim Et"}
-                                        </Button>
-                                    )}
-                                </CardFooter>
-                            </Card>
-                        );
-                    })}
-                </div>
-            )}
 
             {/* Submit Dialog */}
             <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setSelectedAssignment(null); }}>
