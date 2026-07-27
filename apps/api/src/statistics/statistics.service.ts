@@ -106,17 +106,23 @@ export class StatisticsService {
     }
 
     async getTeacherStats(teacherId: string) {
-        const tid = new Types.ObjectId(teacherId);
+        const tid = Types.ObjectId.isValid(teacherId) ? new Types.ObjectId(teacherId) : teacherId;
+        const teacherFilter = {
+            $or: [
+                { teacherId: tid },
+                { teacherId: teacherId.toString() }
+            ]
+        };
 
         // Get grades this teacher is assigned to
-        const assignments = await this.teacherAssignmentModel.find({ teacherId: tid }).exec();
-        const assignedGradeIds = [...new Set(assignments.map(a => a.gradeId.toString()))];
+        const assignments = await this.teacherAssignmentModel.find(teacherFilter).lean().exec();
+        const assignedGradeIds = [...new Set(assignments.map(a => a.gradeId?.toString()).filter(Boolean))];
 
         // Count students enrolled in those grades
         let myStudents = 0;
         if (assignedGradeIds.length > 0) {
             myStudents = await this.studentEnrollmentModel.countDocuments({
-                gradeId: { $in: assignedGradeIds.map(id => new Types.ObjectId(id)) }
+                gradeId: { $in: assignedGradeIds.map(id => Types.ObjectId.isValid(id) ? new Types.ObjectId(id) : id) }
             });
         }
 
@@ -126,10 +132,10 @@ export class StatisticsService {
             myAssignments,
             myQuestions,
         ] = await Promise.all([
-            this.liveClassModel.countDocuments({ teacherId: tid }),
-            this.videoModel.countDocuments({ teacherId: tid }),
-            this.assignmentModel.countDocuments({ teacherId: tid }),
-            this.questionModel.countDocuments({ teacherId: tid }),
+            this.liveClassModel.countDocuments(teacherFilter),
+            this.videoModel.countDocuments(teacherFilter),
+            this.assignmentModel.countDocuments(teacherFilter),
+            this.questionModel.countDocuments(teacherFilter),
         ]);
 
         return {
@@ -143,8 +149,13 @@ export class StatisticsService {
     }
 
     async getStudentStats(studentId: string) {
-        const sid = new Types.ObjectId(studentId);
-        const enrollment = await this.studentEnrollmentModel.findOne({ studentId: sid }).populate('gradeId', 'level').exec();
+        const sid = Types.ObjectId.isValid(studentId) ? new Types.ObjectId(studentId) : studentId;
+        const enrollment = await this.studentEnrollmentModel.findOne({
+            $or: [
+                { studentId: sid },
+                { studentId: studentId.toString() }
+            ]
+        }).populate('gradeId', 'level').lean().exec();
 
         if (!enrollment) {
             return { enrolled: false, gradeLevel: null, totalCourses: 0, upcomingClasses: 0, pendingAssignments: 0, totalVideos: 0 };

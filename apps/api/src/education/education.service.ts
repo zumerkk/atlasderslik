@@ -349,18 +349,20 @@ export class EducationService implements OnModuleInit {
         if (query.subjectId && Types.ObjectId.isValid(query.subjectId.toString())) {
             filter.subjectId = new Types.ObjectId(query.subjectId.toString());
         }
-        if (query.teacherId && query.teacherId !== "undefined" && Types.ObjectId.isValid(query.teacherId.toString())) {
+        if (query.teacherId && query.teacherId !== "undefined" && query.teacherId !== "null") {
             const tidStr = query.teacherId.toString();
-            filter.$or = [
-                { teacherId: new Types.ObjectId(tidStr) },
-                { teacherId: tidStr }
-            ];
+            if (Types.ObjectId.isValid(tidStr)) {
+                filter.$or = [
+                    { teacherId: new Types.ObjectId(tidStr) },
+                    { teacherId: tidStr }
+                ];
+            }
         }
         const assignments = await this.assignmentModel.find(filter)
             .populate('subjectId', 'name')
             .populate('gradeId', 'level label')
             .populate('teacherId', 'firstName lastName')
-            .exec();
+            .lean().exec();
         return this.sortAssignmentsActiveFirst(assignments);
     }
     async updateAssignment(id: string, data: any) {
@@ -380,53 +382,13 @@ export class EducationService implements OnModuleInit {
         return this.assignmentModel.findByIdAndDelete(id).exec();
     }
     async submitAssignment(data: any) {
-        // Check deadline and mark late submissions
-        const assignment = await this.assignmentModel.findById(data.assignmentId).exec();
-        let isLate = false;
-        if (assignment?.dueDate) {
-            // Set deadline to end of day (23:59:59.999) to avoid timezone issues
-            const deadline = new Date(assignment.dueDate);
-            deadline.setHours(23, 59, 59, 999);
-            isLate = new Date() > deadline;
-        }
-
-        let opticResult: any = undefined;
-        let grade: any = undefined;
-
-        if (assignment?.isOpticTest && data.studentAnswers) {
-            const answerKey = assignment.answerKey || [];
-            const studentAnswers = data.studentAnswers || [];
-            let correct = 0;
-            let incorrect = 0;
-            let empty = 0;
-
-            for (let i = 0; i < answerKey.length; i++) {
-                const sAns = studentAnswers[i];
-                if (!sAns || sAns === "") {
-                    empty++;
-                } else if (sAns === answerKey[i]) {
-                    correct++;
-                } else {
-                    incorrect++;
-                }
-            }
-
-            const total = answerKey.length || 1; // avoid division by zero
-            const score = Math.round((correct / total) * 100);
-
-            opticResult = { correct, incorrect, empty, score };
-            grade = score;
-        }
-
         const updateData: any = {
-            ...data,
-            assignmentId: new Types.ObjectId(data.assignmentId),
-            studentId: new Types.ObjectId(data.studentId),
             submittedAt: new Date(),
-            isLate,
         };
-        if (opticResult) updateData.opticResult = opticResult;
-        if (grade !== undefined) updateData.grade = grade;
+        if (data.fileUrl) updateData.fileUrl = data.fileUrl;
+        if (data.note) updateData.note = data.note;
+        if (data.studentAnswers) updateData.studentAnswers = data.studentAnswers;
+        if (data.opticResult) updateData.opticResult = data.opticResult;
 
         return this.submissionModel.findOneAndUpdate(
             { assignmentId: new Types.ObjectId(data.assignmentId), studentId: new Types.ObjectId(data.studentId) },
@@ -437,16 +399,23 @@ export class EducationService implements OnModuleInit {
     async getSubmissions(assignmentId: string) {
         return this.submissionModel.find({ assignmentId: new Types.ObjectId(assignmentId) })
             .populate('studentId', 'firstName lastName')
-            .exec();
+            .lean().exec();
     }
     async gradeSubmission(id: string, grade: number, feedback: string) {
         return this.submissionModel.findByIdAndUpdate(id, { grade, feedback }, { new: true });
     }
 
     async getStudentAssignments(studentId: string) {
-        const enrollments = await this.studentEnrollmentModel.find({ studentId: new Types.ObjectId(studentId) })
+        const sid = Types.ObjectId.isValid(studentId) ? new Types.ObjectId(studentId) : studentId;
+        const enrollments = await this.studentEnrollmentModel.find({
+            $or: [
+                { studentId: sid },
+                { studentId: studentId.toString() }
+            ]
+        })
             .populate('gradeId', 'level label')
             .lean().exec();
+
         if (!enrollments.length) return [];
         const gradeLevels = enrollments.map((e: any) => (e.gradeId as any)?.level).filter(Boolean);
         const gradeOids = enrollments.map((e: any) => (e.gradeId as any)?._id || e.gradeId).filter(Boolean);
@@ -470,26 +439,63 @@ export class EducationService implements OnModuleInit {
                 }] : []),
             ]
         };
-        const assignments = await this.assignmentModel.find(filterCond)
+        const rawAssignments = await this.assignmentModel.find(filterCond)
             .populate('subjectId', 'name')
             .populate('gradeId', 'level label')
+            .populate('teacherId', 'firstName lastName')
             .lean().exec();
+
+        const submissions = await this.submissionModel.find({
+            $or: [
+                { studentId: sid },
+                { studentId: studentId.toString() }
+            ]
+        }).lean().exec();
+        const submissionMap = new Set(submissions.map((s: any) => s.assignmentId?._id?.toString() || s.assignmentId?.toString()));
+
+        const now = new Date();
+        const assignments = rawAssignments.map((a: any) => {
+            const obj = { ...a };
+            const hasSubmission = submissionMap.has(obj._id.toString());
+            let isExpired = false;
+            if (obj.dueDate) {
+                const deadline = new Date(obj.dueDate);
+                deadline.setHours(23, 59, 59, 999);
+                isExpired = now > deadline;
+            }
+            obj.isExpired = isExpired;
+            obj.canSubmit = !hasSubmission;
+            obj.dueDateISO = obj.dueDate ? new Date(obj.dueDate).toISOString() : null;
+            return obj;
+        });
+
         return this.sortAssignmentsActiveFirst(assignments);
     }
 
     async getMySubmissions(studentId: string) {
-        return this.submissionModel.find({ studentId: new Types.ObjectId(studentId) })
+        const sid = Types.ObjectId.isValid(studentId) ? new Types.ObjectId(studentId) : studentId;
+        return this.submissionModel.find({
+            $or: [
+                { studentId: sid },
+                { studentId: studentId.toString() }
+            ]
+        })
             .populate('assignmentId', 'title gradeLevel maxScore subjectId')
             .sort({ submittedAt: -1 })
-            .exec();
+            .lean().exec();
     }
 
     // ─── STUDENT CONSOLIDATED ────────────────────────────
     async getStudentDashboard(studentId: string) {
-        const sid = new Types.ObjectId(studentId);
-        const enrollments = await this.studentEnrollmentModel.find({ studentId: sid })
+        const sid = Types.ObjectId.isValid(studentId) ? new Types.ObjectId(studentId) : studentId;
+        const enrollments = await this.studentEnrollmentModel.find({
+            $or: [
+                { studentId: sid },
+                { studentId: studentId.toString() }
+            ]
+        })
             .populate('gradeId', 'level label')
-            .exec();
+            .lean().exec();
 
         if (!enrollments.length) {
             return {
@@ -519,7 +525,6 @@ export class EducationService implements OnModuleInit {
             ]
         };
 
-        // Find teacher IDs assigned to these grades for fallback assignment lookup
         const teacherAssignmentsForGrades = await this.teacherAssignmentModel.find(
             { gradeId: { $in: gradeOids } }
         ).lean().exec();
@@ -532,7 +537,6 @@ export class EducationService implements OnModuleInit {
                 { gradeLevel: { $in: gradeLevels } },
                 { gradeLevel: { $in: gradeLevels.map((l: any) => Number(l)) } },
                 { gradeLevel: { $in: gradeLevels.map((l: any) => String(l)) } },
-                // Fallback: assignments from teachers assigned to student's grades
                 ...(linkedTeacherIds.length > 0 ? [{
                     teacherId: { $in: linkedTeacherIds.map((id: string) => new Types.ObjectId(id)) },
                     $or: [
@@ -565,22 +569,21 @@ export class EducationService implements OnModuleInit {
                 .populate('teacherId', 'firstName lastName')
                 .sort({ dueDate: 1 })
                 .lean().exec(),
-            this.submissionModel.find({ studentId: sid })
+            this.submissionModel.find({
+                $or: [
+                    { studentId: sid },
+                    { studentId: studentId.toString() }
+                ]
+            })
                 .populate('assignmentId', 'title gradeLevel maxScore')
                 .sort({ submittedAt: -1 })
                 .lean().exec(),
         ]);
 
-        // Enrich assignments with server-computed isExpired / canSubmit flags
+        const submissionMap = new Set(submissions.map((s: any) => s.assignmentId?._id?.toString() || s.assignmentId?.toString()));
         const now = new Date();
-        const submissionMap = new Map<string, any>();
-        submissions.forEach((s: any) => {
-            const aId = s.assignmentId?._id?.toString() || s.assignmentId?.toString();
-            if (aId) submissionMap.set(aId, s);
-        });
-
         const assignments = this.sortAssignmentsActiveFirst(rawAssignments.map((a: any) => {
-            const obj = { ...a } as any;
+            const obj = { ...a };
             const hasSubmission = submissionMap.has(obj._id.toString());
             let isExpired = false;
             if (obj.dueDate) {
@@ -594,9 +597,8 @@ export class EducationService implements OnModuleInit {
             return obj;
         }));
 
-        // Fetch parent info if exists
         let parentInfo: any = null;
-        const student = await this.userModel.findById(sid).populate('parentId', 'firstName lastName email').exec();
+        const student = await this.userModel.findById(sid).populate('parentId', 'firstName lastName email').lean().exec();
         if (student && student.parentId) {
             parentInfo = student.parentId;
         }

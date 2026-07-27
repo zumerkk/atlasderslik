@@ -145,14 +145,31 @@ export default function StudentAssignmentsPage() {
 
     const fetchData = async () => {
         try {
-            const [dashRes, subsRes] = await Promise.all([
-                apiGet("/education/student/dashboard"),
-                apiGet("/education/submissions/mine"),
+            const [assignRes, subsRes] = await Promise.all([
+                apiGet("/education/student/assignments").catch(() => null),
+                apiGet("/education/submissions/mine").catch(() => null),
             ]);
-            if (dashRes.ok) { const d = await dashRes.json(); setAssignments(d.assignments || []); }
-            if (subsRes.ok) setSubmissions(await subsRes.json());
-        } catch (error) { console.error(error); }
-        finally { setLoading(false); }
+
+            if (assignRes && assignRes.ok) {
+                const data = await assignRes.json();
+                setAssignments(Array.isArray(data) ? data : (data.assignments || []));
+            } else {
+                // Fallback to student dashboard if dedicated assignments endpoint isn't ready
+                const dashRes = await apiGet("/education/student/dashboard").catch(() => null);
+                if (dashRes && dashRes.ok) {
+                    const d = await dashRes.json();
+                    setAssignments(d.assignments || []);
+                }
+            }
+
+            if (subsRes && subsRes.ok) {
+                setSubmissions(await subsRes.json());
+            }
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const openSubmitDialog = (assign: Assignment) => {

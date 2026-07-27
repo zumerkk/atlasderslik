@@ -219,7 +219,10 @@ export class EducationController {
     @Get('assignments')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.TEACHER, UserRole.STUDENT, UserRole.ADMIN)
-    getAssignments(@Query() query) {
+    getAssignments(@Query() query: any, @Req() req: any) {
+        if (req.user?.role === UserRole.TEACHER && !query.teacherId) {
+            query.teacherId = req.user.userId;
+        }
         return this.educationService.getAssignments(query);
     }
 
@@ -240,7 +243,7 @@ export class EducationController {
     @Post('assignments/submit')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.STUDENT)
-    submitAssignment(@Body() data: any, @Req() req) {
+    submitAssignment(@Body() data: any, @Req() req: any) {
         return this.educationService.submitAssignment({ ...data, studentId: req.user.userId });
     }
 
@@ -248,21 +251,28 @@ export class EducationController {
     @Get('student/dashboard')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.STUDENT)
-    getStudentDashboard(@Req() req) {
+    getStudentDashboard(@Req() req: any) {
         return this.educationService.getStudentDashboard(req.user.userId);
     }
 
     @Get('student/courses')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.STUDENT)
-    getStudentCourses(@Req() req) {
+    getStudentCourses(@Req() req: any) {
         return this.educationService.getStudentCourses(req.user.userId);
     }
 
     @Get('assignments/student')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.STUDENT)
-    async getStudentAssignments(@Req() req) {
+    async getStudentAssignments(@Req() req: any) {
+        return this.educationService.getStudentAssignments(req.user.userId);
+    }
+
+    @Get('student/assignments')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.STUDENT)
+    async getStudentAssignmentsAlias(@Req() req: any) {
         return this.educationService.getStudentAssignments(req.user.userId);
     }
 
