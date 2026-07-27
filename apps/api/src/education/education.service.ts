@@ -430,8 +430,10 @@ export class EducationService implements OnModuleInit {
         const filterCond = {
             $or: [
                 { gradeId: { $in: gradeOids } },
-                // String gradeId fallback — handles cases where gradeId was saved as string instead of ObjectId
-                { gradeId: { $in: gradeOids.map((oid: any) => oid.toString()) } }
+                { gradeId: { $in: gradeOids.map((oid: any) => oid.toString()) } },
+                { gradeLevel: { $in: gradeLevels } },
+                { gradeLevel: { $in: gradeLevels.map((l: any) => Number(l)) } },
+                { gradeLevel: { $in: gradeLevels.map((l: any) => String(l)) } }
             ]
         };
         const assignments = await this.assignmentModel.find(filterCond)
@@ -476,8 +478,10 @@ export class EducationService implements OnModuleInit {
         const filterCond = {
             $or: [
                 { gradeId: { $in: gradeOids } },
-                // String gradeId fallback — handles cases where gradeId was saved as string instead of ObjectId
-                { gradeId: { $in: gradeOids.map((oid: any) => oid.toString()) } }
+                { gradeId: { $in: gradeOids.map((oid: any) => oid.toString()) } },
+                { gradeLevel: { $in: gradeLevels } },
+                { gradeLevel: { $in: gradeLevels.map((l: any) => Number(l)) } },
+                { gradeLevel: { $in: gradeLevels.map((l: any) => String(l)) } }
             ]
         };
 
