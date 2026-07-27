@@ -87,8 +87,9 @@ export default function TeacherAssignmentsPage() {
         try {
             const userStr = localStorage.getItem("user");
             const user = userStr ? JSON.parse(userStr) : null;
-            if (!user) return;
-            const res = await apiGet(`/education/assignments?teacherId=${user.id || user._id || user.userId}`);
+            const uid = user ? (user.id || user._id || user.userId) : null;
+            const queryStr = uid ? `?teacherId=${uid}` : "";
+            const res = await apiGet(`/education/assignments${queryStr}`);
             if (res.ok) setAssignments(await res.json());
         } catch (error) { console.error(error); }
         finally { setLoading(false); }

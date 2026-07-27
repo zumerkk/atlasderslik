@@ -331,11 +331,20 @@ export class EducationService implements OnModuleInit {
     async getAssignments(query: any) {
         const filter: any = {};
         if (query.gradeLevel) filter.gradeLevel = Number(query.gradeLevel);
-        if (query.subjectId) filter.subjectId = new Types.ObjectId(query.subjectId);
-        if (query.teacherId) filter.teacherId = new Types.ObjectId(query.teacherId);
+        if (query.subjectId && Types.ObjectId.isValid(query.subjectId.toString())) {
+            filter.subjectId = new Types.ObjectId(query.subjectId.toString());
+        }
+        if (query.teacherId && query.teacherId !== "undefined" && Types.ObjectId.isValid(query.teacherId.toString())) {
+            const tidStr = query.teacherId.toString();
+            filter.$or = [
+                { teacherId: new Types.ObjectId(tidStr) },
+                { teacherId: tidStr }
+            ];
+        }
         const assignments = await this.assignmentModel.find(filter)
             .populate('subjectId', 'name')
             .populate('gradeId', 'level label')
+            .populate('teacherId', 'firstName lastName')
             .exec();
         return this.sortAssignmentsActiveFirst(assignments);
     }
