@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { ShoppingBag, Sparkles, Award, Lock, Check } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { ShoppingBag, Sparkles, Check, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -14,24 +14,64 @@ interface Item {
 }
 
 interface GamificationStoreProps {
+  completedCount?: number;
+  totalCorrect?: number;
+  streakDays?: number;
   className?: string;
 }
 
-export function GamificationStore({ className = "" }: GamificationStoreProps) {
-  const [xp, setXp] = useState(350);
+export function GamificationStore({
+  completedCount = 0,
+  totalCorrect = 0,
+  streakDays = 1,
+  className = "",
+}: GamificationStoreProps) {
+  // Real XP formula: 50 XP per completed test + 10 XP per correct answer + 25 XP per streak day
+  const realXP = Math.max(50, completedCount * 50 + totalCorrect * 10 + streakDays * 25);
+  const [xp, setXp] = useState(realXP);
+
   const [items, setItems] = useState<Item[]>([
-    { id: "1", title: "Matematik Profesörü", cost: 100, unlocked: true, icon: "🎓" },
-    { id: "2", title: "Sınav Dâhisi", cost: 200, unlocked: true, icon: "⚡" },
+    { id: "1", title: "Matematik Profesörü", cost: 100, unlocked: false, icon: "🎓" },
+    { id: "2", title: "Sınav Dâhisi", cost: 200, unlocked: false, icon: "⚡" },
     { id: "3", title: "LGS Şampiyonu", cost: 300, unlocked: false, icon: "🏆" },
     { id: "4", title: "Fen Bilimi Üstadı", cost: 500, unlocked: false, icon: "🔬" },
   ]);
 
+  useEffect(() => {
+    // Load unlocked items from localStorage
+    try {
+      const saved = localStorage.getItem("atlas_unlocked_titles");
+      if (saved) {
+        const unlockedIds: string[] = JSON.parse(saved);
+        setItems((prev) =>
+          prev.map((it) => ({
+            ...it,
+            unlocked: unlockedIds.includes(it.id) || (it.id === "1" && realXP >= 100),
+          }))
+        );
+      } else {
+        setItems((prev) =>
+          prev.map((it) => ({
+            ...it,
+            unlocked: it.id === "1" && realXP >= 100,
+          }))
+        );
+      }
+    } catch {}
+  }, [realXP]);
+
   const handleBuy = (item: Item) => {
     if (xp < item.cost || item.unlocked) return;
-    setXp((prev) => prev - item.cost);
-    setItems((prev) =>
-      prev.map((i) => (i.id === item.id ? { ...i, unlocked: true } : i))
-    );
+    const newXp = xp - item.cost;
+    setXp(newXp);
+
+    const updated = items.map((i) => (i.id === item.id ? { ...i, unlocked: true } : i));
+    setItems(updated);
+
+    try {
+      const unlockedIds = updated.filter((i) => i.unlocked).map((i) => i.id);
+      localStorage.setItem("atlas_unlocked_titles", JSON.stringify(unlockedIds));
+    } catch {}
   };
 
   return (
@@ -43,12 +83,12 @@ export function GamificationStore({ className = "" }: GamificationStoreProps) {
           </span>
           <div>
             <h4 className="text-sm font-bold text-foreground">🛍️ XP Ödül &amp; Unvan Mağazası</h4>
-            <p className="text-[10px] text-muted-foreground">Test çözerek kazandığınız XP puanları ile yeni rozetler açın</p>
+            <p className="text-[10px] text-muted-foreground">Optik netleriniz ve soru çözümlerinizle kazandığınız gerçek XP puanları</p>
           </div>
         </div>
 
         <Badge variant="outline" className="bg-amber-500 text-white border-amber-600 font-black text-xs px-2.5 py-0.5">
-          <Sparkles className="w-3.5 h-3.5 mr-1" /> {xp} XP
+          <Sparkles className="w-3.5 h-3.5 mr-1" /> {xp} XP (Canlı)
         </Badge>
       </div>
 

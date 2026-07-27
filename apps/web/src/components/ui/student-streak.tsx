@@ -1,70 +1,107 @@
 "use client";
 
 import React from "react";
-import { Flame, Trophy, Award, Zap, Star, ShieldCheck } from "lucide-react";
+import { Flame, Award, CheckCircle2, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+
+interface BadgeItem {
+  id: string;
+  icon: string;
+  title: string;
+  unlocked: boolean;
+  reqText: string;
+}
 
 interface StudentStreakProps {
   streakDays?: number;
   completedCount?: number;
+  avgScore?: number;
+  avgNet?: number;
   className?: string;
 }
 
 export function StudentStreak({
-  streakDays = 5,
-  completedCount = 8,
+  streakDays = 1,
+  completedCount = 0,
+  avgScore = 0,
+  avgNet = 0,
   className = "",
 }: StudentStreakProps) {
-  const badges = [
-    { title: "Optik Canavarı", icon: "🎯", desc: "5+ Optik Sınav Tamamlandı", unlocked: completedCount >= 5 },
-    { title: "Çalışkan Öğrenci", icon: "🔥", desc: "3 Gün Üst Üste Seri", unlocked: streakDays >= 3 },
-    { title: "Matematik Üstadı", icon: "📐", desc: "Sayısal Bölüm Başarısı", unlocked: completedCount >= 3 },
-    { title: "Devamsızlık Şampiyonu", icon: "🏆", desc: "%100 Derse Katılım", unlocked: true },
+  const badges: BadgeItem[] = [
+    {
+      id: "1",
+      icon: "🎯",
+      title: "Optik Canavarı",
+      unlocked: completedCount >= 3,
+      reqText: completedCount >= 3 ? "Kazanıldı" : `${completedCount}/3 Optik Test`,
+    },
+    {
+      id: "2",
+      icon: "🔥",
+      title: "Çalışkan Öğrenci",
+      unlocked: streakDays >= 1,
+      reqText: streakDays >= 1 ? "Kazanıldı" : "1 Günlük Seri",
+    },
+    {
+      id: "3",
+      icon: "📐",
+      title: "Matematik Üstadı",
+      unlocked: avgNet >= 10,
+      reqText: avgNet >= 10 ? "Kazanıldı" : `${avgNet}/10 Net Ort.`,
+    },
+    {
+      id: "4",
+      icon: "🏆",
+      title: "Sınav Dâhisi",
+      unlocked: avgScore >= 80,
+      reqText: avgScore >= 80 ? "Kazanıldı" : `${avgScore}/80 Puan Ort.`,
+    },
   ];
 
   return (
-    <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 ${className}`}>
-      {/* Streak & Level Progress Card */}
-      <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10 border border-amber-200 dark:border-amber-900/50 flex items-center justify-between shadow-xs">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 text-white flex items-center justify-center shadow-md animate-bounce">
-            <Flame className="w-7 h-7 fill-white" />
-          </div>
+    <div className={`p-4 rounded-2xl bg-card border border-border shadow-md space-y-3 ${className}`}>
+      <div className="flex items-center justify-between border-b pb-2">
+        <div className="flex items-center gap-2">
+          <span className="p-1.5 bg-orange-500/10 text-orange-600 rounded-xl">
+            <Flame className="w-5 h-5 text-orange-500 animate-bounce" />
+          </span>
           <div>
-            <div className="flex items-center gap-1.5">
-              <h4 className="text-base font-black text-amber-950 dark:text-amber-300">
-                {streakDays} Günlük Çalışma Serisi!
-              </h4>
-              <Badge className="bg-amber-500 text-white text-[10px] px-1.5 py-0 font-bold">🔥 Aktif</Badge>
-            </div>
-            <p className="text-xs text-amber-800 dark:text-amber-400 font-medium">
-              Her gün test çözerek ve derse katılarak seriyi koruyun!
-            </p>
+            <h4 className="text-sm font-bold text-foreground">{streakDays} Günlük Çalışma Serisi!</h4>
+            <p className="text-[10px] text-muted-foreground">Her gün optik sınav çözerek serinizi koruyun ve rozetler kazanın</p>
           </div>
         </div>
+
+        <Badge variant="outline" className="bg-orange-500 text-white border-orange-600 font-extrabold text-xs px-2.5 py-0.5">
+          🔥 {streakDays} Gün Seri
+        </Badge>
       </div>
 
-      {/* Badges Carousel / Grid */}
-      <div className="p-3.5 rounded-2xl bg-card border border-border flex items-center justify-between gap-2 overflow-x-auto custom-scrollbar">
-        <div className="flex items-center gap-2">
-          {badges.map((b, idx) => (
-            <div
-              key={idx}
-              className={`flex items-center gap-2 p-2 rounded-xl border text-xs font-semibold shrink-0 transition-all ${
-                b.unlocked
-                  ? "bg-slate-900 text-white border-slate-800 shadow-sm"
-                  : "bg-muted/40 text-muted-foreground border-border opacity-50"
-              }`}
-              title={b.desc}
-            >
-              <span className="text-base">{b.icon}</span>
-              <div>
-                <div className="text-[11px] leading-tight font-bold">{b.title}</div>
-                <div className="text-[9px] opacity-75">{b.unlocked ? "Kazanıldı" : "Kilitli"}</div>
-              </div>
+      {/* Badges List */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+        {badges.map((b) => (
+          <div
+            key={b.id}
+            className={`p-2.5 rounded-xl border text-center space-y-1 transition-all ${
+              b.unlocked ? "bg-emerald-500/10 border-emerald-300 dark:border-emerald-900/60" : "bg-muted/30 border-border opacity-70"
+            }`}
+          >
+            <div className="text-2xl">{b.icon}</div>
+            <div className="text-xs font-bold text-foreground truncate" title={b.title}>
+              {b.title}
             </div>
-          ))}
-        </div>
+            <div className="text-[10px]">
+              {b.unlocked ? (
+                <span className="text-emerald-700 dark:text-emerald-400 font-bold flex items-center justify-center gap-0.5">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Kazanıldı
+                </span>
+              ) : (
+                <span className="text-muted-foreground flex items-center justify-center gap-0.5">
+                  <Lock className="w-2.5 h-2.5" /> {b.reqText}
+                </span>
+              )}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

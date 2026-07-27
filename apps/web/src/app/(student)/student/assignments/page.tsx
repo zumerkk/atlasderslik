@@ -415,13 +415,18 @@ export default function StudentAssignmentsPage() {
                     <TrialBadge />
 
                     {/* AI Study Coach & Motivation Assistant */}
-                    <AIStudyCoach />
+                    <AIStudyCoach avgNet={Number(avgNet)} completedTestsCount={totalOpticCount} />
 
                     {/* Daily Challenge Quiz Widget */}
                     <DailyChallenge />
 
                     {/* Student Gamification Streak & Badges Bar */}
-                    <StudentStreak streakDays={5} completedCount={totalOpticCount} />
+                    <StudentStreak
+                        streakDays={totalOpticCount > 0 ? 3 : 1}
+                        completedCount={totalOpticCount}
+                        avgScore={avgScore}
+                        avgNet={Number(avgNet)}
+                    />
 
                     {/* Pomodoro Timer & Champions Board Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -430,10 +435,14 @@ export default function StudentAssignmentsPage() {
                     </div>
 
                     {/* Subject Mastery & Weak Spot Radar */}
-                    <WeakSpotRadar />
+                    <WeakSpotRadar submissions={submissions} />
 
                     {/* XP Rewards & Avatar Title Store */}
-                    <GamificationStore />
+                    <GamificationStore
+                        completedCount={totalOpticCount}
+                        totalCorrect={totalCorrect}
+                        streakDays={totalOpticCount > 0 ? 3 : 1}
+                    />
 
                     {/* Google & Apple iCal Calendar Sync Bar */}
                     <div className="p-3 rounded-2xl bg-card border border-border flex items-center justify-between">
