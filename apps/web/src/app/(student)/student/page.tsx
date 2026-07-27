@@ -197,31 +197,32 @@ export default function StudentDashboard() {
                     ) : (
                         <div className="space-y-3">
                             {pendingAssignments.slice(0, 5).map((assignment: any) => (
-                                <div
-                                    key={assignment._id}
-                                    className="p-4 rounded-xl bg-muted/40 border border-border/40 hover:shadow-sm transition-all duration-200"
-                                >
-                                    <div className="flex items-start justify-between mb-2">
-                                        <div>
-                                            <h4 className="text-sm font-semibold">
-                                                {assignment.title}
-                                            </h4>
-                                            <p className="text-xs text-muted-foreground mt-0.5">
-                                                {assignment.subjectId?.name || "Genel"} · {assignment.teacherId?.firstName} {assignment.teacherId?.lastName}
-                                            </p>
+                                <Link href="/student/assignments" key={assignment._id}>
+                                    <div
+                                        className="p-4 rounded-xl bg-muted/40 border border-border/40 hover:shadow-sm hover:bg-muted/60 hover:cursor-pointer transition-all duration-200"
+                                    >
+                                        <div className="flex items-start justify-between mb-2">
+                                            <div>
+                                                <h4 className="text-sm font-semibold">
+                                                    {assignment.title}
+                                                </h4>
+                                                <p className="text-xs text-muted-foreground mt-0.5">
+                                                    {assignment.subjectId?.name || "Genel"} · {assignment.teacherId?.firstName} {assignment.teacherId?.lastName}
+                                                </p>
+                                            </div>
+                                            <Badge variant="warning">Bekliyor</Badge>
                                         </div>
-                                        <Badge variant="warning">Bekliyor</Badge>
+                                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                            <CalendarDays className="h-3.5 w-3.5" />
+                                            <span>
+                                                Son:{" "}
+                                                {assignment.dueDate
+                                                    ? format(new Date(assignment.dueDate), "d MMMM yyyy", { locale: tr })
+                                                    : "-"}
+                                            </span>
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                        <CalendarDays className="h-3.5 w-3.5" />
-                                        <span>
-                                            Son:{" "}
-                                            {assignment.dueDate
-                                                ? format(new Date(assignment.dueDate), "d MMMM yyyy", { locale: tr })
-                                                : "-"}
-                                        </span>
-                                    </div>
-                                </div>
+                                </Link>
                             ))}
                         </div>
                     )}
