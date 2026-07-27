@@ -434,8 +434,8 @@ export class EducationService implements OnModuleInit {
             .exec();
         if (!enrollments.length) return [];
         const gradeLevels = enrollments.map((e: any) => (e.gradeId as any)?.level).filter(Boolean);
-        if (!gradeLevels.length) return [];
         const gradeOids = enrollments.map((e: any) => (e.gradeId as any)?._id || e.gradeId).filter(Boolean);
+        if (!gradeLevels.length && !gradeOids.length) return [];
         const filterCond = {
             $or: [
                 { gradeId: { $in: gradeOids } },
@@ -477,7 +477,7 @@ export class EducationService implements OnModuleInit {
         const gradeLabels = enrollments.map((e: any) => (e.gradeId as any)?.label).filter(Boolean);
         const gradeOids = enrollments.map((e: any) => (e.gradeId as any)?._id || e.gradeId).filter(Boolean);
 
-        if (!gradeLevels.length) {
+        if (!gradeLevels.length && !gradeOids.length) {
             return {
                 enrolled: true, gradeLevels: [], gradeLabels: [],
                 courses: [], liveClasses: [], videos: [], assignments: [], submissions: [],
