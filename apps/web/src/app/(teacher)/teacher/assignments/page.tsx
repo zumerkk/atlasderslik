@@ -22,7 +22,7 @@ import { WhatsAppSender } from "@/components/ui/whatsapp-sender";
 import { is3DayTrialActive } from "@/lib/feature-flags";
 
 interface TeacherAssignment { _id: string; gradeId: { _id: string; level: number; label?: string }; subjectId: { _id: string; name: string; gradeLevel: number }; }
-interface Assignment { _id: string; title: string; description: string; dueDate: string; subjectId: { _id: string; name: string }; gradeLevel: number; gradeId?: { _id: string; level: number; label?: string }; attachments?: string[]; isOpticTest?: boolean; opticOptionsCount?: number; answerKey?: string[]; durationMinutes?: number; }
+interface Assignment { _id: string; title: string; description: string; dueDate: string; subjectId: { _id: string; name: string }; gradeLevel: number; gradeId?: { _id: string; level: number; label?: string }; attachments?: string[]; attachmentCount?: number; isOpticTest?: boolean; opticOptionsCount?: number; answerKey?: string[]; durationMinutes?: number; }
 interface SubmissionItem { _id: string; studentId: { _id: string; firstName: string; lastName: string }; fileUrl?: string; note?: string; grade?: number; feedback?: string; isLate?: boolean; submittedAt: string; opticResult?: { correct: number; incorrect: number; empty: number; score: number }; studentAnswers?: string[]; }
 
 export default function TeacherAssignmentsPage() {
@@ -265,9 +265,9 @@ export default function TeacherAssignmentsPage() {
                             </CardHeader>
                             <CardContent className="space-y-3">
                                 <p className="text-sm text-muted-foreground line-clamp-3">{a.description}</p>
-                                {a.attachments && a.attachments.length > 0 && (
+                                {(a.attachmentCount ?? a.attachments?.length ?? 0) > 0 && (
                                     <div className="flex items-center gap-2 mt-2">
-                                        <Badge variant="secondary" className="text-[10px]"><FileIcon className="h-3 w-3 mr-1" /> {a.attachments.length} Ek</Badge>
+                                        <Badge variant="secondary" className="text-[10px]"><FileIcon className="h-3 w-3 mr-1" /> {a.attachmentCount ?? a.attachments?.length} Ek</Badge>
                                     </div>
                                 )}
                                 <div className="flex items-center gap-2 text-sm text-muted-foreground"><Calendar className="h-4 w-4" />Son Teslim: {format(new Date(a.dueDate), "dd.MM.yyyy")}</div>

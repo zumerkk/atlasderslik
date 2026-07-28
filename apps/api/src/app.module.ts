@@ -11,6 +11,7 @@ import { EducationModule } from './education/education.module';
 import { PackagesModule } from './packages/packages.module';
 import { StatisticsModule } from './statistics/statistics.module';
 import { PaymentModule } from './payment/payment.module';
+import { GamificationModule } from './gamification/gamification.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { PaymentModule } from './payment/payment.module';
     PackagesModule,
     StatisticsModule,
     PaymentModule,
+    GamificationModule,
   ],
   controllers: [AppController],
   providers: [

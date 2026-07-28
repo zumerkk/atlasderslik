@@ -1,71 +1,141 @@
 "use client";
 
 import React from "react";
-import { Trophy, Medal, Award, Crown } from "lucide-react";
+import { Crown, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-interface Champion {
+export interface LeaderboardEntry {
   rank: number;
   name: string;
+  isMe: boolean;
+  tests: number;
   net: number;
-  score: number;
-  badge: string;
+  avgNet: number;
+  avgScore: number;
+  points: number;
+}
+
+export interface LeaderboardData {
+  gradeLabel: string | null;
+  weekly: LeaderboardEntry[];
+  allTime: LeaderboardEntry[];
+  me: LeaderboardEntry | null;
+  peerCount: number;
 }
 
 interface ChampionsBoardProps {
+  data?: LeaderboardData | null;
+  loading?: boolean;
   className?: string;
 }
 
-export function ChampionsBoard({ className = "" }: ChampionsBoardProps) {
-  const champions: Champion[] = [
-    { rank: 1, name: "Ahmet Yılmaz", net: 18.5, score: 492, badge: "🥇 Haftanın Şampiyonu" },
-    { rank: 2, name: "Zeynep Kaya", net: 17.2, score: 485, badge: "🥈 2. Derece" },
-    { rank: 3, name: "Mehmet Demir", net: 16.8, score: 478, badge: "🥉 3. Derece" },
-  ];
+const PODIUM = ["🥇", "🥈", "🥉"];
+
+export function ChampionsBoard({ data, loading = false, className = "" }: ChampionsBoardProps) {
+  const [tab, setTab] = React.useState<"weekly" | "allTime">("weekly");
+  const list = tab === "weekly" ? data?.weekly ?? [] : data?.allTime ?? [];
 
   return (
     <div className={`p-4 rounded-2xl bg-card border border-border shadow-md space-y-3 ${className}`}>
-      <div className="flex items-center justify-between border-b pb-2">
-        <div className="flex items-center gap-2">
-          <span className="p-1.5 bg-amber-500/10 text-amber-600 rounded-xl">
+      <div className="flex items-center justify-between border-b pb-2 gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="p-1.5 bg-amber-500/10 text-amber-600 rounded-xl shrink-0">
             <Crown className="w-5 h-5" />
           </span>
-          <div>
-            <h4 className="text-sm font-bold text-foreground">🏆 Haftalık Okul &amp; Sınıf Şampiyonlar Panosu</h4>
-            <p className="text-[10px] text-muted-foreground">Optik test netlerine göre haftanın derece yapan ilk 3 öğrencisi</p>
+          <div className="min-w-0">
+            <h4 className="text-sm font-bold text-foreground truncate">🏆 Şampiyonlar Panosu</h4>
+            <p className="text-[10px] text-muted-foreground truncate">
+              {data?.gradeLabel ? `${data.gradeLabel} · ${data.peerCount} öğrenci` : "Sınıf arkadaşlarınla optik net sıralaması"}
+            </p>
           </div>
         </div>
-        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300 text-[10px] font-bold">
-          Haftalık Güncel
-        </Badge>
-      </div>
 
-      {/* Podium Grid */}
-      <div className="grid grid-cols-3 gap-2 text-center pt-1">
-        {/* 2nd Place */}
-        <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex flex-col justify-end">
-          <div className="text-2xl mb-1">🥈</div>
-          <div className="text-xs font-bold text-foreground truncate">{champions[1].name}</div>
-          <div className="text-[11px] font-black text-blue-600 dark:text-blue-400">{champions[1].net} Net</div>
-          <div className="text-[9px] text-muted-foreground">{champions[1].score} Puan</div>
-        </div>
-
-        {/* 1st Place - Gold Podium */}
-        <div className="p-3 rounded-xl bg-gradient-to-b from-amber-500/20 via-amber-400/10 to-amber-500/20 border-2 border-amber-400 shadow-md flex flex-col justify-end scale-105 z-10">
-          <div className="text-3xl mb-1 animate-pulse">🥇</div>
-          <div className="text-xs font-black text-amber-950 dark:text-amber-300 truncate">{champions[0].name}</div>
-          <div className="text-xs font-black text-amber-600 dark:text-amber-400">{champions[0].net} Net</div>
-          <div className="text-[10px] font-bold text-amber-800 dark:text-amber-500">{champions[0].score} Puan</div>
-        </div>
-
-        {/* 3rd Place */}
-        <div className="p-3 rounded-xl bg-amber-900/10 border border-amber-800/30 flex flex-col justify-end">
-          <div className="text-2xl mb-1">🥉</div>
-          <div className="text-xs font-bold text-foreground truncate">{champions[2].name}</div>
-          <div className="text-[11px] font-black text-amber-700 dark:text-amber-400">{champions[2].net} Net</div>
-          <div className="text-[9px] text-muted-foreground">{champions[2].score} Puan</div>
+        <div className="flex gap-1 bg-muted/60 rounded-lg p-0.5 shrink-0">
+          {(["weekly", "allTime"] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setTab(t)}
+              className={`px-2 py-1 text-[10px] font-bold rounded-md transition-colors ${
+                tab === t ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {t === "weekly" ? "Bu Hafta" : "Tüm Zamanlar"}
+            </button>
+          ))}
         </div>
       </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-8 text-muted-foreground text-xs gap-2">
+          <Loader2 className="w-4 h-4 animate-spin" /> Sıralama yükleniyor...
+        </div>
+      ) : list.length === 0 ? (
+        <div className="py-6 text-center space-y-1">
+          <div className="text-2xl">🏁</div>
+          <p className="text-xs font-semibold text-foreground">
+            {tab === "weekly" ? "Bu hafta henüz kimse test çözmedi" : "Henüz sıralama oluşmadı"}
+          </p>
+          <p className="text-[10px] text-muted-foreground">İlk optik testini çözen sen ol, panoda ilk sırayı kap!</p>
+        </div>
+      ) : (
+        <div className="space-y-1.5">
+          {list.map((e) => (
+            <div
+              key={`${e.rank}-${e.name}`}
+              className={`flex items-center gap-2.5 p-2 rounded-xl border transition-colors ${
+                e.isMe
+                  ? "bg-primary/10 border-primary/40 ring-1 ring-primary/20"
+                  : e.rank <= 3
+                    ? "bg-amber-500/5 border-amber-300/50"
+                    : "bg-muted/20 border-border/60"
+              }`}
+            >
+              <div className="w-7 text-center shrink-0 font-black text-sm">
+                {e.rank <= 3 ? PODIUM[e.rank - 1] : <span className="text-muted-foreground text-xs">{e.rank}</span>}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-bold text-foreground truncate">
+                  {e.name} {e.isMe && <span className="text-primary font-black">(Sen)</span>}
+                </div>
+                <div className="text-[10px] text-muted-foreground">
+                  {e.tests} test · ort. {e.avgNet} net
+                </div>
+              </div>
+              <div className="text-right shrink-0">
+                <div className="text-xs font-black text-amber-600 dark:text-amber-400">{e.points}</div>
+                <div className="text-[9px] text-muted-foreground">puan</div>
+              </div>
+            </div>
+          ))}
+
+          {/* If the student isn't in the visible top-N, pin their row below. */}
+          {data?.me && !list.some((l) => l.isMe) && (
+            <>
+              <div className="text-center text-[10px] text-muted-foreground py-0.5">···</div>
+              <div className="flex items-center gap-2.5 p-2 rounded-xl bg-primary/10 border border-primary/40">
+                <div className="w-7 text-center shrink-0 text-xs font-black text-muted-foreground">{data.me.rank}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-bold text-foreground truncate">
+                    {data.me.name} <span className="text-primary font-black">(Sen)</span>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {data.me.tests} test · ort. {data.me.avgNet} net
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="text-xs font-black text-amber-600 dark:text-amber-400">{data.me.points}</div>
+                  <div className="text-[9px] text-muted-foreground">puan</div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      <p className="text-[9px] text-muted-foreground pt-1 border-t">
+        Puan = (net × 10) + (çözülen test × 5). Gizlilik için soyadlar kısaltılır.
+      </p>
     </div>
   );
 }

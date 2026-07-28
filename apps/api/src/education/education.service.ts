@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, BadRequestException, OnModuleInit, Logger } from '@nestjs/common';
+import { Injectable, ConflictException, BadRequestException, NotFoundException, ForbiddenException, OnModuleInit, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Grade, GradeDocument } from './schemas/grade.schema';
@@ -336,6 +336,20 @@ export class EducationService implements OnModuleInit {
         });
     }
 
+    /**
+     * Attachments are base64 data URIs and can be several MB each, so list
+     * endpoints exclude them (`.select('-attachments')`) and use this to report
+     * how many each assignment has. The file itself is fetched on demand via
+     * GET assignments/:id/attachment/:index.
+     */
+    private async getAttachmentCounts(filter: any): Promise<Map<string, number>> {
+        const rows = await this.assignmentModel.aggregate([
+            { $match: filter },
+            { $project: { n: { $size: { $ifNull: ['$attachments', []] } } } },
+        ]).exec();
+        return new Map(rows.map((r: any) => [r._id.toString(), r.n]));
+    }
+
     async createAssignment(data: any, teacherId: string) {
         const assignmentData = { ...data, teacherId: new Types.ObjectId(teacherId) };
         if (data.gradeId) assignmentData.gradeId = new Types.ObjectId(data.gradeId); else delete assignmentData.gradeId;
@@ -358,11 +372,16 @@ export class EducationService implements OnModuleInit {
                 ];
             }
         }
-        const assignments = await this.assignmentModel.find(filter)
-            .populate('subjectId', 'name')
-            .populate('gradeId', 'level label')
-            .populate('teacherId', 'firstName lastName')
-            .lean().exec();
+        const [assignments, attCounts] = await Promise.all([
+            this.assignmentModel.find(filter)
+                .select('-attachments') // exclude multi-MB base64 payloads
+                .populate('subjectId', 'name')
+                .populate('gradeId', 'level label')
+                .populate('teacherId', 'firstName lastName')
+                .lean().exec(),
+            this.getAttachmentCounts(filter),
+        ]);
+        assignments.forEach((a: any) => { a.attachmentCount = attCounts.get(a._id.toString()) || 0; });
         return this.sortAssignmentsActiveFirst(assignments);
     }
     async updateAssignment(id: string, data: any) {
@@ -439,18 +458,26 @@ export class EducationService implements OnModuleInit {
                 }] : []),
             ]
         };
+        // NOTE: `attachments` holds base64 data URIs (often several MB each).
+        // Excluding them here keeps the list response tiny — the actual file is
+        // fetched lazily via GET assignments/:id/attachment/:index on click.
         const rawAssignments = await this.assignmentModel.find(filterCond)
+            .select('-attachments')
             .populate('subjectId', 'name')
             .populate('gradeId', 'level label')
             .populate('teacherId', 'firstName lastName')
             .lean().exec();
 
+        // Lightweight attachment counts so the UI can still render download buttons.
+        const attCountMap = await this.getAttachmentCounts(filterCond);
+
+        // Only need existence per assignment — exclude the heavy fileUrl base64.
         const submissions = await this.submissionModel.find({
             $or: [
                 { studentId: sid },
                 { studentId: studentId.toString() }
             ]
-        }).lean().exec();
+        }).select('assignmentId').lean().exec();
         const submissionMap = new Set(submissions.map((s: any) => s.assignmentId?._id?.toString() || s.assignmentId?.toString()));
 
         const now = new Date();
@@ -466,6 +493,7 @@ export class EducationService implements OnModuleInit {
             obj.isExpired = isExpired;
             obj.canSubmit = !hasSubmission;
             obj.dueDateISO = obj.dueDate ? new Date(obj.dueDate).toISOString() : null;
+            obj.attachmentCount = attCountMap.get(obj._id.toString()) || 0;
             return obj;
         });
 
@@ -474,7 +502,7 @@ export class EducationService implements OnModuleInit {
 
     async getMySubmissions(studentId: string) {
         const sid = Types.ObjectId.isValid(studentId) ? new Types.ObjectId(studentId) : studentId;
-        return this.submissionModel.find({
+        const subs = await this.submissionModel.find({
             $or: [
                 { studentId: sid },
                 { studentId: studentId.toString() }
@@ -483,6 +511,37 @@ export class EducationService implements OnModuleInit {
             .populate('assignmentId', 'title gradeLevel maxScore subjectId')
             .sort({ submittedAt: -1 })
             .lean().exec();
+
+        // Strip base64 file payloads (data: URIs can be MBs). Keep plain http links
+        // inline; base64 files are fetched lazily via GET submissions/:id/file.
+        return subs.map((s: any) => {
+            const isData = typeof s.fileUrl === 'string' && s.fileUrl.startsWith('data:');
+            const hasDataUrls = Array.isArray(s.fileUrls) && s.fileUrls.some((u: string) => typeof u === 'string' && u.startsWith('data:'));
+            s.hasFile = !!s.fileUrl || (Array.isArray(s.fileUrls) && s.fileUrls.length > 0);
+            if (isData) s.fileUrl = undefined;
+            if (hasDataUrls) s.fileUrls = s.fileUrls.map((u: string) => (typeof u === 'string' && u.startsWith('data:')) ? undefined : u);
+            return s;
+        });
+    }
+
+    // Lazily fetch a single submission's file payload (owner only).
+    async getSubmissionFile(studentId: string, submissionId: string) {
+        if (!Types.ObjectId.isValid(submissionId)) throw new NotFoundException('Teslim bulunamadı');
+        const sub = await this.submissionModel.findById(submissionId).select('studentId fileUrl fileUrls').lean().exec();
+        if (!sub) throw new NotFoundException('Teslim bulunamadı');
+        const owner = (sub as any).studentId?.toString();
+        if (owner !== studentId.toString()) throw new ForbiddenException('Bu dosyaya erişim yetkiniz yok');
+        return { fileUrl: (sub as any).fileUrl || null, fileUrls: (sub as any).fileUrls || [] };
+    }
+
+    // Lazily fetch a single assignment attachment by index.
+    async getAssignmentAttachment(assignmentId: string, index: number) {
+        if (!Types.ObjectId.isValid(assignmentId)) throw new NotFoundException('Ödev bulunamadı');
+        const asg = await this.assignmentModel.findById(assignmentId).select('attachments').lean().exec();
+        if (!asg) throw new NotFoundException('Ödev bulunamadı');
+        const list = (asg as any).attachments || [];
+        if (index < 0 || index >= list.length) throw new NotFoundException('Ek dosya bulunamadı');
+        return { dataUri: list[index] };
     }
 
     // ─── STUDENT CONSOLIDATED ────────────────────────────
@@ -565,6 +624,7 @@ export class EducationService implements OnModuleInit {
                 .sort({ createdAt: -1 })
                 .lean().exec(),
             this.assignmentModel.find(assignmentFilter)
+                .select('-attachments') // exclude multi-MB base64 from the dashboard payload
                 .populate('subjectId', 'name')
                 .populate('teacherId', 'firstName lastName')
                 .sort({ dueDate: 1 })
@@ -575,6 +635,7 @@ export class EducationService implements OnModuleInit {
                     { studentId: studentId.toString() }
                 ]
             })
+                .select('-fileUrl -fileUrls') // exclude base64 payloads from the dashboard
                 .populate('assignmentId', 'title gradeLevel maxScore')
                 .sort({ submittedAt: -1 })
                 .lean().exec(),

@@ -5,8 +5,7 @@ import { Bot, Sparkles, Loader2, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-const GROQ_API_KEY = process.env.NEXT_PUBLIC_GROQ_API_KEY || ["gsk", "PG3y6iqD0SWC3si4plelWGdyb3FYUNpSkOfo7baviUOiIEaXgivr"].join("_");
+import { apiPost } from "@/lib/api";
 
 interface AIQuizBuilderProps {
   onGenerated?: (title: string, count: number, keys: string[]) => void;
@@ -18,74 +17,32 @@ export function AIQuizBuilder({ onGenerated, className = "" }: AIQuizBuilderProp
   const [qCount, setQCount] = useState(10);
   const [generating, setGenerating] = useState(false);
   const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  /**
+   * Generates real questions plus their matching key via the API (the Groq key
+   * stays server-side). If the model is unavailable we surface an error rather
+   * than inventing a random answer key, which would silently be wrong.
+   */
   const handleGenerate = async () => {
     if (!topicInput.trim()) return;
     setGenerating(true);
     setDone(false);
+    setError(null);
 
     try {
-      // Call Groq Llama-3.3-70b-versatile for AI Answer Key & Quiz Title Generation
-      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${GROQ_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
-          messages: [
-            {
-              role: "system",
-              content:
-                "Sen Atlas Derslik öğretmen asistanısın. Öğretmenin verdiği konu ve soru sayısı için sadece A, B, C, D harflerinden oluşan virgülle ayrılmış cevap anahtarı üret. Örnek çıktı: A,C,B,D,A,B,C,D,A,B",
-            },
-            {
-              role: "user",
-              content: `Konu: ${topicInput}, Soru Sayısı: ${qCount}. Cevap anahtarını virgülle ayırarak ver.`,
-            },
-          ],
-          temperature: 0.5,
-          max_tokens: 100,
-        }),
-      });
+      const res = await apiPost("/ai/quiz", { topic: topicInput, count: qCount }, { timeout: 60000 });
+      if (!res.ok) throw new Error("AI servisi yanıt vermedi");
 
-      let generatedKeys: string[] = [];
-
-      if (res.ok) {
-        const data = await res.json();
-        const text = data.choices?.[0]?.message?.content?.trim() || "";
-        generatedKeys = text
-          .toUpperCase()
-          .replace(/[^A-D,]/g, "")
-          .split(",")
-          .filter((k: string) => ["A", "B", "C", "D"].includes(k))
-          .slice(0, qCount);
-      }
-
-      // Fallback if parsing failed
-      if (generatedKeys.length < qCount) {
-        const options = ["A", "B", "C", "D"];
-        generatedKeys = Array.from({ length: qCount }).map(
-          (_, i) => generatedKeys[i] || options[Math.floor(Math.random() * options.length)]
-        );
+      const data = await res.json();
+      if (!data.ok || !Array.isArray(data.answerKey) || data.answerKey.length === 0) {
+        throw new Error(data.message || "AI soru üretemedi");
       }
 
       setDone(true);
-
-      if (onGenerated) {
-        onGenerated(`${topicInput} — Groq AI Optik Test`, qCount, generatedKeys);
-      }
-    } catch (e) {
-      console.error("Groq AI Quiz Error", e);
-      const options = ["A", "B", "C", "D"];
-      const generatedKeys = Array.from({ length: qCount }).map(
-        () => options[Math.floor(Math.random() * options.length)]
-      );
-      setDone(true);
-      if (onGenerated) {
-        onGenerated(`${topicInput} — Groq AI Optik Test`, qCount, generatedKeys);
-      }
+      onGenerated?.(data.title || topicInput, data.answerKey.length, data.answerKey);
+    } catch (e: any) {
+      setError(e?.message || "Test üretilemedi. Lütfen tekrar deneyin.");
     } finally {
       setGenerating(false);
     }
@@ -144,9 +101,15 @@ export function AIQuizBuilder({ onGenerated, className = "" }: AIQuizBuilderProp
         {generating ? "Groq AI Cevap Anahtarı Üretiyor..." : "⚡ Groq AI İle Cevap Anahtarını Doldur"}
       </Button>
 
-      {done && (
+      {done && !error && (
         <div className="text-[11px] text-emerald-300 font-semibold flex items-center gap-1 bg-emerald-950/60 p-2 rounded-lg border border-emerald-500/40">
-          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Groq AI {qCount} Soruluk cevap anahtarını başarıyla doldurdu!
+          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> AI, sorulara birebir karşılık gelen cevap anahtarını doldurdu!
+        </div>
+      )}
+
+      {error && (
+        <div className="text-[11px] text-rose-300 font-semibold bg-rose-950/60 p-2 rounded-lg border border-rose-500/40">
+          {error}
         </div>
       )}
     </div>

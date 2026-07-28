@@ -283,6 +283,22 @@ export class EducationController {
         return this.educationService.getMySubmissions(req.user.userId);
     }
 
+    // Lazy-load a single submission's file payload (base64), owner only.
+    @Get('submissions/:id/file')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.STUDENT)
+    getSubmissionFile(@Param('id') id: string, @Req() req: any) {
+        return this.educationService.getSubmissionFile(req.user.userId, id);
+    }
+
+    // Lazy-load a single assignment attachment (base64) by index.
+    @Get('assignments/:id/attachment/:index')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.STUDENT, UserRole.TEACHER, UserRole.ADMIN)
+    getAssignmentAttachment(@Param('id') id: string, @Param('index') index: string) {
+        return this.educationService.getAssignmentAttachment(id, parseInt(index, 10) || 0);
+    }
+
     @Get('assignments/:id/submissions')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.TEACHER, UserRole.ADMIN)
