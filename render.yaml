@@ -22,6 +22,8 @@ services:
         sync: false  # Set to your frontend Render URL after deploy
       - key: GROQ_API_KEY
         sync: false  # Set manually in Render dashboard — never commit this
+      - key: HUGGINGFACE_API_KEY
+        sync: false  # AI fallback provider — set manually in Render dashboard
 
   # ─── Frontend: Next.js ──────────────────────────────
   - type: web
