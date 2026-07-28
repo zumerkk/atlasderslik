@@ -281,7 +281,26 @@ export default function StudentAssignmentsPage() {
                 note: note.trim() || (submitMode === "OPTIC" ? "Optik form teslimi" : "Öğrenci teslimi"),
             };
             if (submitMode !== "OPTIC") payload.fileUrl = finalFileUrl;
-            if (submitMode === "OPTIC") payload.studentAnswers = studentAnswers;
+            if (submitMode === "OPTIC") {
+                payload.studentAnswers = studentAnswers;
+
+                // Backend zaten sunucu tarafında hesaplıyor; bu fallback güvencesi.
+                if (selectedAssignment.answerKey && selectedAssignment.answerKey.length > 0) {
+                    const answerKey = selectedAssignment.answerKey;
+                    let correct = 0, incorrect = 0, empty = 0;
+                    const count = Math.max(answerKey.length, studentAnswers.length);
+                    for (let i = 0; i < count; i++) {
+                        const studentAns = (studentAnswers[i] || "").trim().toUpperCase();
+                        const correctAns = (answerKey[i] || "").trim().toUpperCase();
+                        if (!studentAns) empty++;
+                        else if (studentAns === correctAns) correct++;
+                        else incorrect++;
+                    }
+                    const total = answerKey.length;
+                    const score = total > 0 ? Math.round((correct / total) * 100) : 0;
+                    payload.opticResult = { correct, incorrect, empty, score };
+                }
+            }
 
             const res = await apiPost("/education/assignments/submit", payload, { timeout: 60000 });
             if (res.ok) {

@@ -337,6 +337,41 @@ export class EducationService implements OnModuleInit {
     }
 
     /**
+     * Which assignments a student may see.
+     *
+     * An assignment belongs to a specific class via `gradeId`. Matching on
+     * `gradeLevel` alone leaks every parallel class at the same level — level 8
+     * holds NOVA, VENÜS, SATÜRN and ORİON, so a NOVA student was shown all four
+     * classes' work. Matching on the teacher additionally leaked every grade
+     * that teacher taught, which is how 6th/7th grade assignments reached 8th
+     * graders.
+     *
+     * So: match the class. `gradeLevel` is only a fallback for legacy
+     * assignments that never received a `gradeId`, and even then it is
+     * constrained to the student's own level.
+     *
+     * Both id fields appear as ObjectId and as string in this database (legacy
+     * records), so each side is matched in both forms.
+     */
+    private buildAssignmentScope(gradeOids: any[], gradeLevels: any[]) {
+        const idVariants = [
+            ...gradeOids,
+            ...gradeOids.map((o: any) => o?.toString?.()).filter(Boolean),
+        ];
+        const levelVariants = [
+            ...new Set(gradeLevels.flatMap((l: any) => [Number(l), String(l)])),
+        ];
+
+        return {
+            $or: [
+                { gradeId: { $in: idVariants } },
+                { gradeId: { $exists: false }, gradeLevel: { $in: levelVariants } },
+                { gradeId: null, gradeLevel: { $in: levelVariants } },
+            ],
+        };
+    }
+
+    /**
      * Attachments are base64 data URIs and can be several MB each, so list
      * endpoints exclude them (`.select('-attachments')`) and use this to report
      * how many each assignment has. The file itself is fetched on demand via
@@ -407,7 +442,44 @@ export class EducationService implements OnModuleInit {
         if (data.fileUrl) updateData.fileUrl = data.fileUrl;
         if (data.note) updateData.note = data.note;
         if (data.studentAnswers) updateData.studentAnswers = data.studentAnswers;
-        if (data.opticResult) updateData.opticResult = data.opticResult;
+
+        // Bug 1 & 4 fix: opticResult'ı sunucu tarafında hesapla
+        // studentAnswers geldiyse assignment'taki answerKey ile karşılaştır
+        if (data.studentAnswers && Array.isArray(data.studentAnswers)) {
+            try {
+                const assignment = await this.assignmentModel
+                    .findById(new Types.ObjectId(data.assignmentId))
+                    .select('answerKey opticOptionsCount isOpticTest')
+                    .lean().exec();
+                if (assignment && (assignment as any).isOpticTest && Array.isArray((assignment as any).answerKey) && (assignment as any).answerKey.length > 0) {
+                    const answerKey: string[] = (assignment as any).answerKey;
+                    let correct = 0, incorrect = 0, empty = 0;
+                    const count = Math.max(answerKey.length, data.studentAnswers.length);
+                    for (let i = 0; i < count; i++) {
+                        const studentAns = (data.studentAnswers[i] || '').trim().toUpperCase();
+                        const correctAns = (answerKey[i] || '').trim().toUpperCase();
+                        if (!studentAns) {
+                            empty++;
+                        } else if (studentAns === correctAns) {
+                            correct++;
+                        } else {
+                            incorrect++;
+                        }
+                    }
+                    const total = answerKey.length;
+                    const score = total > 0 ? Math.round((correct / total) * 100) : 0;
+                    updateData.opticResult = { correct, incorrect, empty, score };
+                    this.logger.log(`submitAssignment: opticResult computed server-side: ${correct}D ${incorrect}Y ${empty}B score=${score}`);
+                }
+            } catch (err) {
+                this.logger.warn('submitAssignment: opticResult hesaplama hatası: ' + (err as any)?.message);
+                // client tarafından gelen opticResult varsa fallback olarak kullan
+                if (data.opticResult) updateData.opticResult = data.opticResult;
+            }
+        } else if (data.opticResult) {
+            // Optik form değilse client'dan gelen opticResult'ı kullan
+            updateData.opticResult = data.opticResult;
+        }
 
         return this.submissionModel.findOneAndUpdate(
             { assignmentId: new Types.ObjectId(data.assignmentId), studentId: new Types.ObjectId(data.studentId) },
@@ -416,9 +488,39 @@ export class EducationService implements OnModuleInit {
         );
     }
     async getSubmissions(assignmentId: string) {
-        return this.submissionModel.find({ assignmentId: new Types.ObjectId(assignmentId) })
+        // Bug 4 fix: assignment populate et — answerKey ile sunucu tarafında opticResult hesapla
+        const assignment = await this.assignmentModel
+            .findById(new Types.ObjectId(assignmentId))
+            .select('answerKey opticOptionsCount isOpticTest title')
+            .lean().exec();
+
+        const subs = await this.submissionModel
+            .find({ assignmentId: new Types.ObjectId(assignmentId) })
             .populate('studentId', 'firstName lastName')
             .lean().exec();
+
+        // opticResult eksikse ve studentAnswers varsa hesapla
+        const answerKey: string[] = (assignment as any)?.isOpticTest && Array.isArray((assignment as any)?.answerKey)
+            ? (assignment as any).answerKey
+            : [];
+
+        return subs.map((sub: any) => {
+            if (!sub.opticResult && sub.studentAnswers && Array.isArray(sub.studentAnswers) && answerKey.length > 0) {
+                let correct = 0, incorrect = 0, empty = 0;
+                const count = Math.max(answerKey.length, sub.studentAnswers.length);
+                for (let i = 0; i < count; i++) {
+                    const studentAns = (sub.studentAnswers[i] || '').trim().toUpperCase();
+                    const correctAns = (answerKey[i] || '').trim().toUpperCase();
+                    if (!studentAns) empty++;
+                    else if (studentAns === correctAns) correct++;
+                    else incorrect++;
+                }
+                const total = answerKey.length;
+                const score = total > 0 ? Math.round((correct / total) * 100) : 0;
+                sub.opticResult = { correct, incorrect, empty, score };
+            }
+            return sub;
+        });
     }
     async gradeSubmission(id: string, grade: number, feedback: string) {
         return this.submissionModel.findByIdAndUpdate(id, { grade, feedback }, { new: true });
@@ -440,24 +542,8 @@ export class EducationService implements OnModuleInit {
         const gradeOids = enrollments.map((e: any) => (e.gradeId as any)?._id || e.gradeId).filter(Boolean);
         if (!gradeLevels.length && !gradeOids.length) return [];
 
-        // Also find teacher IDs assigned to these grades
-        const teacherAssignmentsForGrades = await this.teacherAssignmentModel.find(
-            { gradeId: { $in: gradeOids } }
-        ).lean().exec();
-        const linkedTeacherIds = [...new Set(teacherAssignmentsForGrades.map((ta: any) => ta.teacherId.toString()))];
+        const filterCond = this.buildAssignmentScope(gradeOids, gradeLevels);
 
-        const filterCond = {
-            $or: [
-                { gradeId: { $in: gradeOids } },
-                { gradeId: { $in: gradeOids.map((oid: any) => oid.toString()) } },
-                { gradeLevel: { $in: gradeLevels } },
-                { gradeLevel: { $in: gradeLevels.map((l: any) => Number(l)) } },
-                { gradeLevel: { $in: gradeLevels.map((l: any) => String(l)) } },
-                ...(linkedTeacherIds.length > 0 ? [{
-                    teacherId: { $in: linkedTeacherIds.map((id: string) => new Types.ObjectId(id)) }
-                }] : []),
-            ]
-        };
         // NOTE: `attachments` holds base64 data URIs (often several MB each).
         // Excluding them here keeps the list response tiny — the actual file is
         // fetched lazily via GET assignments/:id/attachment/:index on click.
@@ -497,6 +583,7 @@ export class EducationService implements OnModuleInit {
             return obj;
         });
 
+        this.logger.log(`getStudentAssignments: studentId=${studentId}, gradeOids=${gradeOids.length}, gradeLevels=[${gradeLevels}], assignments=${assignments.length}`);
         return this.sortAssignmentsActiveFirst(assignments);
     }
 
@@ -574,38 +661,9 @@ export class EducationService implements OnModuleInit {
             };
         }
 
-        const filterCond = {
-            $or: [
-                { gradeId: { $in: gradeOids } },
-                { gradeId: { $in: gradeOids.map((oid: any) => oid.toString()) } },
-                { gradeLevel: { $in: gradeLevels } },
-                { gradeLevel: { $in: gradeLevels.map((l: any) => Number(l)) } },
-                { gradeLevel: { $in: gradeLevels.map((l: any) => String(l)) } }
-            ]
-        };
+        const filterCond = this.buildAssignmentScope(gradeOids, gradeLevels);
 
-        const teacherAssignmentsForGrades = await this.teacherAssignmentModel.find(
-            { gradeId: { $in: gradeOids } }
-        ).lean().exec();
-        const linkedTeacherIds = [...new Set(teacherAssignmentsForGrades.map((ta: any) => ta.teacherId.toString()))];
-
-        const assignmentFilter = {
-            $or: [
-                { gradeId: { $in: gradeOids } },
-                { gradeId: { $in: gradeOids.map((oid: any) => oid.toString()) } },
-                { gradeLevel: { $in: gradeLevels } },
-                { gradeLevel: { $in: gradeLevels.map((l: any) => Number(l)) } },
-                { gradeLevel: { $in: gradeLevels.map((l: any) => String(l)) } },
-                ...(linkedTeacherIds.length > 0 ? [{
-                    teacherId: { $in: linkedTeacherIds.map((id: string) => new Types.ObjectId(id)) },
-                    $or: [
-                        { gradeLevel: { $in: [...gradeLevels, ...gradeLevels.map((l: any) => Number(l)), ...gradeLevels.map((l: any) => String(l))] } },
-                        { gradeId: { $exists: false } },
-                        { gradeId: null },
-                    ]
-                }] : []),
-            ]
-        };
+        const assignmentFilter = filterCond;
 
         const [courses, liveClasses, videos, rawAssignments, submissions] = await Promise.all([
             this.teacherAssignmentModel.find({ gradeId: { $in: gradeOids } })
