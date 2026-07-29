@@ -469,6 +469,10 @@ export class EducationService implements OnModuleInit {
                     const total = answerKey.length;
                     const score = total > 0 ? Math.round((correct / total) * 100) : 0;
                     updateData.opticResult = { correct, incorrect, empty, score };
+                    // An optic form is objectively gradable, so record the score as
+                    // the grade too — otherwise the teacher's list keeps showing
+                    // "Henüz notlandırılmadı" next to a fully computed result.
+                    updateData.grade = score;
                     this.logger.log(`submitAssignment: opticResult computed server-side: ${correct}D ${incorrect}Y ${empty}B score=${score}`);
                 }
             } catch (err) {
@@ -518,6 +522,9 @@ export class EducationService implements OnModuleInit {
                 const total = answerKey.length;
                 const score = total > 0 ? Math.round((correct / total) * 100) : 0;
                 sub.opticResult = { correct, incorrect, empty, score };
+                // Show the auto-grade for submissions saved before grading moved
+                // server-side; a grade the teacher set by hand is left alone.
+                if (sub.grade === undefined || sub.grade === null) sub.grade = score;
             }
             return sub;
         });
