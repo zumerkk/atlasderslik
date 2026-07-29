@@ -353,7 +353,9 @@ export class EducationService implements OnModuleInit {
      * Both id fields appear as ObjectId and as string in this database (legacy
      * records), so each side is matched in both forms.
      */
-    private buildAssignmentScope(gradeOids: any[], gradeLevels: any[]) {
+    // Return type is `any` because Mongoose 9 cannot infer a union of shapes
+    // like this one against each model's own filter type.
+    private buildAssignmentScope(gradeOids: any[], gradeLevels: any[]): any {
         const idVariants = [
             ...gradeOids,
             ...gradeOids.map((o: any) => o?.toString?.()).filter(Boolean),
