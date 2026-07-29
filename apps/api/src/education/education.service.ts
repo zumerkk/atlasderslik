@@ -437,7 +437,38 @@ export class EducationService implements OnModuleInit {
     async deleteAssignment(id: string) {
         return this.assignmentModel.findByIdAndDelete(id).exec();
     }
+    /** Ids of the classes a student is enrolled in. */
+    private async getStudentGradeIds(studentId: string): Promise<string[]> {
+        const sid = Types.ObjectId.isValid(studentId) ? new Types.ObjectId(studentId) : studentId;
+        const enrollments = await this.studentEnrollmentModel
+            .find({ $or: [{ studentId: sid }, { studentId: studentId.toString() }] })
+            .select('gradeId').lean().exec();
+        return enrollments
+            .map((e: any) => (e.gradeId?._id || e.gradeId)?.toString())
+            .filter(Boolean);
+    }
+
     async submitAssignment(data: any) {
+        const assignment = await this.assignmentModel
+            .findById(new Types.ObjectId(data.assignmentId))
+            .select('answerKey opticOptionsCount isOpticTest gradeId')
+            .lean().exec();
+        if (!assignment) {
+            throw new NotFoundException('Ödev bulunamadı.');
+        }
+
+        // The listing endpoints scope assignments to the student's own class,
+        // but nothing stopped a direct POST to someone else's assignment — and
+        // while the listing was leaking, students really did submit across
+        // classes. Enforce it here so the data cannot be polluted again.
+        const assignmentGradeId = (assignment as any).gradeId?.toString();
+        if (assignmentGradeId) {
+            const studentGradeIds = await this.getStudentGradeIds(data.studentId);
+            if (studentGradeIds.length && !studentGradeIds.includes(assignmentGradeId)) {
+                throw new ForbiddenException('Bu ödev sizin sınıfınıza ait değil.');
+            }
+        }
+
         const updateData: any = {
             submittedAt: new Date(),
         };
@@ -445,15 +476,10 @@ export class EducationService implements OnModuleInit {
         if (data.note) updateData.note = data.note;
         if (data.studentAnswers) updateData.studentAnswers = data.studentAnswers;
 
-        // Bug 1 & 4 fix: opticResult'ı sunucu tarafında hesapla
-        // studentAnswers geldiyse assignment'taki answerKey ile karşılaştır
+        // Optic forms are graded server-side against the assignment's answer key.
         if (data.studentAnswers && Array.isArray(data.studentAnswers)) {
             try {
-                const assignment = await this.assignmentModel
-                    .findById(new Types.ObjectId(data.assignmentId))
-                    .select('answerKey opticOptionsCount isOpticTest')
-                    .lean().exec();
-                if (assignment && (assignment as any).isOpticTest && Array.isArray((assignment as any).answerKey) && (assignment as any).answerKey.length > 0) {
+                if ((assignment as any).isOpticTest && Array.isArray((assignment as any).answerKey) && (assignment as any).answerKey.length > 0) {
                     const answerKey: string[] = (assignment as any).answerKey;
                     let correct = 0, incorrect = 0, empty = 0;
                     const count = Math.max(answerKey.length, data.studentAnswers.length);
@@ -494,16 +520,45 @@ export class EducationService implements OnModuleInit {
         );
     }
     async getSubmissions(assignmentId: string) {
-        // Bug 4 fix: assignment populate et — answerKey ile sunucu tarafında opticResult hesapla
         const assignment = await this.assignmentModel
             .findById(new Types.ObjectId(assignmentId))
-            .select('answerKey opticOptionsCount isOpticTest title')
+            .select('answerKey opticOptionsCount isOpticTest title gradeId')
             .lean().exec();
 
-        const subs = await this.submissionModel
+        let subs = await this.submissionModel
             .find({ assignmentId: new Types.ObjectId(assignmentId) })
             .populate('studentId', 'firstName lastName')
             .lean().exec();
+
+        // While the listing endpoints were leaking, students submitted to other
+        // classes' assignments — so a Year 6 pupil's answers can sit inside a
+        // Year 8 assignment. Those rows are kept (they are real student work)
+        // but hidden from the teacher's list for the class they don't belong to.
+        const assignmentGradeId = (assignment as any)?.gradeId?.toString();
+        if (assignmentGradeId && subs.length) {
+            const studentIds = subs
+                .map((s: any) => (s.studentId?._id || s.studentId)?.toString())
+                .filter(Boolean);
+            const enrollments = await this.studentEnrollmentModel
+                .find({ studentId: { $in: studentIds.flatMap((id: string) => Types.ObjectId.isValid(id) ? [new Types.ObjectId(id), id] : [id]) } as any })
+                .select('studentId gradeId').lean().exec();
+
+            const classOf = new Map<string, string[]>();
+            enrollments.forEach((e: any) => {
+                const sid = (e.studentId?._id || e.studentId)?.toString();
+                const gid = (e.gradeId?._id || e.gradeId)?.toString();
+                if (!sid || !gid) return;
+                classOf.set(sid, [...(classOf.get(sid) || []), gid]);
+            });
+
+            subs = subs.filter((s: any) => {
+                const sid = (s.studentId?._id || s.studentId)?.toString();
+                const classes = classOf.get(sid);
+                // Students with no enrollment record are left visible rather
+                // than silently dropped.
+                return !classes?.length || classes.includes(assignmentGradeId);
+            });
+        }
 
         // opticResult eksikse ve studentAnswers varsa hesapla
         const answerKey: string[] = (assignment as any)?.isOpticTest && Array.isArray((assignment as any)?.answerKey)
