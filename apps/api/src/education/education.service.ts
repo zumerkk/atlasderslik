@@ -1,6 +1,7 @@
 import { Injectable, ConflictException, BadRequestException, NotFoundException, ForbiddenException, OnModuleInit, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import { UserRole } from '@repo/shared';
 import { Grade, GradeDocument } from './schemas/grade.schema';
 import { Subject, SubjectDocument } from './schemas/subject.schema';
 import { Unit, UnitDocument } from './schemas/unit.schema';
@@ -289,6 +290,34 @@ export class EducationService implements OnModuleInit {
             .sort({ createdAt: -1 })
             .exec();
     }
+    /** Videos limited to the classes the student is actually enrolled in. */
+    async getVideosForStudent(studentId: string, query: any = {}) {
+        const sid = Types.ObjectId.isValid(studentId) ? new Types.ObjectId(studentId) : studentId;
+        const enrollments = await this.studentEnrollmentModel
+            .find({ $or: [{ studentId: sid }, { studentId: studentId.toString() }] })
+            .populate('gradeId', 'level').lean().exec();
+        if (!enrollments.length) return [];
+
+        const gradeOids = enrollments.map((e: any) => e.gradeId?._id || e.gradeId).filter(Boolean);
+        const gradeLevels = enrollments.map((e: any) => e.gradeId?.level).filter(Boolean);
+
+        const filter: any = this.buildAssignmentScope(gradeOids, gradeLevels);
+        if (query.subjectId && Types.ObjectId.isValid(query.subjectId)) {
+            filter.subjectId = new Types.ObjectId(query.subjectId);
+        }
+        if (query.topicId && Types.ObjectId.isValid(query.topicId)) {
+            filter.topicId = new Types.ObjectId(query.topicId);
+        }
+
+        return this.videoModel.find(filter)
+            .populate('subjectId', 'name')
+            .populate('gradeId', 'level label')
+            .populate('topicId', 'name')
+            .populate('teacherId', 'firstName lastName')
+            .sort({ createdAt: -1 })
+            .lean().exec();
+    }
+
     async updateVideo(id: string, data: any) {
         const update: any = {};
         if (data.title !== undefined) update.title = data.title;
@@ -644,6 +673,13 @@ export class EducationService implements OnModuleInit {
             obj.canSubmit = !hasSubmission;
             obj.dueDateISO = obj.dueDate ? new Date(obj.dueDate).toISOString() : null;
             obj.attachmentCount = attCountMap.get(obj._id.toString()) || 0;
+
+            // The UI only needs the number of questions to render the optic
+            // sheet. Sending answerKey as well let a student read every correct
+            // answer out of the network response before submitting — so it is
+            // withheld until they have submitted and are reviewing their paper.
+            obj.questionCount = Array.isArray(obj.answerKey) ? obj.answerKey.length : 0;
+            if (!hasSubmission) delete obj.answerKey;
             return obj;
         });
 
@@ -685,11 +721,24 @@ export class EducationService implements OnModuleInit {
         return { fileUrl: (sub as any).fileUrl || null, fileUrls: (sub as any).fileUrls || [] };
     }
 
-    // Lazily fetch a single assignment attachment by index.
-    async getAssignmentAttachment(assignmentId: string, index: number) {
+    /**
+     * Lazily fetch a single assignment attachment by index. Students may only
+     * reach attachments belonging to their own class — the id is guessable, so
+     * without this check any student could pull another class's material.
+     */
+    async getAssignmentAttachment(assignmentId: string, index: number, user?: { userId: string; role?: string }) {
         if (!Types.ObjectId.isValid(assignmentId)) throw new NotFoundException('Ödev bulunamadı');
-        const asg = await this.assignmentModel.findById(assignmentId).select('attachments').lean().exec();
+        const asg = await this.assignmentModel.findById(assignmentId).select('attachments gradeId').lean().exec();
         if (!asg) throw new NotFoundException('Ödev bulunamadı');
+
+        const assignmentGradeId = (asg as any).gradeId?.toString();
+        if (user && user.role === UserRole.STUDENT && assignmentGradeId) {
+            const studentGradeIds = await this.getStudentGradeIds(user.userId);
+            if (studentGradeIds.length && !studentGradeIds.includes(assignmentGradeId)) {
+                throw new ForbiddenException('Bu ödeve erişim yetkiniz yok.');
+            }
+        }
+
         const list = (asg as any).attachments || [];
         if (index < 0 || index >= list.length) throw new NotFoundException('Ek dosya bulunamadı');
         return { dataUri: list[index] };
@@ -777,6 +826,9 @@ export class EducationService implements OnModuleInit {
             obj.isExpired = isExpired;
             obj.canSubmit = !hasSubmission;
             obj.dueDateISO = obj.dueDate ? new Date(obj.dueDate).toISOString() : null;
+            // Same rule as getStudentAssignments: no answer key before submitting.
+            obj.questionCount = Array.isArray(obj.answerKey) ? obj.answerKey.length : 0;
+            if (!hasSubmission) delete obj.answerKey;
             return obj;
         }));
 

@@ -48,7 +48,8 @@ interface Assignment {
     attachmentCount?: number;
     isOpticTest?: boolean;
     opticOptionsCount?: number;
-    answerKey?: string[];
+    answerKey?: string[];   // only sent back after the student has submitted
+    questionCount?: number;
     durationMinutes?: number;
 }
 
@@ -255,7 +256,7 @@ export default function StudentAssignmentsPage() {
         setFileUrl(""); setNote(""); setUploadedFileData(""); setUploadedFileName("");
         if (assign.isOpticTest) {
             setSubmitMode("OPTIC");
-            setStudentAnswers(Array(assign.answerKey?.length || 10).fill(""));
+            setStudentAnswers(Array(assign.questionCount || assign.answerKey?.length || 10).fill(""));
         } else {
             setSubmitMode("FILE");
         }
@@ -281,26 +282,9 @@ export default function StudentAssignmentsPage() {
                 note: note.trim() || (submitMode === "OPTIC" ? "Optik form teslimi" : "Öğrenci teslimi"),
             };
             if (submitMode !== "OPTIC") payload.fileUrl = finalFileUrl;
-            if (submitMode === "OPTIC") {
-                payload.studentAnswers = studentAnswers;
-
-                // Backend zaten sunucu tarafında hesaplıyor; bu fallback güvencesi.
-                if (selectedAssignment.answerKey && selectedAssignment.answerKey.length > 0) {
-                    const answerKey = selectedAssignment.answerKey;
-                    let correct = 0, incorrect = 0, empty = 0;
-                    const count = Math.max(answerKey.length, studentAnswers.length);
-                    for (let i = 0; i < count; i++) {
-                        const studentAns = (studentAnswers[i] || "").trim().toUpperCase();
-                        const correctAns = (answerKey[i] || "").trim().toUpperCase();
-                        if (!studentAns) empty++;
-                        else if (studentAns === correctAns) correct++;
-                        else incorrect++;
-                    }
-                    const total = answerKey.length;
-                    const score = total > 0 ? Math.round((correct / total) * 100) : 0;
-                    payload.opticResult = { correct, incorrect, empty, score };
-                }
-            }
+            // Only the answers are sent — the score is computed server-side
+            // against the answer key, which the browser never receives.
+            if (submitMode === "OPTIC") payload.studentAnswers = studentAnswers;
 
             const res = await apiPost("/education/assignments/submit", payload, { timeout: 60000 });
             if (res.ok) {
@@ -696,7 +680,7 @@ export default function StudentAssignmentsPage() {
                                 <OpticForm
                                     mode="edit"
                                     title={selectedAssignment?.title}
-                                    questionCount={selectedAssignment?.answerKey?.length || 10}
+                                    questionCount={selectedAssignment?.questionCount || selectedAssignment?.answerKey?.length || 10}
                                     optionsCount={selectedAssignment?.opticOptionsCount || 4}
                                     studentAnswers={studentAnswers}
                                     onChange={(index, answer) => {
@@ -704,7 +688,7 @@ export default function StudentAssignmentsPage() {
                                         next[index] = answer;
                                         setStudentAnswers(next);
                                     }}
-                                    onClearAll={() => setStudentAnswers(Array(selectedAssignment?.answerKey?.length || 10).fill(""))}
+                                    onClearAll={() => setStudentAnswers(Array(selectedAssignment?.questionCount || selectedAssignment?.answerKey?.length || 10).fill(""))}
                                     className="max-h-[60vh] overflow-y-auto p-2 border rounded-xl bg-muted/20 custom-scrollbar"
                                 />
                                 <p className="text-xs text-muted-foreground mt-1 text-center">

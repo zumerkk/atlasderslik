@@ -183,7 +183,12 @@ export class EducationController {
     @Get('videos')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.TEACHER, UserRole.STUDENT, UserRole.ADMIN)
-    getVideos(@Query() query) {
+    getVideos(@Query() query, @Req() req: any) {
+        // Without this a student could list every video in the school by
+        // calling the endpoint with no filters.
+        if (req.user?.role === UserRole.STUDENT) {
+            return this.educationService.getVideosForStudent(req.user.userId, query);
+        }
         return this.educationService.getVideos(query);
     }
 
@@ -220,6 +225,12 @@ export class EducationController {
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.TEACHER, UserRole.STUDENT, UserRole.ADMIN)
     getAssignments(@Query() query: any, @Req() req: any) {
+        // Students must always go through the class-scoped path. Reaching this
+        // endpoint directly used to return every assignment in the system —
+        // answer keys included — regardless of which class they belong to.
+        if (req.user?.role === UserRole.STUDENT) {
+            return this.educationService.getStudentAssignments(req.user.userId);
+        }
         if (req.user?.role === UserRole.TEACHER && !query.teacherId) {
             query.teacherId = req.user.userId;
         }
@@ -295,8 +306,8 @@ export class EducationController {
     @Get('assignments/:id/attachment/:index')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.STUDENT, UserRole.TEACHER, UserRole.ADMIN)
-    getAssignmentAttachment(@Param('id') id: string, @Param('index') index: string) {
-        return this.educationService.getAssignmentAttachment(id, parseInt(index, 10) || 0);
+    getAssignmentAttachment(@Param('id') id: string, @Param('index') index: string, @Req() req: any) {
+        return this.educationService.getAssignmentAttachment(id, parseInt(index, 10) || 0, req.user);
     }
 
     @Get('assignments/:id/submissions')
