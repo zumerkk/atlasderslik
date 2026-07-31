@@ -331,6 +331,15 @@ export class EducationService implements OnModuleInit {
             update.videoUrl = /^https?:\/\//i.test(url) ? url : `https://${url}`;
         }
         if (data.durationMinutes !== undefined) update.durationMinutes = data.durationMinutes;
+        // Without these a teacher could not move a video to the right class,
+        // which is the only way to fix the ones uploaded before classes existed.
+        if (data.gradeId !== undefined) {
+            update.gradeId = data.gradeId ? new Types.ObjectId(data.gradeId) : null;
+        }
+        if (data.subjectId !== undefined && Types.ObjectId.isValid(data.subjectId)) {
+            update.subjectId = new Types.ObjectId(data.subjectId);
+        }
+        if (data.gradeLevel !== undefined) update.gradeLevel = Number(data.gradeLevel);
         return this.videoModel.findByIdAndUpdate(id, update, { new: true })
             .populate('subjectId', 'name')
             .populate('gradeId', 'level label')
@@ -457,6 +466,20 @@ export class EducationService implements OnModuleInit {
         if (data.dueDate !== undefined) update.dueDate = new Date(data.dueDate);
         if (data.instructions !== undefined) update.instructions = data.instructions;
         if (data.maxScore !== undefined) update.maxScore = data.maxScore;
+        // These were silently dropped: a teacher correcting an answer key, or
+        // moving an assignment to another class, saw the form succeed while
+        // nothing changed.
+        if (data.answerKey !== undefined) update.answerKey = data.answerKey;
+        if (data.isOpticTest !== undefined) update.isOpticTest = data.isOpticTest;
+        if (data.opticOptionsCount !== undefined) update.opticOptionsCount = Number(data.opticOptionsCount);
+        if (data.attachments !== undefined) update.attachments = data.attachments;
+        if (data.gradeId !== undefined) {
+            update.gradeId = data.gradeId ? new Types.ObjectId(data.gradeId) : null;
+        }
+        if (data.subjectId !== undefined && Types.ObjectId.isValid(data.subjectId)) {
+            update.subjectId = new Types.ObjectId(data.subjectId);
+        }
+        if (data.gradeLevel !== undefined) update.gradeLevel = Number(data.gradeLevel);
         return this.assignmentModel.findByIdAndUpdate(id, update, { new: true })
             .populate('subjectId', 'name')
             .populate('gradeId', 'level label')
@@ -679,7 +702,14 @@ export class EducationService implements OnModuleInit {
             // answer out of the network response before submitting — so it is
             // withheld until they have submitted and are reviewing their paper.
             obj.questionCount = Array.isArray(obj.answerKey) ? obj.answerKey.length : 0;
-            if (!hasSubmission) delete obj.answerKey;
+            if (!hasSubmission && Array.isArray(obj.answerKey)) {
+                // Blanked rather than removed: a browser running an older build
+                // sizes the optic sheet from answerKey.length, and dropping the
+                // field made every paper render as 10 questions. Keeping the
+                // length while clearing the letters satisfies both builds and
+                // still tells the student nothing.
+                obj.answerKey = obj.answerKey.map(() => '');
+            }
             return obj;
         });
 
@@ -828,7 +858,14 @@ export class EducationService implements OnModuleInit {
             obj.dueDateISO = obj.dueDate ? new Date(obj.dueDate).toISOString() : null;
             // Same rule as getStudentAssignments: no answer key before submitting.
             obj.questionCount = Array.isArray(obj.answerKey) ? obj.answerKey.length : 0;
-            if (!hasSubmission) delete obj.answerKey;
+            if (!hasSubmission && Array.isArray(obj.answerKey)) {
+                // Blanked rather than removed: a browser running an older build
+                // sizes the optic sheet from answerKey.length, and dropping the
+                // field made every paper render as 10 questions. Keeping the
+                // length while clearing the letters satisfies both builds and
+                // still tells the student nothing.
+                obj.answerKey = obj.answerKey.map(() => '');
+            }
             return obj;
         }));
 
