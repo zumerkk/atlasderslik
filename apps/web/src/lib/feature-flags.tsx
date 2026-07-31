@@ -5,10 +5,11 @@ import { Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 // 3-Day Trial Window Configuration
-// Start: 2026-07-27, End: 2026-07-30T00:00:00.000Z (3 Days)
+// Extended 31 Jul 2026 for a second 3-day run — students asked for the optic
+// report card, AI coach and class ranking back after the first window closed.
 export const TRIAL_CONFIG = {
-  startDate: "2026-07-27T00:00:00.000Z",
-  endDate: "2026-07-30T00:00:00.000Z",
+  startDate: "2026-07-31T00:00:00.000Z",
+  endDate: "2026-08-03T00:00:00.000Z",
   manualEnabled: true, // Can be toggled manually by agent upon user prompt "tüm 3 günlük test özellikleri aç"
 };
 
