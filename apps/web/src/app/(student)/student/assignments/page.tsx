@@ -13,7 +13,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import {
     Calendar, FileText, Upload, CheckCircle, AlertCircle, Loader2, Clock,
-    AlertTriangle, Link2, Sparkles, History, ListChecks, Gamepad2,
+    AlertTriangle, Link2, Sparkles, History, ListChecks, Gamepad2, BarChart3,
 } from "lucide-react";
 import { format, isPast, differenceInDays } from "date-fns";
 import { tr } from "date-fns/locale";
@@ -104,6 +104,7 @@ export default function StudentAssignmentsPage() {
     const [uploadedFileData, setUploadedFileData] = useState<string>("");
     const [uploadedFileName, setUploadedFileName] = useState<string>("");
     const [downloadingKey, setDownloadingKey] = useState<string | null>(null);
+    const [resultView, setResultView] = useState<{ assign: Assignment; sub: Submission } | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Gamification comes from one consolidated request instead of six.
@@ -474,13 +475,25 @@ export default function StudentAssignmentsPage() {
                         </div>
                     )}
 
-                    <div className="pt-2">
+                    <div className="pt-2 space-y-2">
                         {status.canSubmit ? (
                             <Button className="w-full" onClick={() => openSubmitDialog(assign)}>
                                 {assign.isOpticTest ? "📝 Optik Formu Doldur & Teslim Et" : "Ödevi Teslim Et"}
                             </Button>
                         ) : (
                             <Button variant="outline" className="w-full" disabled>Teslim Edildi</Button>
+                        )}
+
+                        {/* Per-question review, the same analysis the teacher sees. */}
+                        {submission?.opticResult && (
+                            <Button
+                                variant="secondary"
+                                className="w-full"
+                                onClick={() => setResultView({ assign, sub: submission })}
+                            >
+                                <BarChart3 className="h-4 w-4 mr-1.5" />
+                                Hangi Soruyu Yanlış Yaptım?
+                            </Button>
                         )}
                     </div>
                 </CardContent>
@@ -649,6 +662,54 @@ export default function StudentAssignmentsPage() {
                 </div>
             )}
 
+            {/* Per-question review of a submitted optic paper */}
+            <Dialog open={!!resultView} onOpenChange={(open) => { if (!open) setResultView(null); }}>
+                <DialogContent className="sm:max-w-2xl md:max-w-3xl max-h-[92vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Optik Sınav Analizi</DialogTitle>
+                        <DialogDescription>
+                            <strong>{resultView?.assign.title}</strong> — hangi soruyu doğru, hangisini yanlış yaptığını gör.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {resultView?.sub.opticResult && (
+                        <div className="grid grid-cols-4 gap-2 text-center">
+                            <ResultTile value={resultView.sub.opticResult.correct} label="Doğru" tone="text-emerald-600" />
+                            <ResultTile value={resultView.sub.opticResult.incorrect} label="Yanlış" tone="text-rose-600" />
+                            <ResultTile value={resultView.sub.opticResult.empty} label="Boş" tone="text-amber-600" />
+                            <ResultTile
+                                value={Number(Math.max(0, resultView.sub.opticResult.correct - resultView.sub.opticResult.incorrect / 4).toFixed(2))}
+                                label="Net"
+                                tone="text-primary"
+                            />
+                        </div>
+                    )}
+
+                    {resultView && (
+                        resultView.assign.answerKey?.some(Boolean) ? (
+                            <OpticForm
+                                mode="view"
+                                title={resultView.assign.title}
+                                questionCount={
+                                    resultView.assign.questionCount
+                                    || resultView.assign.answerKey?.length
+                                    || resultView.sub.studentAnswers?.length
+                                    || 10
+                                }
+                                optionsCount={resultView.assign.opticOptionsCount || 4}
+                                studentAnswers={resultView.sub.studentAnswers || []}
+                                answerKey={resultView.assign.answerKey || []}
+                                className="max-h-[60vh] overflow-y-auto p-1 custom-scrollbar"
+                            />
+                        ) : (
+                            <p className="text-sm text-muted-foreground text-center py-6">
+                                Bu ödevin cevap anahtarı henüz girilmediği için soru bazlı analiz gösterilemiyor.
+                            </p>
+                        )
+                    )}
+                </DialogContent>
+            </Dialog>
+
             {/* Submit dialog */}
             <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setSelectedAssignment(null); }}>
                 <DialogContent className="sm:max-w-xl md:max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -757,6 +818,15 @@ function SummaryTile({ label, value, valueClass = "text-white" }: { label: strin
         <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
             <div className="text-[11px] text-slate-400 font-medium">{label}</div>
             <div className={`text-lg font-black ${valueClass}`}>{value}</div>
+        </div>
+    );
+}
+
+function ResultTile({ value, label, tone }: { value: number; label: string; tone: string }) {
+    return (
+        <div className="p-2.5 rounded-xl bg-muted/40 border border-border/60">
+            <div className={`text-xl font-black ${tone}`}>{value}</div>
+            <div className="text-[11px] font-medium text-muted-foreground">{label}</div>
         </div>
     );
 }
