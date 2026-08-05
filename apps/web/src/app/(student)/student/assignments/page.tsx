@@ -707,6 +707,36 @@ export default function StudentAssignmentsPage() {
                             </p>
                         )
                     )}
+
+                    {resultView && (resultView.assign.attachmentCount ?? resultView.assign.attachments?.length ?? 0) > 0 && (
+                        <div className="mt-4 pt-4 border-t border-border/80">
+                            <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                                <FileText className="h-4 w-4 text-primary" />
+                                Soru Kitapçığı / Ek Dosyalar
+                            </h4>
+                            <p className="text-xs text-muted-foreground mb-3">
+                                Yanlış yaptığınız soruları incelemek için soru kitapçığını görüntüleyebilirsiniz.
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                                {Array.from({ length: resultView.assign.attachmentCount ?? resultView.assign.attachments?.length ?? 0 }).map((_, i) => {
+                                    const busy = downloadingKey === `${resultView.assign._id}:${i}`;
+                                    return (
+                                        <Button
+                                            key={i}
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={busy}
+                                            onClick={(e) => handleDownloadAttachment(e, resultView.assign._id, i)}
+                                            className="text-blue-700 bg-blue-50 border-blue-200 hover:bg-blue-100"
+                                        >
+                                            {busy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
+                                            Soruları Görüntüle {i > 0 ? i + 1 : ""}
+                                        </Button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
                 </DialogContent>
             </Dialog>
 
