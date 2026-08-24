@@ -42,7 +42,9 @@ export default function SupportPage() {
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <span className="text-sm font-medium">0850 XXX XX XX</span>
+                        <a href="tel:+905461191009" className="text-sm text-primary hover:underline font-medium">
+                            0546 119 10 09
+                        </a>
                     </CardContent>
                 </Card>
             </div>
@@ -63,7 +65,7 @@ export default function SupportPage() {
                         {[
                             { q: "Canlı derslere nasıl katılabilirim?", a: "Canlı dersler sayfasından aktif dersleri görüntüleyebilir ve bağlantıya tıklayarak katılabilirsiniz." },
                             { q: "Ödevlerimi nasıl teslim edebilirim?", a: "Ödevler sayfasından ilgili ödevi seçip dosyanızı yükleyebilirsiniz." },
-                            { q: "Şifremi unuttum, ne yapmalıyım?", a: 'Giriş sayfasındaki "Şifremi Unuttum" bağlantısını kullanarak şifrenizi sıfırlayabilirsiniz.' },
+                            { q: "Şifremi unuttum, ne yapmalıyım?", a: "Şifre sıfırlama işlemi okul yöneticiniz tarafından yapılır. Yukarıdaki e-posta veya telefondan bize ulaşın, şifreniz yenilensin." },
                         ].map((item, i) => (
                             <div key={i} className="p-4 rounded-xl bg-white/60 border border-blue-100/50">
                                 <p className="font-medium text-sm">{item.q}</p>

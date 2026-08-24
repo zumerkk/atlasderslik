@@ -1203,17 +1203,96 @@ export class EducationService implements OnModuleInit {
                 // Assuming a student is usually enrolled in one grade for the dashboard view
                 const enrollment = enrollments[0];
                 const gradeOid = enrollment.gradeId?._id || enrollment.gradeId;
-                const courses = await this.teacherAssignmentModel.find({ gradeId: gradeOid })
-                    .populate('gradeId', 'level label')
-                    .populate('subjectId', 'name gradeLevel zoomUrl zoomMeetingId zoomPasscode')
-                    .populate('teacherId', 'firstName lastName email')
-                    .exec();
+
+                // Scope assignments the same way the student's own views do, so a
+                // parent never sees a parallel branch's work (gradeId, not gradeLevel).
+                const gradeOids = enrollments
+                    .map((e: any) => e.gradeId?._id || e.gradeId)
+                    .filter(Boolean);
+                const gradeLevels = enrollments
+                    .map((e: any) => e.gradeId?.level)
+                    .filter((l: any) => l !== undefined && l !== null);
+
+                const [courses, assignments, submissions] = await Promise.all([
+                    this.teacherAssignmentModel.find({ gradeId: gradeOid })
+                        .populate('gradeId', 'level label')
+                        .populate('subjectId', 'name gradeLevel zoomUrl zoomMeetingId zoomPasscode')
+                        .populate('teacherId', 'firstName lastName email')
+                        .exec(),
+                    // Attachments are multi-MB base64 blobs — never pull them into a list.
+                    // No .sort() here on purpose: Mongo sorts before applying the
+                    // projection, so a server-side sort would load the full
+                    // documents and blow the 32MB in-memory sort limit. Ordering
+                    // happens in JS below, the same way getStudentAssignments does it.
+                    this.assignmentModel.find(this.buildAssignmentScope(gradeOids, gradeLevels))
+                        .select('-attachments')
+                        .populate('subjectId', 'name')
+                        .lean().exec(),
+                    this.submissionModel.find({ $or: [{ studentId: sid }, { studentId: sid.toString() }] })
+                        .select('assignmentId grade feedback isLate submittedAt opticResult')
+                        .lean().exec(),
+                ]);
+
+                const subByAssignment = new Map(
+                    submissions.map((s: any) => [s.assignmentId?.toString(), s]),
+                );
+
+                const now = Date.now();
+                const items = assignments.sort((a: any, b: any) => {
+                    const av = new Date(a.dueDate || a.createdAt || 0).getTime();
+                    const bv = new Date(b.dueDate || b.createdAt || 0).getTime();
+                    return bv - av;
+                }).map((a: any) => {
+                    const sub = subByAssignment.get(a._id.toString()) || null;
+                    const deadline = a.dueDate ? new Date(a.dueDate).setHours(23, 59, 59, 999) : null;
+                    return {
+                        _id: a._id,
+                        title: a.title,
+                        subject: a.subjectId?.name || null,
+                        dueDate: a.dueDate || null,
+                        maxScore: a.maxScore ?? null,
+                        isExpired: deadline ? now > deadline : false,
+                        submitted: !!sub,
+                        submittedAt: sub?.submittedAt || null,
+                        isLate: sub?.isLate ?? false,
+                        grade: sub?.grade ?? null,
+                        feedback: sub?.feedback || null,
+                        opticResult: sub?.opticResult || null,
+                    };
+                });
+
+                const graded = items.filter((i) => typeof i.grade === 'number');
+                const optics = items.filter((i) => i.opticResult);
+                const opticTotals = optics.reduce(
+                    (acc, i: any) => ({
+                        correct: acc.correct + (i.opticResult.correct || 0),
+                        incorrect: acc.incorrect + (i.opticResult.incorrect || 0),
+                        empty: acc.empty + (i.opticResult.empty || 0),
+                    }),
+                    { correct: 0, incorrect: 0, empty: 0 },
+                );
 
                 return {
                     student: studentObj,
                     grade: enrollment.gradeId,
                     courses,
                     enrollmentDate: enrollment.enrollmentDate,
+                    assignments: items,
+                    summary: {
+                        totalAssignments: items.length,
+                        submitted: items.filter((i) => i.submitted).length,
+                        pending: items.filter((i) => !i.submitted && !i.isExpired).length,
+                        missed: items.filter((i) => !i.submitted && i.isExpired).length,
+                        late: items.filter((i) => i.isLate).length,
+                        averageGrade: graded.length
+                            ? Math.round(graded.reduce((s, i: any) => s + i.grade, 0) / graded.length)
+                            : null,
+                        examCount: optics.length,
+                        opticTotals,
+                        netAverage: optics.length
+                            ? Number(((opticTotals.correct - opticTotals.incorrect / 4) / optics.length).toFixed(2))
+                            : null,
+                    },
                 };
             }),
         );

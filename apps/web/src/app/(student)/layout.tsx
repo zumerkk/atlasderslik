@@ -11,6 +11,7 @@ import {
     User,
     CalendarDays,
     CreditCard,
+    LifeBuoy,
 } from "lucide-react";
 
 const sidebarLinks = [
@@ -23,6 +24,7 @@ const sidebarLinks = [
     { title: "Sınavlarım", href: "/student/exams", icon: GraduationCap },
     { title: "Paketlerim", href: "/student/packages", icon: CreditCard },
     { title: "Profilim", href: "/student/profile", icon: User },
+    { title: "Destek", href: "/student/support", icon: LifeBuoy },
 ];
 
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
@@ -31,7 +33,6 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
             role="STUDENT"
             allowedRoles={["STUDENT"]}
             sidebarLinks={sidebarLinks}
-            searchPlaceholder="Derslerde ara..."
             profileHref="/student/profile"
         >
             {children}

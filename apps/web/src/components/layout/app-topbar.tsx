@@ -1,7 +1,6 @@
 "use client"
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -10,19 +9,17 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Bell, Search, LogOut, User, Settings, Menu } from "lucide-react";
+import { LogOut, User, Menu } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
 interface AppTopbarProps {
-    searchPlaceholder?: string;
     profileHref?: string;
     onMenuClick?: () => void;
 }
 
 export function AppTopbar({
-    searchPlaceholder = "Ara...",
     profileHref = "/profile",
     onMenuClick,
 }: AppTopbarProps) {
@@ -57,28 +54,11 @@ export function AppTopbar({
                 </Button>
             )}
 
-            {/* Search */}
-            <div className="w-full flex-1">
-                <form>
-                    <div className="relative max-w-md">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
-                        <Input
-                            type="search"
-                            placeholder={searchPlaceholder}
-                            className="pl-9 bg-muted/50 border-0 shadow-none focus-visible:ring-1 focus-visible:bg-background h-10 rounded-xl"
-                        />
-                    </div>
-                </form>
-            </div>
+            {/* Spacer keeps the profile menu right-aligned */}
+            <div className="w-full flex-1" />
 
             {/* Right side */}
             <div className="flex items-center gap-2">
-                {/* Notifications */}
-                <Button variant="ghost" size="icon" className="relative rounded-xl text-muted-foreground hover:text-foreground">
-                    <Bell className="h-[18px] w-[18px]" />
-                    <span className="sr-only">Bildirimler</span>
-                </Button>
-
                 {/* Profile dropdown */}
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>

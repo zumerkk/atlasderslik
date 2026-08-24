@@ -6,11 +6,13 @@ import { Menu } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
+// Anchors are prefixed with "/" so they also work from sub-pages; "Hakkımızda"
+// points at the real page instead of an #about section that never existed.
 const navLinks = [
-    { href: "#features", label: "Özellikler" },
+    { href: "/#features", label: "Özellikler" },
     { href: "/packages", label: "Paketler" },
-    { href: "#about", label: "Hakkımızda" },
-    { href: "#contact", label: "İletişim" },
+    { href: "/hakkimizda", label: "Hakkımızda" },
+    { href: "/#contact", label: "İletişim" },
 ];
 
 export function PublicHeader() {

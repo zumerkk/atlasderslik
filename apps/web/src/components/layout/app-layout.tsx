@@ -11,7 +11,6 @@ interface AppLayoutProps {
     role: string;
     allowedRoles: string[];
     sidebarLinks: SidebarLink[];
-    searchPlaceholder?: string;
     profileHref?: string;
 }
 
@@ -20,7 +19,6 @@ export function AppLayout({
     role,
     allowedRoles,
     sidebarLinks,
-    searchPlaceholder,
     profileHref,
 }: AppLayoutProps) {
     const [collapsed, setCollapsed] = useState(false);
@@ -52,7 +50,6 @@ export function AppLayout({
                 {/* Main Content */}
                 <div className="flex-1 flex flex-col min-w-0">
                     <AppTopbar
-                        searchPlaceholder={searchPlaceholder}
                         profileHref={profileHref}
                         onMenuClick={() => setMobileOpen(true)}
                     />

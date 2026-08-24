@@ -31,7 +31,6 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
             role="TEACHER"
             allowedRoles={["TEACHER"]}
             sidebarLinks={sidebarLinks}
-            searchPlaceholder="Sınıf veya öğrenci ara..."
             profileHref="/teacher/profile"
         >
             {children}

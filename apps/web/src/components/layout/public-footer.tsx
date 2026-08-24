@@ -12,7 +12,6 @@ const footerLinks = {
         { label: "Hakkımızda", href: "/hakkimizda" },
         { label: "Öğretmenler", href: "/ogretmenler" },
         { label: "SSS", href: "/sss" },
-        { label: "Blog", href: "/blog" },
     ],
     legal: [
         { label: "Gizlilik Politikası", href: "/gizlilik-politikasi" },
@@ -130,14 +129,19 @@ export function PublicFooter() {
                         © {new Date().getFullYear()} Atlas Derslik. Tüm hakları saklıdır.
                     </p>
                     <div className="flex items-center gap-4">
-                        <a href="#" className="text-gray-500 hover:text-atlas-blue transition-colors text-sm">
+                        <a
+                            href="https://instagram.com/atlasderslik"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-gray-500 hover:text-atlas-blue transition-colors text-sm"
+                        >
                             Instagram
                         </a>
-                        <a href="#" className="text-gray-500 hover:text-atlas-blue transition-colors text-sm">
-                            YouTube
+                        <a href="mailto:info@atlasderslik.com" className="text-gray-500 hover:text-atlas-blue transition-colors text-sm">
+                            E-posta
                         </a>
-                        <a href="#" className="text-gray-500 hover:text-atlas-blue transition-colors text-sm">
-                            Twitter
+                        <a href="tel:+905461191009" className="text-gray-500 hover:text-atlas-blue transition-colors text-sm">
+                            0546 119 10 09
                         </a>
                     </div>
                 </div>

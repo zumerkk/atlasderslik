@@ -12,6 +12,7 @@ import {
     UserCheck,
     UserPlus,
     CalendarDays,
+    CreditCard,
 } from "lucide-react";
 
 const sidebarLinks = [
@@ -22,6 +23,7 @@ const sidebarLinks = [
     { title: "Konular", href: "/admin/topics", icon: FileText },
     { title: "Ders Programı", href: "/admin/schedule", icon: CalendarDays },
     { title: "Paketler", href: "/admin/packages", icon: Package },
+    { title: "Siparişler", href: "/admin/orders", icon: CreditCard },
     { title: "Kullanıcılar", href: "/admin/users", icon: Users },
     { title: "Öğretmen Atamaları", href: "/admin/assignments/teachers", icon: UserCheck },
     { title: "Öğrenci Kayıtları", href: "/admin/assignments/students", icon: UserPlus },
@@ -33,7 +35,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             role="ADMIN"
             allowedRoles={["ADMIN"]}
             sidebarLinks={sidebarLinks}
-            searchPlaceholder="Kullanıcı, ders ara..."
             profileHref="/admin"
         >
             {children}
