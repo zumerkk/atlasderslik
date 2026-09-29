@@ -31,7 +31,7 @@ export function AIQuizBuilder({ onGenerated, className = "" }: AIQuizBuilderProp
     setError(null);
 
     try {
-      const res = await apiPost("/ai/quiz", { topic: topicInput, count: qCount }, { timeout: 60000 });
+      const res = await apiPost("/ai/quiz", { topic: topicInput, count: qCount }, { timeout: 135000 });
       if (!res.ok) throw new Error("AI servisi yanıt vermedi");
 
       const data = await res.json();

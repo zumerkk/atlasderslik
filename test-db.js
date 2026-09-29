@@ -1,8 +1,10 @@
 const mongoose = require('mongoose');
-require('dotenv').config({ path: '/Users/zumerkekillioglu/Desktop/atls/apps/api/.env' });
+require('dotenv').config({ path: './apps/api/.env' });
 
 async function check() {
-  await mongoose.connect(process.env.MONGODB_URI);
+  const uri = process.env.MONGO_URI;
+  if (!uri?.trim()) throw new Error('MONGO_URI is required.');
+  await mongoose.connect(uri);
   
   const Video = mongoose.model('Video', new mongoose.Schema({}, { strict: false, collection: 'videos' }));
   const videos = await Video.find({ title: /Coriolis/i }).lean();

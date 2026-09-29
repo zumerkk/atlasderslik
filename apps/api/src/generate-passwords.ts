@@ -8,12 +8,17 @@
 
 import mongoose from 'mongoose';
 import * as bcrypt from 'bcrypt';
+import { randomBytes } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const MONGO_URI =
-    process.env.MONGO_URI ||
-    'mongodb+srv://atlasderslik:2002%2E2002@atlasderslik.7qapnxz.mongodb.net/atlas-derslik?retryWrites=true&w=majority&appName=atlasderslik';
+function requiredEnvironment(name: string): string {
+    const value = process.env[name];
+    if (!value?.trim()) throw new Error(`${name} is required; credentials must be supplied through the environment.`);
+    return value;
+}
+
+const MONGO_URI = requiredEnvironment('MONGO_URI');
 
 const userSchema = new mongoose.Schema(
     {
@@ -37,16 +42,8 @@ const User = mongoose.model('User', userSchema);
 
 // ─── Şifre Oluşturucu ──────────────────────────────────────
 
-function generatePassword(firstName: string, grade?: number): string {
-    // Format: İsim + 4 rastgele rakam + özel karakter
-    // Örnek: Ceren4782!, Defne9213!
-    const cleanName = firstName
-        .split(' ')[0] // İlk ismi al
-        .charAt(0).toUpperCase() + firstName.split(' ')[0].slice(1).toLowerCase();
-    const digits = Math.floor(1000 + Math.random() * 9000); // 4 haneli rastgele sayı
-    const specials = ['!', '@', '#', '$'];
-    const special = specials[Math.floor(Math.random() * specials.length)];
-    return `${cleanName}${digits}${special}`;
+function generatePassword(): string {
+    return randomBytes(18).toString('base64url');
 }
 
 async function main() {
@@ -63,7 +60,7 @@ async function main() {
     console.log('🔄 Şifreler oluşturuluyor...\n');
 
     for (const user of users) {
-        const password = generatePassword(user.firstName, user.grade ?? undefined);
+        const password = generatePassword();
         const salt = await bcrypt.genSalt();
         const passwordHash = await bcrypt.hash(password, salt);
 
@@ -86,7 +83,7 @@ async function main() {
         console.log('  İsim'.padEnd(25) + 'E-posta'.padEnd(35) + 'Şifre');
         console.log('─'.repeat(80));
         for (const t of teachers) {
-            console.log(`  ${t.name.padEnd(23)} ${t.email.padEnd(33)} ${t.password}`);
+    console.log('Credentials were supplied through the environment or saved in the private credentials file.');
         }
         console.log('');
     }
@@ -100,7 +97,7 @@ async function main() {
             console.log('  İsim'.padEnd(25) + 'E-posta'.padEnd(45) + 'Şifre');
             console.log('─'.repeat(80));
             for (const s of students) {
-                console.log(`  ${s.name.padEnd(23)} ${s.email.padEnd(43)} ${s.password}`);
+    console.log('Credentials were supplied through the environment or saved in the private credentials file.');
             }
             console.log('');
         }
@@ -114,7 +111,7 @@ async function main() {
         console.log('  İsim'.padEnd(25) + 'E-posta'.padEnd(35) + 'Şifre');
         console.log('─'.repeat(80));
         for (const p of parents) {
-            console.log(`  ${p.name.padEnd(23)} ${p.email.padEnd(33)} ${p.password}`);
+    console.log('Credentials were supplied through the environment or saved in the private credentials file.');
         }
         console.log('');
     }
@@ -125,7 +122,8 @@ async function main() {
         csvLines.push(`${c.role},"${c.name}",${c.email},${c.password},${c.grade || ''}`);
     }
     const csvPath = path.join(__dirname, '..', '..', '..', 'atlas-sifreler.csv');
-    fs.writeFileSync(csvPath, csvLines.join('\n'), 'utf-8');
+    fs.writeFileSync(csvPath, csvLines.join('\n'), { encoding: 'utf-8', mode: 0o600 });
+    fs.chmodSync(csvPath, 0o600);
     console.log(`📄 Tüm şifreler CSV olarak kaydedildi: ${csvPath}`);
 
     console.log('\n═══════════════════════════════════════════');

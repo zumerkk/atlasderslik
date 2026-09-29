@@ -29,7 +29,7 @@ export function AIStudyCoach({ refreshKey = 0, className = "" }: AIStudyCoachPro
     setFetchingTip(true);
     setError(null);
     try {
-      const res = await apiGet("/gamification/ai/coach-tip", { timeout: 25000 });
+      const res = await apiGet("/gamification/ai/coach-tip", { timeout: 135000, retries: 0 });
       if (!res.ok) throw new Error("Tavsiye alınamadı");
       const data = await res.json();
       setTip(data.tip);
@@ -47,7 +47,7 @@ export function AIStudyCoach({ refreshKey = 0, className = "" }: AIStudyCoachPro
     setGenerating(true);
     setError(null);
     try {
-      const res = await apiGet("/gamification/ai/study-plan", { timeout: 30000 });
+      const res = await apiGet("/gamification/ai/study-plan", { timeout: 135000, retries: 0 });
       if (!res.ok) throw new Error("Plan oluşturulamadı");
       const data = await res.json();
       setPlan(data.plan);
@@ -70,7 +70,7 @@ export function AIStudyCoach({ refreshKey = 0, className = "" }: AIStudyCoachPro
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h4 className="text-sm font-black text-white">Atlas AI Çalışma Koçu</h4>
+              <h4 className="text-sm font-black text-white">AtlasAI Çalışma Koçu</h4>
               {aiGenerated && (
                 <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-400/30 text-[10px] px-1.5 py-0">
                   ⚡ Canlı AI

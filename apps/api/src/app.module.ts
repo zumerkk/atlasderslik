@@ -12,6 +12,7 @@ import { PackagesModule } from './packages/packages.module';
 import { StatisticsModule } from './statistics/statistics.module';
 import { PaymentModule } from './payment/payment.module';
 import { GamificationModule } from './gamification/gamification.module';
+import { AtlasAiModule } from './atlas-ai/atlas-ai.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { GamificationModule } from './gamification/gamification.module';
     StatisticsModule,
     PaymentModule,
     GamificationModule,
+    AtlasAiModule,
   ],
   controllers: [AppController],
   providers: [

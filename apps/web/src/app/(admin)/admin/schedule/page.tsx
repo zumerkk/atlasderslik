@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { apiGet, apiPost, apiDelete } from "@/lib/api";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -38,17 +38,32 @@ const SUBJECT_COLORS: Record<string, string> = {
     "Beden Eğitimi": "bg-orange-100 border-orange-300 text-orange-800",
 };
 
-function gradeLabel(g: any) {
+interface Grade { _id: string; level: number; label?: string }
+interface Subject { _id: string; name: string; gradeLevel: number }
+interface Teacher { _id: string; firstName: string; lastName: string }
+interface Schedule {
+    _id: string;
+    subjectId?: Subject | null;
+    teacherId?: Teacher | null;
+    dayOfWeek: number;
+    startTime: string;
+    endTime: string;
+    room?: string;
+}
+
+function gradeLabel(g: Grade) {
     return g?.label || `${g?.level}. Sınıf`;
 }
 
 export default function AdminSchedulePage() {
-    const [grades, setGrades] = useState<any[]>([]);
+    const [grades, setGrades] = useState<Grade[]>([]);
     const [selectedGrade, setSelectedGrade] = useState<string>("");
-    const [schedules, setSchedules] = useState<any[]>([]);
-    const [subjects, setSubjects] = useState<any[]>([]);
-    const [teachers, setTeachers] = useState<any[]>([]);
+    const [schedules, setSchedules] = useState<Schedule[]>([]);
+    const [subjects, setSubjects] = useState<Subject[]>([]);
+    const [teachers, setTeachers] = useState<Teacher[]>([]);
     const [loading, setLoading] = useState(true);
+    const [refreshVersion, setRefreshVersion] = useState(0);
+    const [loadError, setLoadError] = useState("");
     const [dialogOpen, setDialogOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -68,8 +83,8 @@ export default function AdminSchedulePage() {
                 const tData = await tRes.json();
                 setGrades(gData);
                 // Extract unique teachers from teacher assignments
-                const uniqueTeachers = new Map();
-                tData.forEach((ta: any) => {
+                const uniqueTeachers = new Map<string, Teacher>();
+                tData.forEach((ta: { teacherId?: Teacher | null }) => {
                     if (ta.teacherId) uniqueTeachers.set(ta.teacherId._id, ta.teacherId);
                 });
                 setTeachers(Array.from(uniqueTeachers.values()));
@@ -79,21 +94,35 @@ export default function AdminSchedulePage() {
     }, []);
 
     // Load schedules + subjects when grade changes
-    const fetchSchedules = useCallback(async () => {
+    const fetchSchedules = () => setRefreshVersion(current => current + 1);
+    useEffect(() => {
         if (!selectedGrade) return;
-        try {
-            const [sRes, subRes] = await Promise.all([
-                apiGet(`/education/schedules?gradeId=${selectedGrade}`),
-                apiGet(`/education/subjects/all`),
-            ]);
-            setSchedules(await sRes.json());
-            setSubjects(await subRes.json());
-        } catch { }
-    }, [selectedGrade]);
-
-    useEffect(() => { fetchSchedules(); }, [fetchSchedules]);
-
-    const gradeLevel = grades.find(g => g._id === selectedGrade)?.level;
+        const controller = new AbortController();
+        setSchedules([]);
+        setSubjects([]);
+        setDialogOpen(false);
+        setLoadError("");
+        setLoading(true);
+        const load = async () => {
+            try {
+                const [sRes, subRes] = await Promise.all([
+                    apiGet(`/education/schedules?gradeId=${selectedGrade}`, { signal: controller.signal }),
+                    apiGet(`/education/subjects?gradeId=${selectedGrade}`, { signal: controller.signal }),
+                ]);
+                if (!sRes.ok || !subRes.ok) throw new Error("Ders programı yüklenemedi.");
+                const [scheduleData, subjectData] = await Promise.all([sRes.json(), subRes.json()]);
+                if (controller.signal.aborted) return;
+                setSchedules(scheduleData);
+                setSubjects(subjectData);
+            } catch {
+                if (!controller.signal.aborted) setLoadError("Ders programı yüklenemedi. Lütfen tekrar deneyin.");
+            } finally {
+                if (!controller.signal.aborted) setLoading(false);
+            }
+        };
+        void load();
+        return () => controller.abort();
+    }, [selectedGrade, refreshVersion]);
 
     // ─── Dynamic time slots: derive from existing schedules + allow adding new ───
     const timeSlots: { startTime: string; endTime: string }[] = [];
@@ -157,7 +186,7 @@ export default function AdminSchedulePage() {
         } catch { setFeedback({ type: "error", message: "Silme başarısız." }); }
     };
 
-    const gradeSubjects = subjects.filter(s => s.gradeLevel === gradeLevel);
+    const gradeSubjects = subjects;
 
     // Always show full week (Pazartesi-Pazar)
     const activeDays = DAYS;
@@ -178,12 +207,19 @@ export default function AdminSchedulePage() {
                         </SelectContent>
                     </Select>
                     {selectedGrade && (
-                        <Button onClick={() => handleAddClick()} size="sm">
+                        <Button onClick={() => handleAddClick()} size="sm" disabled={loading || !!loadError}>
                             <Plus className="h-4 w-4" /> Ders Ekle
                         </Button>
                     )}
                 </div>
             </PageHeader>
+
+            {loadError && (
+                <div role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+                    <span>{loadError}</span>
+                    <Button variant="outline" size="sm" onClick={fetchSchedules}>Tekrar dene</Button>
+                </div>
+            )}
 
             {feedback && (
                 <div className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm animate-toast-in ${feedback.type === "success" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-rose-50 text-rose-700 border border-rose-200"}`}>
@@ -193,7 +229,7 @@ export default function AdminSchedulePage() {
 
             {loading ? (
                 <div className="space-y-3">{[1, 2, 3, 4, 5].map(i => <div key={i} className="skeleton h-16 rounded-xl" />)}</div>
-            ) : !selectedGrade ? (
+            ) : loadError ? null : !selectedGrade ? (
                 <EmptyState icon={CalendarDays} title="Sınıf Seçin" description="Haftalık ders programını görüntülemek için bir sınıf seçin." />
             ) : timeSlots.length === 0 ? (
                 <EmptyState icon={CalendarDays} title="Henüz ders eklenmemiş" description="'Ders Ekle' butonunu kullanarak ilk dersi ekleyin. Saatleri siz belirlersiniz." />

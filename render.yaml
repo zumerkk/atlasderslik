@@ -20,6 +20,14 @@ services:
         sync: false  # Set manually in Render dashboard
       - key: CORS_ORIGIN
         sync: false  # Set to your frontend Render URL after deploy
+      - key: OPENAI_API_KEY
+        sync: false  # AtlasAI text + image reasoning; API service only
+      - key: OPENAI_MODEL
+        value: gpt-6-astra
+      - key: OPENAI_IMAGE_MODEL
+        value: gpt-image-2.5-sunburst
+      - key: ATLAS_IMAGE_GENERATION_ENABLED
+        value: "true"
       - key: GROQ_API_KEY
         sync: false  # Set manually in Render dashboard — never commit this
       - key: HUGGINGFACE_API_KEY

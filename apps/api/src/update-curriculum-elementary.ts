@@ -11,9 +11,13 @@
 
 import mongoose, { Types } from 'mongoose';
 
-const MONGO_URI =
-    process.env.MONGO_URI ||
-    'mongodb+srv://atlasderslik:2002%2E2002@atlasderslik.7qapnxz.mongodb.net/atlas-derslik?retryWrites=true&w=majority&appName=atlasderslik';
+function requiredEnvironment(name: string): string {
+    const value = process.env[name];
+    if (!value?.trim()) throw new Error(`${name} is required; credentials must be supplied through the environment.`);
+    return value;
+}
+
+const MONGO_URI = requiredEnvironment('MONGO_URI');
 
 const gradeSchema = new mongoose.Schema(
     { level: { type: Number, required: true }, label: { type: String, default: '' }, isActive: { type: Boolean, default: true } },

@@ -34,6 +34,8 @@ export default function SubjectsPage() {
     const [subjects, setSubjects] = useState<Subject[]>([]);
     const [grades, setGrades] = useState<Grade[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState("");
+    const [refreshVersion, setRefreshVersion] = useState(0);
     const [submitting, setSubmitting] = useState(false);
     
     const [newSubjectName, setNewSubjectName] = useState("");
@@ -54,8 +56,34 @@ export default function SubjectsPage() {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
     useEffect(() => {
-        fetchInitialData();
-    }, []);
+        const controller = new AbortController();
+        const load = async () => {
+            setLoading(true);
+            setLoadError("");
+            setSubjects([]);
+            try {
+                const [gRes, sRes] = await Promise.all([
+                    apiGet("/education/grades", { signal: controller.signal }),
+                    apiGet(selectedGradeFilter === "ALL"
+                        ? "/education/subjects/all"
+                        : `/education/subjects?gradeId=${encodeURIComponent(selectedGradeFilter)}`,
+                    { signal: controller.signal }),
+                ]);
+                if (!gRes.ok || !sRes.ok) throw new Error("Dersler yüklenemedi. Lütfen tekrar deneyin.");
+                const [gData, sData]: [Grade[], Subject[]] = await Promise.all([gRes.json(), sRes.json()]);
+                if (controller.signal.aborted) return;
+                setGrades(gData);
+                setSelectedCreateGradeId(current => current || gData[0]?._id || "");
+                setSubjects(sData);
+            } catch {
+                if (!controller.signal.aborted) setLoadError("Dersler yüklenemedi. Lütfen tekrar deneyin.");
+            } finally {
+                if (!controller.signal.aborted) setLoading(false);
+            }
+        };
+        void load();
+        return () => controller.abort();
+    }, [selectedGradeFilter, refreshVersion]);
 
     useEffect(() => {
         if (feedback) {
@@ -64,38 +92,7 @@ export default function SubjectsPage() {
         }
     }, [feedback]);
 
-    const fetchInitialData = async () => {
-        setLoading(true);
-        try {
-            const [gRes, sRes] = await Promise.all([
-                apiGet("/education/grades"),
-                apiGet("/education/subjects/all")
-            ]);
-            if (gRes.ok) {
-                const gData: Grade[] = await gRes.json();
-                setGrades(gData);
-                if (gData.length > 0) {
-                    setSelectedCreateGradeId(gData[0]._id);
-                }
-            }
-            if (sRes.ok) {
-                setSubjects(await sRes.json());
-            }
-        } catch (error) {
-            console.error("Failed to fetch initial data", error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const fetchSubjects = async () => {
-        try {
-            const res = await apiGet("/education/subjects/all");
-            if (res.ok) setSubjects(await res.json());
-        } catch (error) {
-            console.error("Failed to fetch subjects", error);
-        }
-    };
+    const fetchSubjects = () => setRefreshVersion(current => current + 1);
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -128,7 +125,7 @@ export default function SubjectsPage() {
         try {
             const res = await apiPatch(`/education/subjects/${editItem._id}`, {
                 name: editName,
-                gradeId: editGradeId,
+                ...(editGradeId !== "SHARED" ? { gradeId: editGradeId } : {}),
                 zoomUrl: editZoomUrl,
                 zoomMeetingId: editZoomMeetingId,
                 zoomPasscode: editZoomPasscode
@@ -174,14 +171,8 @@ export default function SubjectsPage() {
             const g = grades.find(item => item._id === s.gradeId);
             if (g) return g.label || `${g.level}. Sınıf`;
         }
-        return `${s.gradeLevel}. Sınıf`;
+        return `${s.gradeLevel}. Sınıf · Ortak ders`;
     };
-
-    const filteredSubjects = subjects.filter(s => {
-        if (selectedGradeFilter === "ALL") return true;
-        const gId = typeof s.gradeId === 'object' ? s.gradeId?._id : s.gradeId;
-        return gId === selectedGradeFilter;
-    });
 
     return (
         <div className="space-y-6 animate-fade-in">
@@ -204,7 +195,7 @@ export default function SubjectsPage() {
                         key={g._id}
                         variant={selectedGradeFilter === g._id ? "default" : "outline"}
                         size="sm"
-                        onClick={() => setSelectedGradeFilter(g._id)}
+                        onClick={() => { setSelectedGradeFilter(g._id); setSelectedCreateGradeId(g._id); }}
                     >
                         {g.label || `${g.level}. Sınıf`}
                     </Button>
@@ -265,7 +256,12 @@ export default function SubjectsPage() {
                     <div className="skeleton h-12 rounded-xl" />
                     <div className="skeleton h-12 rounded-xl" />
                 </div>
-            ) : filteredSubjects.length === 0 ? (
+            ) : loadError ? (
+                <div role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+                    <span>{loadError}</span>
+                    <Button variant="outline" size="sm" onClick={fetchSubjects}>Tekrar dene</Button>
+                </div>
+            ) : subjects.length === 0 ? (
                 <EmptyState icon={BookOpen} title="Henüz ders yok" description="Seçili sınıfa ait ders eklemek için yukarıdaki formu kullanın." />
             ) : (
                 <Table>
@@ -279,7 +275,7 @@ export default function SubjectsPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {filteredSubjects.map((s) => (
+                        {subjects.map((s) => (
                             <TableRow key={s._id}>
                                 <TableCell className="font-semibold">{s.name}</TableCell>
                                 <TableCell>
@@ -301,11 +297,11 @@ export default function SubjectsPage() {
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <div className="flex items-center justify-end gap-1">
-                                        <Button variant="ghost" size="sm" onClick={() => {
+                                        <Button variant="ghost" size="sm" aria-label={`${s.name} dersini düzenle`} onClick={() => {
                                             setEditItem(s);
                                             setEditName(s.name);
                                             const gId = typeof s.gradeId === 'object' ? s.gradeId?._id : s.gradeId;
-                                            setEditGradeId(gId || grades[0]?._id || "");
+                                            setEditGradeId(gId || "SHARED");
                                             setEditZoomUrl(s.zoomUrl || "");
                                             setEditZoomMeetingId(s.zoomMeetingId || "");
                                             setEditZoomPasscode(s.zoomPasscode || "");
@@ -339,6 +335,9 @@ export default function SubjectsPage() {
                                     <SelectValue placeholder="Sınıf Seçin" />
                                 </SelectTrigger>
                                 <SelectContent>
+                                    {!editItem?.gradeId && (
+                                        <SelectItem value="SHARED">{editItem?.gradeLevel}. Sınıf · Ortak ders</SelectItem>
+                                    )}
                                     {grades.map((g) => (
                                         <SelectItem key={g._id} value={g._id}>
                                             {g.label || `${g.level}. Sınıf`}
@@ -346,6 +345,9 @@ export default function SubjectsPage() {
                                     ))}
                                 </SelectContent>
                             </Select>
+                            {editGradeId === "SHARED" && (
+                                <p className="text-xs text-muted-foreground">Ortak dersin bağlantısı bu dersi kullanan tüm sınıflarda güncellenir.</p>
+                            )}
                         </div>
                         <div className="grid gap-2">
                             <label className="text-sm font-medium">Ders Adı</label>
@@ -393,4 +395,3 @@ export default function SubjectsPage() {
         </div>
     );
 }
-

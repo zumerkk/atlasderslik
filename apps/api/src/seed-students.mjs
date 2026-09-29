@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 /**
  * Atlas Derslik — Gerçek Öğrenci & Öğretmen Seed Script (API-based)
  * CSV'deki gerçek verileri çalışan API sunucusu üzerinden MongoDB'ye aktarır.
@@ -7,51 +8,48 @@
  */
 
 const API_URL = 'http://localhost:3001';
-const DEFAULT_PASSWORD = 'Atlas2024!';
+function requiredEnvironment(name) {
+    const value = process.env[name];
+    if (!value?.trim()) throw new Error(`${name} is required; credentials must be supplied through the environment.`);
+    return value;
+}
+
+const DEFAULT_PASSWORD = requiredEnvironment('SEED_USER_PASSWORD');
+const ADMIN_PASSWORD = requiredEnvironment('SEED_ADMIN_PASSWORD');
+const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL || 'admin@atlas.com';
+
+
+// Personal import records stay outside source control. Supply an explicit private JSON path.
+function loadPrivateSeedUsers() {
+    const filePath = requiredEnvironment('SEED_USERS_FILE');
+    let data;
+    try {
+        data = JSON.parse(readFileSync(filePath, 'utf8'));
+    } catch {
+        throw new Error('SEED_USERS_FILE must point to a readable private JSON file.');
+    }
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+        throw new Error('SEED_USERS_FILE must contain a JSON object.');
+    }
+    const fields = {"TEACHERS":["email","firstName","lastName","subject","phone"],"STUDENTS_BY_GRADE":["firstName","lastName","email","phone"]};
+    for (const [key, required] of Object.entries(fields)) {
+        const groups = key === 'STUDENTS_BY_GRADE' ? [5, 6, 7, 8].map((grade) => data[key]?.[grade]) : [data[key]];
+        for (const records of groups) {
+            if (!Array.isArray(records) || records.some((record) => !record || required.some((field) => typeof record[field] !== 'string' || !record[field].trim()))) {
+                throw new Error(`SEED_USERS_FILE contains missing or invalid ${key} records.`);
+            }
+        }
+    }
+    return data;
+}
+
+const privateSeedUsers = loadPrivateSeedUsers();
 
 // ─── Data from CSV ───────────────────────────────────────────────────────────
 
-const TEACHERS = [
-    { email: 'misracetin560@gmail.com', firstName: 'Mısra', lastName: 'Çetin', subject: 'Matematik', phone: '5421069692' },
-    { email: 'oguzhan70034@gmail.com', firstName: 'Oğuzhan', lastName: 'Öğretmen', subject: 'Türkçe', phone: '5376278760' },
-    { email: 'metehanacademy@gmail.com', firstName: 'Metehan', lastName: 'Hüyüklü', subject: 'Sosyal Bilgiler', phone: '5531161152' },
-    { email: 'blltmerve@gmail.com', firstName: 'Merve', lastName: 'Bolat', subject: 'İngilizce', phone: '5451712003' },
-];
+const TEACHERS = privateSeedUsers.TEACHERS;
 
-const STUDENTS_BY_GRADE = {
-    5: [
-        { firstName: 'Ceren', lastName: 'Çekinmezer', email: 'cekinmezerfiliz@gmail.com', phone: '5388701080' },
-        { firstName: 'Defne', lastName: 'Sevimli', email: 'tubareyyaneliz@gmail.com', phone: '5447989420' },
-        { firstName: 'Damla', lastName: 'Özkaya', email: 'dilayercan2017@gmail.com', phone: '5424905482' },
-        { firstName: 'İpek Ecem', lastName: 'Çağlar', email: 'caglaripekecem@gmail.com', phone: '5387062472' },
-        { firstName: 'Elif', lastName: 'Ece', email: 'gulizarece1985@gmail.com', phone: '5064245401' },
-        { firstName: 'Elif', lastName: 'Yavuz', email: 'elifyvz077@gmail.com', phone: '5388996061' },
-        { firstName: 'Zümra', lastName: 'Çolak', email: 'serifecolak1983@gmail.com', phone: '5373853951' },
-        { firstName: 'Duru', lastName: 'Kayalı', email: 'belginkayali0707@gmail.com', phone: '5368562694' },
-        { firstName: 'Mehmet Berat', lastName: 'Durur', email: 'neslicankonus@gmail.com', phone: '5064710189' },
-    ],
-    6: [
-        { firstName: 'Elif', lastName: 'Sarıkaya', email: 'elifnisasarikaya09@gmail.com', phone: '5063808932' },
-        { firstName: 'Mete Kemal', lastName: 'Dinçer', email: 'dincerkemer@yahoo.com', phone: '5057336916' },
-        { firstName: 'Anisa', lastName: 'Aksungur', email: 'anisaaksungur@gmail.com', phone: '5369497161' },
-        { firstName: 'Hatice', lastName: 'Öztürk', email: 'muradiyeozturk061@gmail.com', phone: '5433092497' },
-        { firstName: 'Miraç', lastName: 'Atalay', email: 'yalcin07_38@hotmail.com', phone: '5392671639' },
-    ],
-    7: [
-        { firstName: 'Ali Aras', lastName: 'Çetin', email: 'mcetin5254@gmail.com', phone: '5415455398' },
-        { firstName: 'Ela', lastName: 'Tüfekçiyaşar', email: 'zeynepela@gmail.com', phone: '5077462933' },
-        { firstName: 'Yağmur', lastName: 'Özkaya', email: 'dilayercan2017+sinif7@gmail.com', phone: '5424905482' },
-        { firstName: 'Ilgın', lastName: 'Sevin', email: 'adnanselcuk12@icloud.com', phone: '5518258362' },
-        { firstName: 'Çınar Anıl', lastName: 'Üyütgen', email: 'safakuyutgen750@gmail.com', phone: '5359732788' },
-    ],
-    8: [
-        { firstName: 'Ceylin', lastName: 'Öğrenci', email: 'elifgpkay@gmail.com', phone: '5383997238' },
-        { firstName: 'Ramazan', lastName: 'Çolak', email: 'serifecolak1983+sinif8@gmail.com', phone: '5373853951' },
-        { firstName: 'Kuzey', lastName: 'Uğurlu', email: 'ayseugurlu16@gmail.com', phone: '5325049413' },
-        { firstName: 'Sidar', lastName: 'Divarcı', email: 'amadeus44200@hotmail.com', phone: '5055795240' },
-        { firstName: 'Emir', lastName: 'Ozarslan', email: 'asliozaslan53@gmail.com', phone: '5337714135' },
-    ],
-};
+const STUDENTS_BY_GRADE = privateSeedUsers.STUDENTS_BY_GRADE;
 
 // ─── API Helpers ─────────────────────────────────────────────────────────────
 
@@ -85,11 +83,6 @@ async function registerUser(userData) {
         if (!loginRes.error && loginRes.data.user) {
             return loginRes.data.user;
         }
-        // Try with original seed password
-        const loginRes2 = await apiPost('/auth/login', { email: userData.email, password: 'Password123!' });
-        if (!loginRes2.error && loginRes2.data.user) {
-            return loginRes2.data.user;
-        }
         console.log(`    ⚠ Could not register/find: ${userData.email} - ${JSON.stringify(res.data)}`);
         return null;
     }
@@ -105,40 +98,12 @@ async function seedStudents() {
     // ── Step 0: Get admin token ──────────────────────────────
     console.log('🔐 Admin token alınıyor...');
 
-    // Try to login with existing admin
-    let adminToken = null;
-    const adminLoginRes = await apiPost('/auth/login', { email: 'admin@atlas.com', password: 'Password123!' });
-    if (!adminLoginRes.error && adminLoginRes.data.access_token) {
-        adminToken = adminLoginRes.data.access_token;
-        console.log('  ✓ Mevcut admin hesabı ile giriş yapıldı\n');
-    } else {
-        // Try Atlas2024!
-        const adminLoginRes2 = await apiPost('/auth/login', { email: 'admin@atlas.com', password: DEFAULT_PASSWORD });
-        if (!adminLoginRes2.error && adminLoginRes2.data.access_token) {
-            adminToken = adminLoginRes2.data.access_token;
-            console.log('  ✓ Mevcut admin hesabı ile giriş yapıldı\n');
-        } else {
-            // Register new admin
-            const adminRegRes = await apiPost('/auth/register', {
-                email: 'admin@atlas.com',
-                password: DEFAULT_PASSWORD,
-                firstName: 'Atlas',
-                lastName: 'Admin',
-                role: 'ADMIN',
-            });
-            if (adminRegRes.error) {
-                console.error('  ❌ Admin hesabı oluşturulamadı:', adminRegRes.data);
-                process.exit(1);
-            }
-            const loginAfterReg = await apiPost('/auth/login', { email: 'admin@atlas.com', password: DEFAULT_PASSWORD });
-            if (loginAfterReg.error) {
-                console.error('  ❌ Admin giriş yapılamadı:', loginAfterReg.data);
-                process.exit(1);
-            }
-            adminToken = loginAfterReg.data.access_token;
-            console.log('  ✓ Yeni admin hesabı oluşturuldu ve giriş yapıldı\n');
-        }
+    const adminLoginRes = await apiPost('/auth/login', { email: ADMIN_EMAIL, password: ADMIN_PASSWORD });
+    if (adminLoginRes.error || !adminLoginRes.data.access_token || adminLoginRes.data.user?.role !== 'ADMIN') {
+        throw new Error('Admin login failed. Provide existing admin credentials through SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD.');
     }
+    const adminToken = adminLoginRes.data.access_token;
+    console.log('  ✓ Mevcut admin hesabı ile giriş yapıldı\n');
 
     // ── Step 1: Grades ──────────────────────────────────────
     console.log('📚 Sınıflar kontrol ediliyor...');
@@ -276,22 +241,22 @@ async function seedStudents() {
     console.log(`  Enrollments: ${enrollmentCount}`);
     console.log(`  Teacher Atama: ${taCount}`);
     console.log('');
-    console.log(`🔑 Varsayılan Şifre: ${DEFAULT_PASSWORD}`);
+    console.log('Credentials were supplied through the environment.');
     console.log('');
     console.log('👩‍🏫 Öğretmen Giriş Bilgileri:');
     for (const t of TEACHERS) {
-        console.log(`  ${t.firstName} ${t.lastName.padEnd(15)} → ${t.email.padEnd(35)} Şifre: ${DEFAULT_PASSWORD}`);
+    console.log('Credentials were supplied through the environment.');
     }
     console.log('');
     console.log('🎓 Öğrenci Giriş Bilgileri:');
     for (const [grade, students] of Object.entries(STUDENTS_BY_GRADE)) {
         console.log(`  ${grade}. Sınıf:`);
         for (const s of students) {
-            console.log(`    ${(s.firstName + ' ' + s.lastName).padEnd(25)} → ${s.email.padEnd(40)} Şifre: ${DEFAULT_PASSWORD}`);
+    console.log('Credentials were supplied through the environment.');
         }
     }
     console.log('');
-    console.log('ℹ️  Giriş: E-posta + Şifre (Atlas2024!)');
+    console.log('ℹ️  Giriş: E-posta + Şifre ([environment password])');
     console.log('');
 }
 

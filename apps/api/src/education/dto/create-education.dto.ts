@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsNumber, IsOptional, IsString, IsMongoId, Min, Max } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsOptional, IsString, IsMongoId, Min, Max, IsInt, ValidateIf } from 'class-validator';
 
 export class CreateGradeDto {
     @IsNumber()
@@ -16,8 +16,15 @@ export class CreateSubjectDto {
     @IsString()
     name: string;
 
-    @IsNumber()
-    gradeLevel: number;
+    @IsOptional()
+    @IsMongoId()
+    gradeId?: string;
+
+    @ValidateIf((subject: CreateSubjectDto) => !subject.gradeId || subject.gradeLevel !== undefined)
+    @IsInt()
+    @Min(1)
+    @Max(12)
+    gradeLevel?: number;
 
     @IsOptional()
     @IsString()

@@ -138,12 +138,19 @@ export class EducationService implements OnModuleInit {
     }
 
     // ─── SUBJECTS ───────────────────────────────────────
+    private async requireSubjectGrade(gradeId: string) {
+        if (!Types.ObjectId.isValid(gradeId)) {
+            throw new BadRequestException('Geçersiz sınıf kimliği.');
+        }
+        const grade = await this.gradeModel.findById(gradeId).exec();
+        if (!grade) throw new NotFoundException('Sınıf bulunamadı.');
+        return grade;
+    }
+
     async createSubject(createSubjectDto: any) {
         if (createSubjectDto.gradeId) {
-            const grade = await this.gradeModel.findById(createSubjectDto.gradeId).exec();
-            if (grade) {
-                createSubjectDto.gradeLevel = grade.level;
-            }
+            const grade = await this.requireSubjectGrade(createSubjectDto.gradeId);
+            createSubjectDto = { ...createSubjectDto, gradeLevel: grade.level };
         }
         try {
             return await this.subjectModel.create(createSubjectDto);
@@ -162,7 +169,19 @@ export class EducationService implements OnModuleInit {
     async getSubjects(gradeLevel?: number, gradeId?: string) {
         const filter: any = {};
         if (gradeId) {
-            filter.gradeId = new Types.ObjectId(gradeId);
+            const grade = await this.requireSubjectGrade(gradeId);
+            const gradeOid = new Types.ObjectId(gradeId);
+            const [scheduledIds, assignedIds] = await Promise.all([
+                this.scheduleModel.distinct('subjectId', { gradeId: gradeOid, isActive: { $ne: false } }).exec(),
+                this.teacherAssignmentModel.distinct('subjectId', { gradeId: gradeOid }).exec(),
+            ]);
+            // Legacy curriculum subjects are shared by level. Also retain the exact
+            // subjects already used by this class, even after a class reassignment.
+            filter.$or = [
+                { gradeId: gradeOid },
+                { gradeId: null, gradeLevel: grade.level },
+                { _id: { $in: [...scheduledIds, ...assignedIds] } },
+            ];
         } else if (gradeLevel) {
             filter.gradeLevel = Number(gradeLevel);
         }
@@ -176,10 +195,8 @@ export class EducationService implements OnModuleInit {
     }
     async updateSubject(id: string, data: any) {
         if (data.gradeId) {
-            const grade = await this.gradeModel.findById(data.gradeId).exec();
-            if (grade) {
-                data.gradeLevel = grade.level;
-            }
+            const grade = await this.requireSubjectGrade(data.gradeId);
+            data = { ...data, gradeLevel: grade.level };
         }
         return this.subjectModel.findByIdAndUpdate(id, data, { new: true }).populate('gradeId').exec();
     }

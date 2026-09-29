@@ -5,7 +5,7 @@ import { UsersService } from '../users/users.service';
 import { RegisterDto } from './dto/register.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { SkipThrottle } from '@nestjs/throttler';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 
 @SkipThrottle()
 @Controller('auth')
@@ -17,6 +17,8 @@ export class AuthController {
     ) { }
 
     @Post('login')
+    @SkipThrottle({ default: false })
+    @Throttle({ default: { limit: 20, ttl: 60000 } })
     async login(@Body() req) {
         const user = await this.authService.validateUser(req.email, req.password);
         if (!user) {
@@ -26,6 +28,8 @@ export class AuthController {
     }
 
     @Post('register')
+    @SkipThrottle({ default: false })
+    @Throttle({ default: { limit: 5, ttl: 60000 } })
     async register(@Body() createUserDto: RegisterDto) {
         try {
             return await this.authService.register(createUserDto);

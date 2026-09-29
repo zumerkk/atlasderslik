@@ -41,3 +41,17 @@ atlas listesi.xlsx
 # Large binary files
 *.node
 *.tar.zst
+
+# macOS resource-fork metadata
+._*
+
+# Private local seed records
+.private-seed/
+
+# Local-only database, credentials, process logs and downloaded runtime
+.atlas-local/
+
+# Local assistant settings, review artifacts and private delivery documents
+.claude/
+.codex_artifacts/
+deliverables/

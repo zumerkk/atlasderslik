@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 /**
  * Atlas Derslik — Production Seed Script
  * Imports REAL data from atlas listesi.csv into the new Frankfurt MongoDB cluster.
@@ -8,11 +9,43 @@
 import mongoose, { Types } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 
-const MONGO_URI =
-    process.env.MONGO_URI ||
-    'mongodb+srv://atlasderslik:2002%2E2002@atlasderslik.7qapnxz.mongodb.net/atlas-derslik?retryWrites=true&w=majority&appName=atlasderslik';
+function requiredEnvironment(name: string): string {
+    const value = process.env[name];
+    if (!value?.trim()) throw new Error(`${name} is required; credentials must be supplied through the environment.`);
+    return value;
+}
 
-const DEFAULT_PASSWORD = 'Atlas2026!';
+const MONGO_URI = requiredEnvironment('MONGO_URI');
+
+const DEFAULT_PASSWORD = requiredEnvironment('SEED_USER_PASSWORD');
+const ADMIN_PASSWORD = requiredEnvironment('SEED_ADMIN_PASSWORD');
+
+
+// Personal import records stay outside source control. Supply an explicit private JSON path.
+function loadPrivateSeedUsers(): Record<string, any> {
+    const filePath = requiredEnvironment('SEED_USERS_FILE');
+    let data: any;
+    try {
+        data = JSON.parse(readFileSync(filePath, 'utf8'));
+    } catch {
+        throw new Error('SEED_USERS_FILE must point to a readable private JSON file.');
+    }
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+        throw new Error('SEED_USERS_FILE must contain a JSON object.');
+    }
+    const fields = {"TEACHERS":["firstName","lastName","email","phone","branch"],"STUDENTS_5":["firstName","lastName","parentEmail","parentPhone","parentName"],"STUDENTS_6":["firstName","lastName","parentEmail","parentPhone","parentName"],"STUDENTS_7":["firstName","lastName","parentEmail","parentPhone","parentName"],"STUDENTS_8":["firstName","lastName","parentEmail","parentPhone","parentName"]};
+    for (const [key, required] of Object.entries(fields)) {
+        const groups = key === 'STUDENTS_BY_GRADE' ? [5, 6, 7, 8].map((grade) => data[key]?.[grade]) : [data[key]];
+        for (const records of groups) {
+            if (!Array.isArray(records) || records.some((record) => !record || required.some((field) => typeof record[field] !== 'string' || !record[field].trim()))) {
+                throw new Error(`SEED_USERS_FILE contains missing or invalid ${key} records.`);
+            }
+        }
+    }
+    return data;
+}
+
+const privateSeedUsers = loadPrivateSeedUsers();
 
 // ─── Mongoose Schemas (standalone, no NestJS) ────────────────────────────────
 
@@ -239,50 +272,17 @@ async function upsertUser(data: {
 // ─── Real Data from CSV ──────────────────────────────────────────────────────
 
 // Öğretmenler (from CSV: Atlas Öğretmenler section)
-const TEACHERS = [
-    { firstName: 'Mısra', lastName: 'Çetin', email: 'misracetin560@gmail.com', phone: '5421069692', branch: 'Matematik' },
-    { firstName: 'Oğuzhan', lastName: 'Öğretmen', email: 'oguzhan70034@gmail.com', phone: '5376278760', branch: 'Türkçe' },
-    { firstName: 'Metehan', lastName: 'Hüyüklü', email: 'metehanacademy@gmail.com', phone: '5531161152', branch: 'Sosyal Bilgiler' },
-    { firstName: 'Merve', lastName: 'Bolat', email: 'blltmerve@gmail.com', phone: '5451712003', branch: 'İngilizce' },
-];
+const TEACHERS = privateSeedUsers.TEACHERS as { firstName: string; lastName: string; email: string; phone: string; branch: string }[];
 
 // Öğrenciler ve Veliler (from CSV)
 // Format: student name, student email (generated), parent email (from CSV), parent phone, grade
-const STUDENTS_5 = [
-    { firstName: 'Ceren', lastName: 'Çekinmezer', parentEmail: 'cekinmezerfiliz@gmail.com', parentPhone: '5388701080', parentName: 'Filiz Çekinmezer' },
-    { firstName: 'Defne', lastName: 'Sevimli', parentEmail: 'tubareyyaneliz@gmail.com', parentPhone: '5447989420', parentName: 'Tuba Sevimli' },
-    { firstName: 'Damla', lastName: 'Özkaya', parentEmail: 'dilayercan2017@gmail.com', parentPhone: '5424905482', parentName: 'Dilay Özkaya' },
-    { firstName: 'İpek Ecem', lastName: 'Çağlar', parentEmail: 'caglaripekecem@gmail.com', parentPhone: '5387062472', parentName: 'Çağlar Ailesi' },
-    { firstName: 'Elif', lastName: 'Ece', parentEmail: 'gulizarece1985@gmail.com', parentPhone: '5064245401', parentName: 'Gülizar Ece' },
-    { firstName: 'Elif', lastName: 'Yavuz', parentEmail: 'elifyvz077@gmail.com', parentPhone: '5388996061', parentName: 'Yavuz Ailesi' },
-    { firstName: 'Zümra', lastName: 'Çolak', parentEmail: 'serifecolak1983@gmail.com', parentPhone: '5373853951', parentName: 'Şerife Çolak' },
-    { firstName: 'Duru', lastName: 'Kayalı', parentEmail: 'belginkayali0707@gmail.com', parentPhone: '5368562694', parentName: 'Belgin Kayalı' },
-    { firstName: 'Mehmet Berat', lastName: 'Durur', parentEmail: 'neslicankonus@gmail.com', parentPhone: '5064710189', parentName: 'Neslican Durur' },
-];
+const STUDENTS_5 = privateSeedUsers.STUDENTS_5 as { firstName: string; lastName: string; parentEmail: string; parentPhone: string; parentName: string }[];
 
-const STUDENTS_6 = [
-    { firstName: 'Elif', lastName: 'Sarıkaya', parentEmail: 'elifnisasarikaya09@gmail.com', parentPhone: '5063808932', parentName: 'Sarıkaya Ailesi' },
-    { firstName: 'Mete Kemal', lastName: 'Dinçer', parentEmail: 'dincerkemer@yahoo.com', parentPhone: '5057336916', parentName: 'Dinçer Ailesi' },
-    { firstName: 'Anisa', lastName: 'Aksungur', parentEmail: 'anisaaksungur@gmail.com', parentPhone: '5369497161', parentName: 'Aksungur Ailesi' },
-    { firstName: 'Hatice', lastName: 'Öztürk', parentEmail: 'muradiyeozturk061@gmail.com', parentPhone: '5433092497', parentName: 'Muradiye Öztürk' },
-    { firstName: 'Miraç', lastName: 'Atalay', parentEmail: 'yalcin07_38@hotmail.com', parentPhone: '5392671639', parentName: 'Yalçın Atalay' },
-];
+const STUDENTS_6 = privateSeedUsers.STUDENTS_6 as { firstName: string; lastName: string; parentEmail: string; parentPhone: string; parentName: string }[];
 
-const STUDENTS_7 = [
-    { firstName: 'Ali Aras', lastName: 'Çetin', parentEmail: 'mcetin5254@gmail.com', parentPhone: '5415455398', parentName: 'M. Çetin' },
-    { firstName: 'Ela', lastName: 'Tüfekçiyaşar', parentEmail: 'zeynepela@gmail.com', parentPhone: '5077462933', parentName: 'Zeynep Tüfekçiyaşar' },
-    { firstName: 'Yağmur', lastName: 'Özkaya', parentEmail: 'dilayercan2017@gmail.com', parentPhone: '5424905482', parentName: 'Dilay Özkaya' },
-    { firstName: 'Ilgın', lastName: 'Sevin', parentEmail: 'adnanselcuk12@icloud.com', parentPhone: '5518258362', parentName: 'Adnan Sevin' },
-    { firstName: 'Çınar Anıl', lastName: 'Üyütgen', parentEmail: 'safakuyutgen750@gmail.com', parentPhone: '5359732788', parentName: 'Şafak Üyütgen' },
-];
+const STUDENTS_7 = privateSeedUsers.STUDENTS_7 as { firstName: string; lastName: string; parentEmail: string; parentPhone: string; parentName: string }[];
 
-const STUDENTS_8 = [
-    { firstName: 'Ceylin', lastName: 'Gökay', parentEmail: 'elifgpkay@gmail.com', parentPhone: '5383997238', parentName: 'Elif Gökay' },
-    { firstName: 'Ramazan', lastName: 'Çolak', parentEmail: 'serifecolak1983@gmail.com', parentPhone: '5373853951', parentName: 'Şerife Çolak' },
-    { firstName: 'Kuzey', lastName: 'Uğurlu', parentEmail: 'ayseugurlu16@gmail.com', parentPhone: '5325049413', parentName: 'Ayşe Uğurlu' },
-    { firstName: 'Sidar', lastName: 'Divarcı', parentEmail: 'amadeus44200@hotmail.com', parentPhone: '5055795240', parentName: 'Divarcı Ailesi' },
-    { firstName: 'Emir', lastName: 'Ozarslan', parentEmail: 'asliozaslan53@gmail.com', parentPhone: '5337714135', parentName: 'Aslı Ozarslan' },
-];
+const STUDENTS_8 = privateSeedUsers.STUDENTS_8 as { firstName: string; lastName: string; parentEmail: string; parentPhone: string; parentName: string }[];
 
 // ─── Seed ────────────────────────────────────────────────────────────────────
 
@@ -308,7 +308,7 @@ async function seed() {
         firstName: 'Atlas',
         lastName: 'Admin',
         role: 'ADMIN',
-        password: 'AtlasAdmin2026!',
+        password: ADMIN_PASSWORD,
     });
     console.log(`  → Admin: admin@atlasderslik.com\n`);
 
@@ -507,7 +507,7 @@ async function seed() {
             features: ['Yeni Nesil Soru Çözüm Odaklı Canlı Dersler', 'Müfredat Kazanımlarına %100 Uyumlu Anlatım', 'Haftalık Düzenli Ödevlendirme ve Kaynak Rehberliği', 'İnteraktif Katılım ve Anında Soru Sorma İmkanı', 'Yazılı Dönemlerine Özel Senaryo Çalışmaları'],
             badge: '',
             sortOrder: 1,
-            period: 'monthly',
+            period: 'monthly' as const,
         },
         {
             name: 'Tam Destek Paketi',
@@ -517,7 +517,7 @@ async function seed() {
             features: ['5 Ana Branşta Eksiksiz Müfredat Tamamlama', 'İnteraktif Katılım ve Anında Soru Sorma İmkanı', 'Sınav Odaklı Soru Çözüm Seansları', 'Zenginleştirilmiş PDF Soru ve Doküman Arşivi', 'Branş Bazlı Haftalık Ödev Takip Sistemi', 'Yazılı Dönemlerine Özel Senaryo Çalışmaları'],
             badge: 'En Popüler',
             sortOrder: 2,
-            period: 'monthly',
+            period: 'monthly' as const,
         },
         {
             name: 'Sayısal Destek Paketi',
@@ -527,7 +527,7 @@ async function seed() {
             features: ['Matematik ve Fen Bilimleri Odaklı Yoğun Program', '7 Kişilik Gruplarda Maksimum İlgi', 'Mantık-Muhakeme ve Yeni Nesil Soru Stratejileri', 'Sayısal Branşlara Özel Haftalık Hedef Takibi', 'Nokta Atışı Konu Anlatımları ve Soru Pratikleri', 'Yazılı Dönemlerine Özel Senaryo Çalışmaları'],
             badge: '',
             sortOrder: 3,
-            period: 'monthly',
+            period: 'monthly' as const,
         },
         {
             name: 'İleri Destek Paketi (VIP)',
@@ -537,7 +537,7 @@ async function seed() {
             features: ['Birebir Mentorluk: Aylık Kişisel Gelişim Görüşmeleri', '5 Kişilik Özel Sınıflarda Özel Ders Kalitesinde Eğitim', 'Mantık-Muhakeme ve Yeni Nesil Soru Stratejileri', 'Branş Bazlı Haftalık Ödev Takip Sistemi', 'Sınav Stratejileri ve Motivasyon Odaklı Rehberlik', 'Yazılı Dönemlerine Özel Senaryo Çalışmaları'],
             badge: 'VIP',
             sortOrder: 4,
-            period: 'monthly',
+            period: 'monthly' as const,
         },
     ];
     for (const p of pkgs) {
@@ -609,15 +609,15 @@ async function seed() {
     console.log('');
     console.log('📋 Giriş Bilgileri:');
     console.log('─────────────────────────────────────────');
-    console.log(`  Admin:      admin@atlasderslik.com  /  AtlasAdmin2026!`);
+    console.log(`  Admin:      admin@atlasderslik.com  /  [environment password]`);
     console.log('');
-    console.log('  Öğretmenler (Şifre: Atlas2026!):');
+    console.log('  Öğretmenler (Şifre: [environment password]):');
     for (const t of TEACHERS) {
         console.log(`    ${t.branch.padEnd(17)} → ${t.email}`);
     }
     console.log('');
-    console.log('  Öğrenciler: [isim].[soyisim]@ogrenci.atlasderslik.com  /  Atlas2026!');
-    console.log('  Veliler:    CSV\'deki gmail adresleri  /  Atlas2026!');
+    console.log('  Öğrenciler: [isim].[soyisim]@ogrenci.atlasderslik.com  /  [environment password]');
+    console.log('  Veliler:    CSV\'deki gmail adresleri  /  [environment password]');
     console.log('');
     console.log(`  Toplam: 1 admin, ${TEACHERS.length} öğretmen, ${studentCount} öğrenci, ${parentCount} veli`);
     console.log(`  Sınıflar: 5, 6, 7, 8`);

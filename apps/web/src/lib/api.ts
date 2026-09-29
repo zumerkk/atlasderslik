@@ -3,7 +3,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 interface ApiOptions extends RequestInit {
     /** Skip automatic auth token injection */
     skipAuth?: boolean;
-    /** Timeout in milliseconds (default: 10000) */
+    /** Timeout in milliseconds (default: 30000) */
     timeout?: number;
     /** Number of retry attempts (default: 0 = no retry) */
     retries?: number;
@@ -14,8 +14,21 @@ interface ApiOptions extends RequestInit {
 /**
  * Sleep helper for exponential backoff
  */
-function sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+function sleep(ms: number, signal?: AbortSignal | null): Promise<void> {
+    return new Promise((resolve, reject) => {
+        if (signal?.aborted) { reject(new DOMException("İstek iptal edildi.", "AbortError")); return; }
+        const onAbort = () => { clearTimeout(timer); reject(new DOMException("İstek iptal edildi.", "AbortError")); };
+        const timer = setTimeout(() => { signal?.removeEventListener("abort", onAbort); resolve(); }, ms);
+        signal?.addEventListener("abort", onAbort, { once: true });
+    });
+}
+
+function accountCacheScope(): string {
+    if (typeof window === "undefined") return "anonymous";
+    try {
+        const user = JSON.parse(localStorage.getItem("user") || "null");
+        return encodeURIComponent(String(user?.id || user?._id || user?.email || "anonymous"));
+    } catch { return "anonymous"; }
 }
 
 /**
@@ -43,7 +56,10 @@ export async function cachedApiGet<T = any>(
     onFresh: (data: T) => void,
     options: ApiOptions = {},
 ): Promise<T | null> {
-    const cacheKey = `api_cache:${endpoint}`;
+    const accountScope = accountCacheScope();
+    const requestToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const cacheKey = `api_cache:${accountScope}:${endpoint}`;
+    const stillCurrentAccount = () => typeof window === "undefined" || (accountCacheScope() === accountScope && localStorage.getItem("token") === requestToken);
     let cached: T | null = null;
 
     if (typeof window !== "undefined") {
@@ -58,6 +74,7 @@ export async function cachedApiGet<T = any>(
         .then(async (res) => {
             if (res.ok) {
                 const data = await res.json();
+                if (!stillCurrentAccount()) return;
                 if (typeof window !== "undefined") {
                     try { sessionStorage.setItem(cacheKey, JSON.stringify(data)); } catch { }
                 }
@@ -82,6 +99,7 @@ export async function api(endpoint: string, options: ApiOptions = {}): Promise<R
         timeout = 30000,
         retries = 0,
         onRetry,
+        signal: externalSignal,
         ...fetchOptions
     } = options;
 
@@ -90,31 +108,40 @@ export async function api(endpoint: string, options: ApiOptions = {}): Promise<R
         ...(fetchOptions.headers as Record<string, string> || {}),
     };
 
-    if (!skipAuth && typeof window !== "undefined") {
-        const token = localStorage.getItem("token");
-        if (token) {
-            headers["Authorization"] = `Bearer ${token}`;
-        }
+    const requestToken = !skipAuth && typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (requestToken) {
+        headers["Authorization"] = `Bearer ${requestToken}`;
     }
 
     const maxAttempts = retries + 1;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        if (externalSignal?.aborted) throw new DOMException("İstek iptal edildi.", "AbortError");
+        if (!skipAuth && typeof window !== "undefined" && localStorage.getItem("token") !== requestToken) {
+            throw new DOMException("Oturum değiştiği için istek iptal edildi.", "AbortError");
+        }
         const controller = new AbortController();
+        // Native composition also keeps caller cancellation connected while a
+        // returned response body is being read. The listener supports older browsers.
+        const requestSignal = externalSignal && typeof AbortSignal.any === "function"
+            ? AbortSignal.any([controller.signal, externalSignal])
+            : controller.signal;
+        const onExternalAbort = () => controller.abort();
+        externalSignal?.addEventListener("abort", onExternalAbort, { once: true });
         const timeoutId = setTimeout(() => controller.abort(), timeout);
 
         try {
             const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-            ...fetchOptions,
-            headers,
-            signal: controller.signal,
-            cache: 'no-store', // Ensure Next.js doesn't cache client API calls
-        });
+                ...fetchOptions,
+                headers,
+                signal: requestSignal,
+                cache: 'no-store', // Ensure Next.js doesn't cache client API calls
+            });
 
             clearTimeout(timeoutId);
 
             // Handle auth errors globally
-            if (res.status === 401 && typeof window !== "undefined") {
+            if (res.status === 401 && !skipAuth && typeof window !== "undefined" && localStorage.getItem("token") === requestToken) {
                 localStorage.removeItem("token");
                 localStorage.removeItem("user");
                 window.location.href = "/login";
@@ -129,7 +156,7 @@ export async function api(endpoint: string, options: ApiOptions = {}): Promise<R
                     const delay = retryAfter * 1000;
                     console.warn(`Rate limited (429). Retrying after ${retryAfter}s (attempt ${attempt}/${maxAttempts})`);
                     onRetry?.(attempt, maxAttempts);
-                    await sleep(delay);
+                    await sleep(delay, externalSignal);
                     continue;
                 }
                 console.error('Rate limited (429) - all retries exhausted');
@@ -143,14 +170,17 @@ export async function api(endpoint: string, options: ApiOptions = {}): Promise<R
             const isAbort = err?.name === "AbortError";
             const isNetworkError = err?.name === "TypeError" || isAbort;
 
-            if (isLastAttempt || !isNetworkError) {
+            if (externalSignal?.aborted || isLastAttempt || !isNetworkError) {
                 throw err;
             }
 
             // Exponential backoff: 2s, 4s, 8s ...
             const delay = Math.min(2000 * Math.pow(2, attempt - 1), 10000);
             onRetry?.(attempt, maxAttempts);
-            await sleep(delay);
+            await sleep(delay, externalSignal);
+        } finally {
+            clearTimeout(timeoutId);
+            externalSignal?.removeEventListener("abort", onExternalAbort);
         }
     }
 

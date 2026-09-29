@@ -12,6 +12,17 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: ['error', 'warn', 'log'], // reduce verbose startup logs
   });
+
+  // Render terminates public traffic at its reverse proxy. Trust only the
+  // configured number of hops so rate limits use the client IP, not the router.
+  // Set 0 for a directly exposed production server; never trust all proxies.
+  if (process.env.NODE_ENV === 'production') {
+    const proxyHops = Number(process.env.TRUST_PROXY_HOPS ?? '1');
+    if (!Number.isInteger(proxyHops) || proxyHops < 0 || proxyHops > 5) {
+      throw new Error('TRUST_PROXY_HOPS must be an integer between 0 and 5.');
+    }
+    app.set('trust proxy', proxyHops);
+  }
   
   // Increase body size limit for base64 image uploads
   app.useBodyParser('json', { limit: '50mb' });
@@ -49,8 +60,7 @@ async function bootstrap() {
     next();
   });
 
-  await app.listen(process.env.PORT ?? 3001);
+  await app.listen(process.env.PORT ?? 3001, process.env.HOST || '0.0.0.0');
   console.log(`[STARTUP] API ready in ${Date.now() - startTime}ms on port ${process.env.PORT ?? 3001}`);
 }
 bootstrap();
-

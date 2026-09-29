@@ -69,6 +69,7 @@ export function AppSidebar({
                     alt="Atlas Derslik Logo"
                     width={38}
                     height={38}
+                    unoptimized
                     className="shrink-0 drop-shadow-md"
                 />
                 {!collapsed && (

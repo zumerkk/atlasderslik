@@ -9,11 +9,16 @@
 import mongoose, { Types } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 
-const MONGO_URI =
-    process.env.MONGO_URI ||
-    'mongodb+srv://atlasderslik:2002%2E2002@atlasderslik.7qapnxz.mongodb.net/atlas-derslik?retryWrites=true&w=majority&appName=atlasderslik';
+function requiredEnvironment(name: string): string {
+    const value = process.env[name];
+    if (!value?.trim()) throw new Error(`${name} is required; credentials must be supplied through the environment.`);
+    return value;
+}
 
-const PASSWORD = 'Password123!';
+const MONGO_URI = requiredEnvironment('MONGO_URI');
+
+const PASSWORD = requiredEnvironment('SEED_USER_PASSWORD');
+const ADMIN_PASSWORD = requiredEnvironment('SEED_ADMIN_PASSWORD');
 
 // ─── Mongoose Schemas (standalone, no NestJS) ────────────────────────────────
 
@@ -205,7 +210,7 @@ async function hash(pw: string) {
 }
 
 async function upsertUser(data: { email: string; firstName: string; lastName: string; role: string; grade?: number }) {
-    const passwordHash = await hash(PASSWORD);
+    const passwordHash = await hash(data.role === 'ADMIN' ? ADMIN_PASSWORD : PASSWORD);
     return User.findOneAndUpdate(
         { email: data.email },
         { ...data, passwordHash, isActive: true, assignedSubjects: [] },
@@ -716,7 +721,7 @@ async function seed() {
     console.log('✅ SEED COMPLETE');
     console.log('═══════════════════════════════════════════');
     console.log('');
-    console.log('Demo Login Bilgileri (Tüm şifre: Password123!)');
+    console.log('Demo Login Bilgileri (Tüm şifre: [environment password])');
     console.log('  Admin:    admin@atlas.com');
     console.log('  Teacher1: teacher1@atlas.com');
     console.log('  Teacher2: teacher2@atlas.com');

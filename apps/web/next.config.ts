@@ -6,27 +6,23 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
 
+  async rewrites() {
+    // Optional same-origin API bridge for local development or a proxied deployment.
+    const target = process.env.ATLAS_API_PROXY_URL?.replace(/\/$/, "");
+    return target ? [{ source: "/api/:path*", destination: `${target}/:path*` }] : [];
+  },
+
   async headers() {
     return [
       {
-        // Cache static assets aggressively
-        source: "/:path(.*\\.(?:js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot))",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
-          },
-        ],
+        // Public assets have stable names; Next manages its own hashed chunks.
+        source: "/assets/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" }],
       },
       {
-        // Cache Next.js static chunks
-        source: "/_next/static/:path*",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
-          },
-        ],
+        // Brand icons change at stable URLs; browsers must be able to refresh them.
+        source: "/:path(favicon\\.ico|atlas-icon\\.svg|apple-touch-icon\\.png|atlas-icon-192\\.png|atlas-icon-512\\.png|manifest\\.webmanifest)",
+        headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate" }],
       },
       {
         // Security + performance headers for HTML pages

@@ -2,26 +2,34 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://AtlasDerslik:2002%2E2002Atlas@atlasderslik.6ziq4aa.mongodb.net/atlas-derslik?retryWrites=true&w=majority&appName=AtlasDerslik';
+function requiredEnvironment(name) {
+    const value = process.env[name];
+    if (!value?.trim()) throw new Error(`${name} is required; credentials must be supplied through the environment.`);
+    return value;
+}
+
+const MONGO_URI = requiredEnvironment('MONGO_URI');
+const ADMIN_PASSWORD = requiredEnvironment('SEED_ADMIN_PASSWORD');
+const USER_PASSWORD = requiredEnvironment('SEED_USER_PASSWORD');
 
 const users = [
     {
         email: 'admin@atlas.com',
-        password: 'Password123!',
+        password: ADMIN_PASSWORD,
         firstName: 'Atlas',
         lastName: 'Admin',
         role: 'ADMIN' // Check your UserRole enum, assuming ADMIN
     },
     {
         email: 'teacher@atlas.com',
-        password: 'Password123!',
+        password: USER_PASSWORD,
         firstName: 'Atlas',
         lastName: 'Ogretmen',
         role: 'TEACHER'
     },
     {
         email: 'student@atlas.com',
-        password: 'Password123!',
+        password: USER_PASSWORD,
         firstName: 'Atlas',
         lastName: 'Ogrenci',
         role: 'STUDENT',

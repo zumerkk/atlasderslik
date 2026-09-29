@@ -2,6 +2,10 @@
 
 Atlas Derslik, ortaokul (5–8. sınıf) ve LGS hazırlık sürecine yönelik kapsamlı bir online eğitim platformudur. Öğretmen, öğrenci, veli ve admin rollerini destekler.
 
+## AtlasAI
+
+Hareketli Atlas maskotu, hesap bilgilerine dayanan sohbet, fotoğraflı soru çözümü, aylık/konu bazlı analiz, derslerle çakışmayan haftalık plan ve eğitim görseli üretimi. Kurulum ve veri sınırları için [AtlasAI rehberi](docs/atlas-ai.md), doğrulama sonuçları için [uygulama notu](docs/atlas-ai-implementation-report.md).
+
 ## Teknoloji Stack
 
 | Katman      | Teknoloji                                        |
@@ -30,7 +34,7 @@ atlas-derslik-monorepo/
 
 ## Ön Gereksinimler
 
-- **Node.js** ≥ 18
+- **Node.js** ≥ 20.19
 - **pnpm** 10.x (`npm install -g pnpm@10`)
 - **MongoDB** (local veya Atlas cloud)
 
@@ -49,6 +53,16 @@ cp apps/web/.env.example apps/web/.env
 ```
 
 ## Çalıştırma
+
+Bağımlılıklar hazırsa, dört deneme hesabı ve kalıcı yerel MongoDB ile bütün uygulamayı başlatmak için:
+
+```sh
+npm run local
+npm run local:status
+# Kapatmak için: npm run local:stop
+```
+
+Giriş adresi `http://localhost:3000/login`. Deneme parolaları git dışında tutulan `.atlas-local/credentials.json` dosyasındadır. İlk kurulum MongoDB çalıştırıcısını indirir; uygulama bu bilgisayardaki ayrı `atlas_local` veritabanını kullanır. Ayrıntılar: [yerel deneme rehberi](docs/atlas-local-seed.md).
 
 ```bash
 # Tüm uygulamaları geliştirme modunda başlat (turbo)

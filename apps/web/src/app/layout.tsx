@@ -14,9 +14,19 @@ const geistMono = Geist_Mono({
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 // Extract just the origin (protocol + host) for preconnect
-const apiOrigin = API_URL ? new URL(API_URL).origin : "";
+const apiOrigin = /^https?:\/\//.test(API_URL) ? new URL(API_URL).origin : "";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://atlasderslik.com"),
+  applicationName: "Atlas Derslik",
+  icons: {
+    icon: [
+      { url: "/atlas-icon.svg?v=atlasai-1", type: "image/svg+xml" },
+      { url: "/favicon.ico?v=atlasai-1", sizes: "16x16 32x32 48x48", type: "image/x-icon" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png?v=atlasai-1", sizes: "180x180", type: "image/png" }],
+    shortcut: "/favicon.ico?v=atlasai-1",
+  },
   title: {
     default: "Atlas Derslik | Eğitimin Dijital Atlası",
     template: "%s | Atlas Derslik",
@@ -45,15 +55,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="tr">
+    <html lang="tr" data-scroll-behavior="smooth">
       <head>
         {/* DNS prefetch & preconnect for API — reduces cold-start latency */}
-        {apiOrigin && (
+        {apiOrigin ? (
           <>
             <link rel="dns-prefetch" href={apiOrigin} />
             <link rel="preconnect" href={apiOrigin} crossOrigin="anonymous" />
           </>
-        )}
+        ) : null}
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}

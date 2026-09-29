@@ -3,9 +3,8 @@ require('dotenv').config({ path: './apps/api/.env' });
 
 async function run() {
   const uri = process.env.MONGO_URI;
-  if (!uri) {
-    console.error('No MONGO_URI');
-    return;
+  if (!uri?.trim()) {
+    throw new Error('MONGO_URI is required.');
   }
   
   await mongoose.connect(uri);
@@ -45,4 +44,7 @@ async function run() {
   process.exit(0);
 }
 
-run().catch(console.error);
+run().catch(() => {
+  console.error('Database cleanup failed. Check MONGO_URI and database access.');
+  process.exitCode = 1;
+});

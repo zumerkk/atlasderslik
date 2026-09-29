@@ -43,7 +43,8 @@ const features = [
 
 async function getPackages() {
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/packages/active`, {
+    const apiUrl = process.env.ATLAS_API_PROXY_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const res = await fetch(`${apiUrl}/packages/active`, {
       next: { revalidate: 3600 } // ISR every 1 hour
     });
     if (!res.ok) return [];
