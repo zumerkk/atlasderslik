@@ -94,18 +94,25 @@ export default function SubjectsPage() {
 
     const fetchSubjects = () => setRefreshVersion(current => current + 1);
 
+    const selectGrade = (gradeId: string) => {
+        setSelectedCreateGradeId(gradeId);
+        setSelectedGradeFilter(gradeId);
+    };
+
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newSubjectName || !selectedCreateGradeId) return;
+        const targetGradeId = selectedCreateGradeId;
         setSubmitting(true);
         setFeedback(null);
         try {
             const res = await apiPost("/education/subjects", {
                 name: newSubjectName,
-                gradeId: selectedCreateGradeId
+                gradeId: targetGradeId
             });
             if (res.ok) {
                 setNewSubjectName("");
+                selectGrade(targetGradeId);
                 setFeedback({ type: "success", message: "Ders başarıyla eklendi!" });
                 fetchSubjects();
             } else {
@@ -195,7 +202,7 @@ export default function SubjectsPage() {
                         key={g._id}
                         variant={selectedGradeFilter === g._id ? "default" : "outline"}
                         size="sm"
-                        onClick={() => { setSelectedGradeFilter(g._id); setSelectedCreateGradeId(g._id); }}
+                        onClick={() => selectGrade(g._id)}
                     >
                         {g.label || `${g.level}. Sınıf`}
                     </Button>
@@ -218,7 +225,7 @@ export default function SubjectsPage() {
                     <form onSubmit={handleCreate} className="grid md:grid-cols-3 gap-4 items-end">
                         <div className="grid gap-2">
                             <label className="text-sm font-medium">Hedef Sınıf</label>
-                            <Select value={selectedCreateGradeId} onValueChange={setSelectedCreateGradeId}>
+                            <Select value={selectedCreateGradeId} onValueChange={selectGrade} disabled={submitting}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Sınıf Seçin" />
                                 </SelectTrigger>
