@@ -81,6 +81,14 @@ class AtlasHistoryImagesValidator implements ValidatorConstraintInterface {
 }
 
 export class AtlasChatDto {
+  @IsOptional()
+  @IsMongoId()
+  studentId?: string;
+
+  @IsOptional()
+  @IsMongoId()
+  topicId?: string;
+
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @IsNotEmpty()

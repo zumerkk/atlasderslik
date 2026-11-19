@@ -8,7 +8,7 @@ import { Assignment, AssignmentDocument } from '../education/schemas/assignment.
 import { TeacherAssignment, TeacherAssignmentDocument } from '../education/schemas/teacher-assignment.schema';
 import { StudentEnrollment, StudentEnrollmentDocument } from '../education/schemas/student-enrollment.schema';
 import { Question, QuestionDocument } from '../education/schemas/question.schema';
-import { Order, OrderDocument, OrderStatus } from '../packages/schemas/order.schema';
+import { Order, OrderDocument, OrderStatus, FulfillmentStatus } from '../packages/schemas/order.schema';
 import { Package, PackageDocument } from '../packages/schemas/package.schema';
 import { UserRole } from '@repo/shared';
 
@@ -28,12 +28,19 @@ export class StatisticsService {
 
     async getAdminStats() {
         const now = new Date();
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
-        const startOfYear = new Date(now.getFullYear(), 0, 1);
+        const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul', year: 'numeric', month: 'numeric' }).formatToParts(now);
+        const year = Number(parts.find(part => part.type === 'year')?.value);
+        const month = Number(parts.find(part => part.type === 'month')?.value);
+        const startOfMonth = new Date(Date.UTC(year, month - 1, 1, -3));
+        const startOfLastMonth = new Date(Date.UTC(year, month - 2, 1, -3));
+        const startOfNextMonth = new Date(Date.UTC(year, month, 1, -3));
+        const startOfYear = new Date(Date.UTC(year, 0, 1, -3));
+        const verifiedLive = { status: OrderStatus.COMPLETED, paymentEnvironment: 'live', providerVerifiedAt: { $type: 'date' },
+            iyzicoPaymentId: { $type: 'string' }, paidAt: { $type: 'date' }, providerFraudStatus: 1 } as const;
+        const sumCents = { $sum: { $round: [{ $multiply: [{ $ifNull: ['$providerPaidPrice', '$amount'] }, 100] }, 0] } };
 
         const [
+            totalUsers,
             totalStudents,
             totalTeachers,
             totalLiveClasses,
@@ -46,6 +53,7 @@ export class StatisticsService {
             newUsersThisMonth,
             revenueAgg,
         ] = await Promise.all([
+            this.userModel.countDocuments(),
             this.userModel.countDocuments({ role: UserRole.STUDENT }),
             this.userModel.countDocuments({ role: UserRole.TEACHER }),
             this.liveClassModel.countDocuments(),
@@ -54,25 +62,28 @@ export class StatisticsService {
             this.studentEnrollmentModel.countDocuments(),
             this.teacherAssignmentModel.countDocuments(),
             this.packageModel.countDocuments(),
-            this.orderModel.countDocuments({ status: OrderStatus.COMPLETED }),
+            this.orderModel.countDocuments({ ...verifiedLive, fulfillmentStatus: FulfillmentStatus.FULFILLED,
+                fulfillmentAt: { $type: 'date' }, accessStartsAt: { $lte: now },
+                $or: [{ validUntil: { $gt: now } }, { packagePeriod: 'one-time' }],
+            }),
             this.userModel.countDocuments({ createdAt: { $gte: startOfMonth } }),
             // Revenue aggregation pipeline
             this.orderModel.aggregate([
-                { $match: { status: OrderStatus.COMPLETED } },
+                { $match: verifiedLive },
                 {
                     $facet: {
-                        total: [{ $group: { _id: null, sum: { $sum: '$amount' } } }],
+                        total: [{ $group: { _id: null, sum: sumCents } }],
                         thisMonth: [
-                            { $match: { paidAt: { $gte: startOfMonth } } },
-                            { $group: { _id: null, sum: { $sum: '$amount' } } },
+                            { $match: { paidAt: { $gte: startOfMonth, $lt: startOfNextMonth } } },
+                            { $group: { _id: null, sum: sumCents } },
                         ],
                         lastMonth: [
-                            { $match: { paidAt: { $gte: startOfLastMonth, $lte: endOfLastMonth } } },
-                            { $group: { _id: null, sum: { $sum: '$amount' } } },
+                            { $match: { paidAt: { $gte: startOfLastMonth, $lt: startOfMonth } } },
+                            { $group: { _id: null, sum: sumCents } },
                         ],
                         thisYear: [
                             { $match: { paidAt: { $gte: startOfYear } } },
-                            { $group: { _id: null, sum: { $sum: '$amount' } } },
+                            { $group: { _id: null, sum: sumCents } },
                         ],
                     },
                 },
@@ -80,12 +91,13 @@ export class StatisticsService {
         ]);
 
         const rev = revenueAgg[0] || {};
-        const totalRevenue = rev.total?.[0]?.sum || 0;
-        const revenueThisMonth = rev.thisMonth?.[0]?.sum || 0;
-        const revenueLastMonth = rev.lastMonth?.[0]?.sum || 0;
-        const revenueThisYear = rev.thisYear?.[0]?.sum || 0;
+        const totalRevenue = (rev.total?.[0]?.sum || 0) / 100;
+        const revenueThisMonth = (rev.thisMonth?.[0]?.sum || 0) / 100;
+        const revenueLastMonth = (rev.lastMonth?.[0]?.sum || 0) / 100;
+        const revenueThisYear = (rev.thisYear?.[0]?.sum || 0) / 100;
 
         return {
+            totalUsers,
             totalStudents,
             totalTeachers,
             totalLiveClasses,

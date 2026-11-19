@@ -8,6 +8,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { ArrowDown, ArrowUpRight, AudioLines, BookOpen, CalendarDays, ChartNoAxesCombined, Check, ChevronRight, Copy, Download, ImagePlus, LoaderCircle, Maximize2, MessageCircle, Mic, MicOff, Palette, Plus, Send, ShieldCheck, Sparkles, Square, Volume2, VolumeX, X } from "lucide-react";
 import { safeAtlasHref, useAtlasAI, type AtlasMessage } from "./atlas-ai-provider";
 import { AtlasLearningPanel } from "./atlas-learning-panel";
+import { AtlasMaterialsPanel } from "./atlas-materials-panel";
 import styles from "./atlas-ai.module.css";
 
 const STARTERS: Record<string, { title: string; description: string; prompt: string; icon: typeof BookOpen; target?: "insights" | "plan" }[]> = {
@@ -99,6 +100,7 @@ function Message({ message }: { message: AtlasMessage }) {
 
 function Composer() {
     const atlas = useAtlasAI();
+    const needsStudent = atlas.studentSelectionRequired;
     const messageInputId = useId();
     const fileRef = useRef<HTMLInputElement>(null);
     const imageReaderRef = useRef<FileReader | null>(null);
@@ -109,6 +111,7 @@ function Composer() {
         const file = event.target.files?.[0];
         event.target.value = "";
         if (!file) return;
+        if (needsStudent) return;
         if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) { atlas.setError("JPEG, PNG veya WebP biçiminde bir soru görseli seç."); return; }
         if (file.size > 4 * 1024 * 1024) { atlas.setError("Görsel en fazla 4 MB olabilir. Daha küçük bir görsel seçebilirsin."); return; }
         setReadingImage(true);
@@ -130,22 +133,22 @@ function Composer() {
         }
     };
     return <div className={styles.composerArea}>
-        <div className={styles.composerModes} role="group" aria-label="AtlasAI yanıt türü"><button type="button" aria-pressed={atlas.mode === "chat"} disabled={atlas.loading || readingImage} onClick={() => atlas.setMode("chat")}><MessageCircle size={14} />Sohbet</button><button type="button" aria-pressed={atlas.mode === "image"} disabled={atlas.loading || readingImage} onClick={() => atlas.setMode("image")}><Palette size={14} />Görsel oluştur</button></div>
-        {atlas.mode === "image" && <div className={styles.imageModeNotice}><span>{atlas.status?.imageGeneration ? "Öğrenmeyi görünür kıl. Bir eğitim görseli tarif et." : "Görsel üretimi henüz etkin değil. Açıldığında eğitim görsellerini burada oluşturabilirsin."}</span><div>{["Su döngüsünü gösteren sade bir eğitim posteri", "Kesirleri pizza dilimleriyle anlatan bir görsel"].map((prompt) => <button key={prompt} disabled={atlas.loading} onClick={() => { atlas.setDraft(prompt); textRef.current?.focus(); }}>{prompt}</button>)}</div></div>}
-        {atlas.error && <div className={styles.error} role="alert"><span>{atlas.error}</span>{(atlas.draft.trim() || atlas.attachment) && <button disabled={atlas.loading || readingImage} onClick={() => void atlas.send()} className={styles.retryButton}>Tekrar gönder</button>}<button onClick={() => atlas.setError(null)} aria-label="Uyarıyı kapat"><X size={16} /></button></div>}
+        <div className={styles.composerModes} role="group" aria-label="AtlasAI yanıt türü"><button type="button" aria-pressed={atlas.mode === "chat"} disabled={needsStudent || atlas.loading || readingImage} onClick={() => atlas.setMode("chat")}><MessageCircle size={14} />Sohbet</button><button type="button" aria-pressed={atlas.mode === "image"} disabled={needsStudent || atlas.loading || readingImage} onClick={() => atlas.setMode("image")}><Palette size={14} />Görsel oluştur</button></div>
+        {atlas.mode === "image" && <div className={styles.imageModeNotice}><span>{atlas.status?.imageGeneration ? "Öğrenmeyi görünür kıl. Bir eğitim görseli tarif et." : "Görsel üretimi henüz etkin değil. Açıldığında eğitim görsellerini burada oluşturabilirsin."}</span><div>{["Su döngüsünü gösteren sade bir eğitim posteri", "Kesirleri pizza dilimleriyle anlatan bir görsel"].map((prompt) => <button key={prompt} disabled={needsStudent || atlas.loading} onClick={() => { atlas.setDraft(prompt); textRef.current?.focus(); }}>{prompt}</button>)}</div></div>}
+        {atlas.error && <div className={styles.error} role="alert"><span>{atlas.error}</span>{(atlas.draft.trim() || atlas.attachment) && <button disabled={needsStudent || atlas.loading || readingImage} onClick={() => void atlas.send()} className={styles.retryButton}>Tekrar gönder</button>}<button onClick={() => atlas.setError(null)} aria-label="Uyarıyı kapat"><X size={16} /></button></div>}
         {atlas.listening && <div className={styles.listeningNotice} role="status"><AudioLines size={16} /> Seni dinliyorum. Söylediklerin mesaj alanına eklenecek.</div>}
         <form className={`${styles.composer} ${atlas.listening ? styles.composerListening : ""}`} onSubmit={(event) => { event.preventDefault(); void atlas.send(); }}>
             {atlas.attachment && <div className={styles.attachment}><Image src={atlas.attachment} alt="Gönderilecek soru görseli" width={52} height={52} unoptimized /><span>Soru görseli<small>Mesajınla birlikte gönderilecek</small></span><button type="button" onClick={() => atlas.setAttachment(null)} disabled={atlas.loading} aria-label="Görseli kaldır"><X size={15} /></button></div>}
             <label className={styles.srOnly} htmlFor={messageInputId}>Atlas&apos;a sorunu yaz</label>
-            <textarea ref={textRef} id={messageInputId} rows={2} maxLength={4000} value={atlas.draft} disabled={atlas.loading} onChange={(event) => atlas.setDraft(event.target.value)} placeholder={atlas.mode === "image" ? "Hangi konuyu görselleştirelim? Sınıfı, konuyu ve istediğin görseli tarif et…" : atlas.role === "ADMIN" ? "Atlas'a sor; sistemi birlikte geliştirelim…" : "Aklındaki soruyu yaz, birlikte çözelim…"} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); if (!readingImage) void atlas.send(); } }} />
+            <textarea ref={textRef} id={messageInputId} rows={2} maxLength={4000} value={atlas.draft} disabled={needsStudent || atlas.loading} onChange={(event) => atlas.setDraft(event.target.value)} placeholder={needsStudent ? "Sohbete başlamak için yukarıdan öğrencini seç…" : atlas.mode === "image" ? "Hangi konuyu görselleştirelim? Sınıfı, konuyu ve istediğin görseli tarif et…" : atlas.role === "ADMIN" ? "Atlas'a sor; sistemi birlikte geliştirelim…" : "Aklındaki soruyu yaz, birlikte çözelim…"} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); if (!readingImage) void atlas.send(); } }} />
             <div className={styles.composerControls}>
                 <div className={styles.composerTools}>
-                    <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => void readImage(event)} hidden />
-                    {atlas.mode === "chat" && <button type="button" className={styles.toolButton} disabled={atlas.loading || readingImage} onClick={() => atlas.status?.vision ? fileRef.current?.click() : atlas.setError("Görselli soru çözümü şu an kullanılamıyor. Soruyu yazarak gönderebilir veya bağlantıyı biraz sonra tekrar kontrol edebilirsin.")} title={atlas.status?.vision ? "Soru görseli ekle (en fazla 4 MB)" : "Görselli soru çözümü hakkında"} aria-label="Soru görseli ekle">{readingImage ? <LoaderCircle size={18} className={styles.spin} /> : <ImagePlus size={18} />}</button>}
-                    {atlas.recognitionSupported && <button type="button" className={`${styles.toolButton} ${atlas.listening ? styles.toolActive : ""}`} disabled={atlas.loading} onClick={atlas.toggleListening} aria-pressed={atlas.listening} title={atlas.listening ? "Mikrofonu kapat" : "Sorunu sesle yaz"} aria-label={atlas.listening ? "Mikrofonu kapat" : "Sorunu sesle yaz"}>{atlas.listening ? <MicOff size={18} /> : <Mic size={18} />}</button>}
+                    <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" disabled={needsStudent || atlas.loading} onChange={(event) => void readImage(event)} hidden />
+                    {atlas.mode === "chat" && <button type="button" className={styles.toolButton} disabled={needsStudent || atlas.loading || readingImage} onClick={() => atlas.status?.vision ? fileRef.current?.click() : atlas.setError("Görselli soru çözümü şu an kullanılamıyor. Soruyu yazarak gönderebilir veya bağlantıyı biraz sonra tekrar kontrol edebilirsin.")} title={atlas.status?.vision ? "Soru görseli ekle (en fazla 4 MB)" : "Görselli soru çözümü hakkında"} aria-label="Soru görseli ekle">{readingImage ? <LoaderCircle size={18} className={styles.spin} /> : <ImagePlus size={18} />}</button>}
+                    {atlas.recognitionSupported && <button type="button" className={`${styles.toolButton} ${atlas.listening ? styles.toolActive : ""}`} disabled={needsStudent || atlas.loading} onClick={atlas.toggleListening} aria-pressed={atlas.listening} title={atlas.listening ? "Mikrofonu kapat" : "Sorunu sesle yaz"} aria-label={atlas.listening ? "Mikrofonu kapat" : "Sorunu sesle yaz"}>{atlas.listening ? <MicOff size={18} /> : <Mic size={18} />}</button>}
                     <span className={styles.composerHint}>{atlas.draft.length > 3500 ? `${atlas.draft.length}/4000` : "Birlikte öğrenelim"}</span>
                 </div>
-                {atlas.loading ? <button key="stop" className={styles.stopButton} type="button" onClick={(event) => { event.preventDefault(); atlas.cancel(); }}><Square size={14} />Durdur</button> : <button key="send" className={styles.sendButton} disabled={readingImage || (!atlas.draft.trim() && !atlas.attachment)} type="submit" aria-label={atlas.mode === "image" ? "Eğitim görselini oluştur" : "Mesajı gönder"}><Send size={17} /><span>{atlas.mode === "image" ? "Oluştur" : "Gönder"}</span></button>}
+                {atlas.loading ? <button key="stop" className={styles.stopButton} type="button" onClick={(event) => { event.preventDefault(); atlas.cancel(); }}><Square size={14} />Durdur</button> : <button key="send" className={styles.sendButton} disabled={needsStudent || readingImage || (!atlas.draft.trim() && !atlas.attachment)} type="submit" aria-label={atlas.mode === "image" ? "Eğitim görselini oluştur" : "Mesajı gönder"}><Send size={17} /><span>{atlas.mode === "image" ? "Oluştur" : "Gönder"}</span></button>}
             </div>
         </form>
         <p className={styles.composerFootnote}>Atlas bazen yanılabilir. Önemli bilgileri kontrol et. Görselleri saklamak için indir. {atlas.voiceEnabled ? "Ses, cihazının seslendirmesiyle okunur." : "Sohbet bu tarayıcı oturumunda tutulur."}</p>
@@ -164,6 +167,7 @@ function ThinkingResponse() {
 
 function ChatPanel({ compact = false, onNavigate }: { compact?: boolean; onNavigate?: (tab: "insights" | "plan") => void }) {
     const atlas = useAtlasAI();
+    const scopeId = useId();
     const scrollRef = useRef<HTMLDivElement>(null);
     const [awayFromBottom, setAwayFromBottom] = useState(false);
     const starters = STARTERS[atlas.role] || STARTERS.STUDENT;
@@ -178,6 +182,17 @@ function ChatPanel({ compact = false, onNavigate }: { compact?: boolean; onNavig
                 <button className={styles.newChat} onClick={atlas.clear} title="Yeni sohbet" aria-label="Yeni sohbet başlat"><Plus size={18} /><span>Yeni sohbet</span></button>
             </div>
         </div>
+        <div className={styles.chatScopeControls} aria-label="Sohbetin öğrenci ve konu seçimi">
+            {atlas.role !== "STUDENT" && <label htmlFor={`${scopeId}-student`}><span>{atlas.role === "PARENT" ? "Öğrencin" : "Öğrenci"}</span><select id={`${scopeId}-student`} value={atlas.selectedStudentId} disabled={atlas.chatStudentsLoading} onChange={(event) => atlas.selectChatStudent(event.target.value)} aria-required={atlas.role === "PARENT"}>
+                <option value="">{atlas.chatStudentsLoading ? "Öğrenciler yükleniyor…" : atlas.role === "PARENT" ? "Öğrenci seç" : "Yetkili olduğum sınıflar"}</option>
+                {atlas.chatStudents.map((student) => <option key={student.id} value={student.id}>{student.name}{student.classes.length ? ` · ${student.classes.join(", ")}` : ""}</option>)}
+            </select></label>}
+            <label htmlFor={`${scopeId}-topic`}><span>Konu <small>isteğe bağlı</small></span><select id={`${scopeId}-topic`} value={atlas.selectedTopicId} disabled={atlas.studentSelectionRequired || atlas.chatTopicsLoading || !!atlas.chatTopicsError || !atlas.chatTopics.length} onChange={(event) => atlas.selectChatTopic(event.target.value)}>
+                <option value="">{atlas.chatTopicsLoading ? "Onaylı konular yükleniyor…" : atlas.studentSelectionRequired ? "Önce öğrencini seç" : !atlas.chatTopics.length ? "Onaylı konu bulunmuyor" : "Tüm onaylı konular"}</option>
+                {atlas.chatTopics.map((topic) => <option key={topic.id} value={topic.id}>{topic.gradeLevel}. sınıf · {topic.subject} · {topic.name}</option>)}
+            </select></label>
+            {(atlas.chatStudentsError || atlas.chatTopicsError) ? <p className={styles.chatScopeNotice} role="alert"><span>{atlas.chatStudentsError || atlas.chatTopicsError}</span><button type="button" onClick={() => void (atlas.chatStudentsError ? atlas.refreshChatStudents() : atlas.refreshChatTopics())}>Yeniden dene</button></p> : <p className={styles.chatScopeNotice} role="status">{atlas.studentSelectionRequired ? atlas.chatStudentsLoading ? "Öğrencilerin hazırlanıyor." : !atlas.chatStudents.length ? "Hesabına bağlı öğrenci bulunmuyor. Öğrenci bağlantısı için kurum yöneticinle görüşebilirsin." : "Eğitim sohbetine başlamak için öğrencini seç." : !atlas.chatTopicsLoading && !atlas.chatTopics.length ? "Bu kapsamda onaylı MEB kazanımı bulunmuyor. Eğitim yanıtları için kurum yöneticinin müfredatı onaylaması gerekiyor." : atlas.role === "STUDENT" ? "Eğitim yanıtları sınıfındaki onaylı MEB kazanımlarıyla sınırlıdır. Her konuya ait sohbet ayrı tutulur." : "Eğitim yanıtları seçili öğrenci veya sınıfların onaylı MEB kazanımlarıyla sınırlıdır. Her seçime ait sohbet ayrı tutulur."}</p>}
+        </div>
         {atlas.status && !atlas.status.available && <div className={styles.statusBanner} role="status"><span>{atlas.status.message || "AtlasAI bağlantısı hazırlanıyor."}</span><button onClick={() => void atlas.refreshStatus()}>Yenile</button></div>}
         <div className={styles.chatScroll} ref={scrollRef} onScroll={() => { const el = scrollRef.current; if (el) setAwayFromBottom(el.scrollHeight - el.scrollTop - el.clientHeight > 180); }}>
             {!atlas.messages.length && !atlas.pending ? <div className={styles.welcome}>
@@ -185,23 +200,23 @@ function ChatPanel({ compact = false, onNavigate }: { compact?: boolean; onNavig
                 <span className={styles.welcomeEyebrow}>SENİN ATLAS&apos;IN, HER ADIMDA YANINDA</span>
                 <h2>Merhaba{atlas.name ? ` ${atlas.name}` : ""}, ben Atlas<span>AI.</span></h2>
                 <p>{atlas.role === "ADMIN" ? "Sistemi inceleyelim, eğitim için daha fazlasını birlikte yapalım. Nereden başlayalım?" : atlas.role === "PARENT" ? "Çocuğunun öğrenme yolculuğunu birlikte takip edelim. Bugün sana nasıl yardımcı olabilirim?" : "Bir soruyu çözelim, bir konuyu keşfedelim ya da birlikte plan yapalım. Bugün aklında ne var?"}</p>
-                <div className={styles.starterGrid}>{starters.map((starter) => <button className={styles.starter} key={starter.title} onClick={() => starter.target && onNavigate ? onNavigate(starter.target) : void atlas.send(starter.prompt)} disabled={atlas.loading}><span className={styles.starterIcon}><starter.icon size={18} /></span><span><strong>{starter.title}</strong><small>{starter.description}</small></span><ArrowUpRight size={16} className={styles.starterArrow} /></button>)}</div>
+                <div className={styles.starterGrid}>{starters.map((starter) => <button className={styles.starter} key={starter.title} onClick={() => starter.target && onNavigate ? onNavigate(starter.target) : void atlas.send(starter.prompt)} disabled={atlas.loading || (atlas.studentSelectionRequired && !(starter.target && onNavigate))}><span className={styles.starterIcon}><starter.icon size={18} /></span><span><strong>{starter.title}</strong><small>{starter.description}</small></span><ArrowUpRight size={16} className={styles.starterArrow} /></button>)}</div>
             </div> : <div className={styles.messages} role="log" aria-label="Sohbet mesajları" aria-live="polite" aria-relevant="additions">
-                {atlas.messages.map((message) => <Message key={message.id} message={message} />)}
+                {atlas.messages.map((message) => <Message key={`${atlas.conversationScopeKey}:${message.id}`} message={message} />)}
                 {atlas.pending && <Message message={atlas.pending} />}
                 {atlas.loading && <ThinkingResponse />}
             </div>}
         </div>
         {awayFromBottom && <button className={styles.scrollToBottom} onClick={() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }} aria-label="Son mesaja git"><ArrowDown size={16} /></button>}
-        <Composer />
+        <Composer key={atlas.conversationScopeKey} />
     </section>;
 }
 
 export function AtlasAIWorkspace() {
     const atlas = useAtlasAI();
-    const [tab, setTab] = useState<"chat" | "insights" | "plan">("chat");
+    const [tab, setTab] = useState<"chat" | "insights" | "plan" | "materials">("chat");
     const tabId = useId();
-    const tabs = [{ id: "chat" as const, label: "Sohbet", icon: MessageCircle }, { id: "insights" as const, label: atlas.role === "STUDENT" ? "Gelişimim" : atlas.role === "PARENT" ? "Çocuğumun gelişimi" : "Öğrenci gelişimi", icon: ChartNoAxesCombined }, { id: "plan" as const, label: atlas.role === "STUDENT" ? "Çalışma planım" : "Çalışma planı", icon: CalendarDays }];
+    const tabs = [{ id: "chat" as const, label: "Sohbet", icon: MessageCircle }, { id: "insights" as const, label: atlas.role === "STUDENT" ? "Gelişimim" : atlas.role === "PARENT" ? "Çocuğumun gelişimi" : "Öğrenci gelişimi", icon: ChartNoAxesCombined }, { id: "plan" as const, label: atlas.role === "STUDENT" ? "Çalışma planım" : "Çalışma planı", icon: CalendarDays }, { id: "materials" as const, label: "PDF materyaller", icon: BookOpen }];
     const state = atlas.speaking || atlas.replyAnimating ? "talking" : atlas.listening ? "listening" : atlas.loading ? "thinking" : "idle";
     return <div className={styles.workspace}>
         <header className={styles.pageHeader}><div><div className={styles.eyebrow}><Sparkles size={14} /> ATLAS DERSLİK / ATLAS AI</div><h1>Birlikte, bir adım ileri<span>.</span></h1><p>Soruların, hedeflerin ve sana eşlik eden bir Atlas.</p></div><span className={styles.pageBadge}><ShieldCheck size={15} /> Sana özel öğrenme alanı</span></header>
@@ -209,7 +224,16 @@ export function AtlasAIWorkspace() {
         <div className={`${styles.workspaceGrid} ${tab !== "chat" ? styles.workspaceDataGrid : ""}`}>
             <div className={styles.workspaceMain}>
                 <div role="tabpanel" id={`${tabId}-chat-panel`} aria-labelledby={`${tabId}-chat-tab`} hidden={tab !== "chat"}><ChatPanel onNavigate={setTab} /></div>
-                <div role="tabpanel" id={`${tabId}-${tab === "plan" ? "plan" : "insights"}-panel`} aria-labelledby={`${tabId}-${tab === "plan" ? "plan" : "insights"}-tab`} hidden={tab === "chat"}><AtlasLearningPanel view={tab === "plan" ? "plan" : "insights"} onPlan={() => setTab("plan")} onAsk={(prompt) => { atlas.setMode("chat"); atlas.setDraft(prompt); setTab("chat"); }} /></div>
+                <div role="tabpanel" id={`${tabId}-${tab === "plan" ? "plan" : "insights"}-panel`} aria-labelledby={`${tabId}-${tab === "plan" ? "plan" : "insights"}-tab`} hidden={tab === "chat" || tab === "materials"}><AtlasLearningPanel view={tab === "plan" ? "plan" : "insights"} onPlan={() => setTab("plan")} onAsk={(prompt, scope) => {
+                    if (atlas.role !== "STUDENT" && !atlas.selectChatStudent(scope.studentId)) { setTab("chat"); return; }
+                    atlas.selectChatTopic("");
+                    if (scope.topic && (atlas.role === "STUDENT" || atlas.selectedStudentId === scope.studentId)) {
+                        const topics = atlas.chatTopics.filter(topic => topic.name === scope.topic && topic.subject === scope.subject);
+                        if (topics.length === 1) atlas.selectChatTopic(topics[0].id);
+                    }
+                    atlas.setMode("chat"); atlas.setDraft(prompt); setTab("chat");
+                }} /></div>
+                <div role="tabpanel" id={`${tabId}-materials-panel`} aria-labelledby={`${tabId}-materials-tab`} hidden={tab !== "materials"}><AtlasMaterialsPanel /></div>
             </div>
             <aside className={styles.companionRail}>
                 <div className={styles.companionCard}><div className={styles.companionLabel}><span /><span>HER ADIMDA YANINDA</span><Sparkles size={15} /></div><AtlasMascot size="large" state={state} /><div className={styles.companionSpeech}>{atlas.speaking ? "Seni yanıtlıyorum…" : atlas.listening ? "Seni dinliyorum…" : atlas.loading ? "Hadi bunu birlikte çözelim." : "Merak ettiğin her şey, yeni bir başlangıç."}</div><h2>Sen sor.<br />Birlikte keşfedelim.</h2><p>Öğrenirken de plan yaparken de Atlas burada.</p><div className={styles.companionOrbit} /></div>
@@ -223,17 +247,23 @@ export function AtlasAIWorkspace() {
 export function AtlasAILauncher() {
     const atlas = useAtlasAI();
     const pathname = usePathname();
+    return <AtlasAILauncherContent key={`${atlas.accountId}:${pathname.endsWith("/atlas-ai")}`} />;
+}
+
+function AtlasAILauncherContent() {
+    const atlas = useAtlasAI();
+    const pathname = usePathname();
     const fullPage = pathname.endsWith("/atlas-ai");
+    const commercePage = ["/admin/orders", "/admin/packages", "/student/packages", "/parent/packages"].includes(pathname);
     const [greeting, setGreeting] = useState(false);
     useEffect(() => {
-        setGreeting(false);
-        if (!atlas.accountId || fullPage) return;
+        if (!atlas.accountId || fullPage || commercePage) return;
         try { if (sessionStorage.getItem(`atlas-ai:greeting:${atlas.accountId}`)) return; } catch { }
         const timer = setTimeout(() => setGreeting(true), 1800);
         return () => clearTimeout(timer);
-    }, [atlas.accountId, fullPage]);
+    }, [atlas.accountId, fullPage, commercePage]);
     const dismissGreeting = () => { setGreeting(false); try { sessionStorage.setItem(`atlas-ai:greeting:${atlas.accountId}`, "seen"); } catch { } };
-    if (fullPage) return null;
+    if (fullPage || commercePage) return null;
     const close = (value: boolean) => { atlas.setOpen(value); if (value) dismissGreeting(); if (!value) { atlas.stopSpeaking(); atlas.stopListening(); } };
     return <Dialog.Root open={atlas.open} onOpenChange={close}>
         {greeting && !atlas.open && <div className={styles.greetingBubble}><button className={styles.greetingClose} onClick={dismissGreeting} aria-label="AtlasAI karşılama mesajını kapat"><X size={14} /></button><span>MERHABA, BEN ATLASAI</span><p>Sana nasıl yardımcı olabilirim?</p><button className={styles.greetingStart} onClick={() => close(true)}>Birlikte başlayalım<ArrowUpRight size={14} /></button></div>}

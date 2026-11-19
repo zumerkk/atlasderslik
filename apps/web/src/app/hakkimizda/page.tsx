@@ -1,84 +1,11 @@
+import Link from "next/link";
+import { BookOpen, CalendarDays, Users } from "lucide-react";
 import { PublicHeader } from "@/components/layout/public-header";
 import { PublicFooter } from "@/components/layout/public-footer";
-import { GraduationCap, Target, Heart, MapPin } from "lucide-react";
+import { MerchantIdentity } from "@/components/commerce/merchant-identity";
 
-export default function HakkimizdaPage() {
-    return (
-        <div className="flex flex-col min-h-screen">
-            <PublicHeader />
-            <main className="flex-1">
-                <section className="bg-gradient-to-br from-atlas-blue via-blue-600 to-atlas-indigo pt-32 pb-16">
-                    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-                        <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4">Hakkımızda</h1>
-                        <p className="text-lg text-white/80 max-w-2xl mx-auto">
-                            Atlas Derslik olarak ortaokul öğrencilerine kaliteli ve erişilebilir eğitim sunuyoruz.
-                        </p>
-                    </div>
-                </section>
+export const metadata = { title: "Hakkımızda" };
 
-                <section className="py-20">
-                    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-                        <div className="prose prose-lg max-w-none">
-                            <div className="bg-white rounded-2xl p-8 lg:p-12 border border-gray-100 shadow-sm mb-8">
-                                <h2 className="text-2xl font-bold text-gray-900 mb-4">Biz Kimiz?</h2>
-                                <p className="text-gray-600 leading-relaxed mb-4">
-                                    Atlas Derslik, Antalya/Gazipaşa merkezli bir online eğitim platformudur.
-                                    Ortaokul müfredatına ve LGS sınavına yönelik haftalık canlı grup dersleri sunarak
-                                    öğrencilerin akademik başarılarını artırmayı hedefliyoruz.
-                                </p>
-                                <p className="text-gray-600 leading-relaxed">
-                                    Alanında uzman öğretmen kadromuzla, her öğrencinin bireysel ihtiyaçlarına
-                                    uygun, etkileşimli ve kaliteli bir eğitim deneyimi sağlıyoruz.
-                                </p>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm">
-                                    <div className="w-12 h-12 rounded-xl bg-blue-100 text-atlas-blue flex items-center justify-center mb-4">
-                                        <Target className="h-6 w-6" />
-                                    </div>
-                                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Misyonumuz</h3>
-                                    <p className="text-sm text-gray-500">
-                                        Her öğrenciye eşit ve kaliteli eğitim fırsatı sunarak akademik
-                                        başarılarını en üst seviyeye taşımak.
-                                    </p>
-                                </div>
-                                <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm">
-                                    <div className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center mb-4">
-                                        <GraduationCap className="h-6 w-6" />
-                                    </div>
-                                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Vizyonumuz</h3>
-                                    <p className="text-sm text-gray-500">
-                                        Türkiye&apos;nin en güvenilir ve tercih edilen online ortaokul
-                                        eğitim platformu olmak.
-                                    </p>
-                                </div>
-                                <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm">
-                                    <div className="w-12 h-12 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center mb-4">
-                                        <Heart className="h-6 w-6" />
-                                    </div>
-                                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Değerlerimiz</h3>
-                                    <p className="text-sm text-gray-500">
-                                        Kalite, güven, şeffaflık ve öğrenci odaklı yaklaşım
-                                        temel değerlerimizdir.
-                                    </p>
-                                </div>
-                                <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm">
-                                    <div className="w-12 h-12 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center mb-4">
-                                        <MapPin className="h-6 w-6" />
-                                    </div>
-                                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Konumumuz</h3>
-                                    <p className="text-sm text-gray-500">
-                                        Antalya/Gazipaşa merkezli olarak tüm Türkiye&apos;ye online
-                                        eğitim hizmeti sunuyoruz.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-            </main>
-            <PublicFooter />
-        </div>
-    );
+export default function AboutPage() {
+  return <div className="flex min-h-screen flex-col bg-gray-50/50"><PublicHeader /><main className="flex-1"><section className="bg-gradient-to-br from-atlas-blue via-blue-600 to-atlas-indigo pt-32 pb-16"><div className="mx-auto max-w-4xl px-4 sm:px-6"><p className="mb-3 text-sm text-blue-100">Atlas Derslik</p><h1 className="text-4xl font-bold text-white">Hakkımızda</h1><p className="mt-5 max-w-3xl text-lg leading-8 text-white/85">Öğrenci, öğretmen ve veliyi ders programı, eğitim içeriği ve gelişim takibi etrafında bir araya getiren çevrim içi eğitim platformu.</p></div></section><section className="mx-auto max-w-4xl space-y-8 px-4 py-12 sm:px-6"><div className="rounded-2xl border bg-white p-7 text-gray-600 leading-7"><h2 className="mb-4 text-2xl font-semibold text-gray-900">Eğitimin günlük akışını bir araya getiriyoruz</h2><p>Atlas Derslik, okul derslerini ve sınava hazırlığı çevrim içi araçlarla desteklemeyi amaçlar. Öğrenciler kendilerine atanmış ders ve içerikleri izler; öğretmenler sınıflarındaki materyalleri ve çalışmaları yönetir; bağlı veli hesapları öğrencilerinin sürecini takip eder.</p><p className="mt-4">Paketlerin sınıf kapsamı, özellikleri, fiyatı ve süresi güncel katalogda gösterilir. Satın alma öncesinde bu bilgiler incelenebilir. Ders saati ve içerik erişimi öğrencinin hesabındaki programa ve yetkisine bağlıdır.</p></div><div className="grid gap-4 sm:grid-cols-3">{[{ Icon: CalendarDays, title: "Ders düzeni", text: "Atanmış sınıflar ve öğrenciye ait ders programı." }, { Icon: BookOpen, title: "Eğitim araçları", text: "Yetkilendirilmiş video, materyal, ödev ve testler." }, { Icon: Users, title: "Veli takibi", text: "Bağlı öğrencinin eğitim sürecine görünürlük." }].map(({ Icon, title, text }) => <div key={title} className="rounded-2xl border bg-white p-6"><Icon className="mb-4 h-6 w-6 text-atlas-blue" /><h2 className="font-semibold">{title}</h2><p className="mt-2 text-sm leading-6 text-gray-500">{text}</p></div>)}</div><div className="space-y-4"><h2 className="text-2xl font-semibold text-gray-900">Hizmeti sunan işletme</h2><MerchantIdentity /></div><div className="flex flex-wrap gap-4"><Link href="/packages" className="rounded-xl bg-atlas-blue px-5 py-3 font-medium text-white">Paketleri incele</Link><Link href="/iletisim" className="rounded-xl border bg-white px-5 py-3 font-medium text-atlas-blue">İletişim ve destek</Link></div></section></main><PublicFooter /></div>;
 }

@@ -11,8 +11,11 @@ import { EducationModule } from './education/education.module';
 import { PackagesModule } from './packages/packages.module';
 import { StatisticsModule } from './statistics/statistics.module';
 import { PaymentModule } from './payment/payment.module';
+import { CartModule } from './cart/cart.module';
 import { GamificationModule } from './gamification/gamification.module';
 import { AtlasAiModule } from './atlas-ai/atlas-ai.module';
+import { AtlasMaterialModule } from './atlas-materials/atlas-material.module';
+import { LessonVideoModule } from './lesson-video/lesson-video.module';
 
 @Module({
   imports: [
@@ -47,8 +50,11 @@ import { AtlasAiModule } from './atlas-ai/atlas-ai.module';
     PackagesModule,
     StatisticsModule,
     PaymentModule,
+    CartModule,
     GamificationModule,
     AtlasAiModule,
+    AtlasMaterialModule,
+    LessonVideoModule,
   ],
   controllers: [AppController],
   providers: [

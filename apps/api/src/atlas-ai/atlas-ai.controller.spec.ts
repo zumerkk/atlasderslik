@@ -9,6 +9,7 @@ import { JwtStrategy } from '../auth/strategies/jwt.strategy';
 import { AtlasAiController } from './atlas-ai.controller';
 import { AtlasAiService } from './atlas-ai.service';
 import { AtlasAiRateLimitGuard } from './atlas-ai-rate-limit.guard';
+import { UsersService } from '../users/users.service';
 
 describe('AtlasAI authenticated HTTP endpoints', () => {
   let app: INestApplication;
@@ -37,6 +38,7 @@ describe('AtlasAI authenticated HTTP endpoints', () => {
       controllers: [AtlasAiController],
       providers: [
         JwtStrategy,
+        { provide: UsersService, useValue: { findOne: jest.fn(async () => ({ role: 'STUDENT', isActive: true })) } },
         AtlasAiRateLimitGuard,
         {
           provide: ConfigService,
@@ -170,10 +172,10 @@ describe('AtlasAI authenticated HTTP endpoints', () => {
 
   it('allows a classroom on shared Wi-Fi while still bounding each account status requests', async () => {
     for (let index = 0; index < 105; index++) {
-      const classmate = jwt.sign({ sub: `classmate-${index}`, role: 'STUDENT' });
+      const classmate = jwt.sign({ sub: (index + 100).toString(16).padStart(24, '0'), role: 'STUDENT' });
       await request(app.getHttpServer()).get('/atlas-ai/status').set('Authorization', `Bearer ${classmate}`).expect(200);
     }
-    const noisy = jwt.sign({ sub: 'noisy-account', role: 'STUDENT' });
+    const noisy = jwt.sign({ sub: 'f'.repeat(24), role: 'STUDENT' });
     for (let index = 0; index < 20; index++) {
       await request(app.getHttpServer()).get('/atlas-ai/status').set('Authorization', `Bearer ${noisy}`).expect(200);
     }

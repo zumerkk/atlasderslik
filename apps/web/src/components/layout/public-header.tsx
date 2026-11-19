@@ -1,193 +1,41 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
+import { Menu, ShoppingCart, UserRound, LogOut, ShieldCheck, ReceiptText, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Menu } from "lucide-react";
-import { useState, useEffect } from "react";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useCommerceAccount } from "@/components/commerce/use-commerce-account";
+import { accountHome, accountOrders, authPageHref, safeAuthRedirect } from "@/lib/auth-navigation";
+import { clearAuthSession } from "@/lib/auth-session";
 
-// Anchors are prefixed with "/" so they also work from sub-pages; "Hakkımızda"
-// points at the real page instead of an #about section that never existed.
-const navLinks = [
-    { href: "/#features", label: "Özellikler" },
-    { href: "/packages", label: "Paketler" },
-    { href: "/hakkimizda", label: "Hakkımızda" },
-    { href: "/#contact", label: "İletişim" },
-];
+const navLinks = [{ href: "/#features", label: "Özellikler" }, { href: "/packages", label: "Paketler" }, { href: "/hakkimizda", label: "Hakkımızda" }, { href: "/iletisim", label: "İletişim" }];
 
 export function PublicHeader() {
-    const [scrolled, setScrolled] = useState(false);
-
-    useEffect(() => {
-        const onScroll = () => setScrolled(window.scrollY > 20);
-        window.addEventListener("scroll", onScroll, { passive: true });
-        return () => window.removeEventListener("scroll", onScroll);
-    }, []);
-
-    return (
-        <header
-            className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled
-                ? "bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-100"
-                : "bg-transparent"
-                }`}
-        >
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div
-                    style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        height: "76px",
-                    }}
-                >
-                    {/* Logo - geyik ikonu solda, "Atlas Derslik" yazısı sağında, aynı hizadalar */}
-                    <Link
-                        href="/"
-                        style={{
-                            display: "inline-flex",
-                            flexDirection: "row",
-                            alignItems: "center",
-                            gap: "12px",
-                            textDecoration: "none",
-                        }}
-                    >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                            src="/assets/images/deer-logo.png"
-                            alt="Atlas Derslik"
-                            style={{
-                                width: "52px",
-                                height: "52px",
-                                objectFit: "contain",
-                                display: "block",
-                                filter: scrolled ? "none" : "brightness(0) invert(1)",
-                                transition: "filter 0.3s ease",
-                            }}
-                        />
-                        <span
-                            style={{
-                                fontSize: "22px",
-                                fontWeight: 800,
-                                letterSpacing: "-0.01em",
-                                lineHeight: 1,
-                                color: scrolled ? "#111827" : "#ffffff",
-                                transition: "color 0.3s ease",
-                                whiteSpace: "nowrap",
-                            }}
-                        >
-                            Atlas Derslik
-                        </span>
-                    </Link>
-
-                    {/* Desktop Nav */}
-                    <nav className="hidden md:flex items-center gap-1">
-                        {navLinks.map((link) => (
-                            <Link
-                                key={link.href}
-                                href={link.href}
-                                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${scrolled
-                                    ? "text-gray-600 hover:text-atlas-blue hover:bg-blue-50"
-                                    : "text-white/80 hover:text-white hover:bg-white/10"
-                                    }`}
-                            >
-                                {link.label}
-                            </Link>
-                        ))}
-                    </nav>
-
-                    {/* Desktop CTA */}
-                    <div className="hidden md:flex items-center gap-3">
-                        <Link href="/login">
-                            <Button
-                                variant="ghost"
-                                className={`font-medium ${scrolled
-                                    ? "text-gray-700 hover:text-atlas-blue"
-                                    : "text-white hover:bg-white/10 hover:text-white"
-                                    }`}
-                            >
-                                Giriş Yap
-                            </Button>
-                        </Link>
-                        <Link href="/register">
-                            <Button className="bg-atlas-orange hover:bg-atlas-orange-dark text-white shadow-md hover:shadow-lg transition-all font-semibold">
-                                Kayıt Ol
-                            </Button>
-                        </Link>
-                    </div>
-
-                    {/* Mobile Menu */}
-                    <Sheet>
-                        <SheetTrigger asChild>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className={`md:hidden ${scrolled ? "text-gray-700" : "text-white"}`}
-                            >
-                                <Menu className="h-6 w-6" />
-                            </Button>
-                        </SheetTrigger>
-                        <SheetContent side="right" className="w-72 p-0">
-                            <div className="flex flex-col h-full">
-                                <div className="p-6 border-b">
-                                    <div
-                                        style={{
-                                            display: "inline-flex",
-                                            flexDirection: "row",
-                                            alignItems: "center",
-                                            gap: "10px",
-                                        }}
-                                    >
-                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                        <img
-                                            src="/assets/images/deer-logo.png"
-                                            alt="Atlas Derslik"
-                                            style={{
-                                                width: "44px",
-                                                height: "44px",
-                                                objectFit: "contain",
-                                                display: "block",
-                                            }}
-                                        />
-                                        <span
-                                            style={{
-                                                fontSize: "20px",
-                                                fontWeight: 800,
-                                                letterSpacing: "-0.01em",
-                                                color: "#111827",
-                                            }}
-                                        >
-                                            Atlas Derslik
-                                        </span>
-                                    </div>
-                                </div>
-                                <nav className="flex-1 p-4 space-y-1">
-                                    {navLinks.map((link) => (
-                                        <Link
-                                            key={link.href}
-                                            href={link.href}
-                                            className="flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-atlas-blue transition-colors"
-                                        >
-                                            {link.label}
-                                        </Link>
-                                    ))}
-                                </nav>
-                                <div className="p-4 border-t space-y-3">
-                                    <Link href="/login" className="block">
-                                        <Button variant="outline" className="w-full">
-                                            Giriş Yap
-                                        </Button>
-                                    </Link>
-                                    <Link href="/register" className="block">
-                                        <Button className="w-full bg-atlas-orange hover:bg-atlas-orange-dark text-white font-semibold">
-                                            Kayıt Ol
-                                        </Button>
-                                    </Link>
-                                </div>
-                            </div>
-                        </SheetContent>
-                    </Sheet>
-                </div>
-            </div>
-        </header>
-    );
+    return <Suspense fallback={<header className="fixed top-0 inset-x-0 z-50 h-[76px] border-b bg-white px-6 flex items-center"><Link href="/" className="text-xl font-extrabold text-slate-900">Atlas Derslik</Link></header>}><PublicHeaderContent /></Suspense>;
+}
+function PublicHeaderContent() {
+    const pathname = usePathname();
+    const params = useSearchParams();
+    const router = useRouter();
+    const { account, ready } = useCommerceAccount();
+    const [mobileOpen, setMobileOpen] = useState(false);
+    const intent = safeAuthRedirect(`${pathname}${params.size ? `?${params}` : ""}`);
+    const customer = account?.role === "STUDENT" || account?.role === "PARENT";
+    const orders = accountOrders(account?.role);
+    const close = () => setMobileOpen(false);
+    const logout = () => { close(); clearAuthSession(); router.replace(authPageHref("login", intent)); };
+    const brand = <Link href="/" onClick={close} className="inline-flex items-center gap-2.5 shrink-0"><Image src="/assets/images/deer-logo.png" alt="Atlas Derslik" width={48} height={48} unoptimized className="h-12 w-12 object-contain" /><span className="text-xl font-extrabold tracking-tight text-slate-900">Atlas Derslik</span></Link>;
+    return <header className="fixed top-0 inset-x-0 z-50 border-b border-slate-200/80 bg-white/95 backdrop-blur-md shadow-sm"><div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex h-[76px] items-center justify-between gap-4">
+        {brand}
+        <nav className="hidden lg:flex items-center gap-1" aria-label="Ana menü">{navLinks.map(link => <Link href={link.href} key={link.href} className="px-3 py-2 text-sm font-medium rounded-lg text-slate-600 hover:bg-blue-50 hover:text-atlas-blue">{link.label}</Link>)}</nav>
+        <div className="hidden lg:flex items-center gap-2">
+            {(!account || customer) && <Button variant="outline" asChild><Link href={account ? "/cart" : authPageHref("login", "/cart")}><ShoppingCart className="h-4 w-4" />Sepetim</Link></Button>}
+            {!ready ? <span className="text-xs text-muted-foreground" role="status">Oturum kontrol ediliyor…</span> : account ? <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline"><UserRound className="h-4 w-4" />Hesabım</Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-56"><DropdownMenuItem asChild><Link href={accountHome(account.role)}><LayoutDashboard className="h-4 w-4" />Panelim</Link></DropdownMenuItem>{orders && <DropdownMenuItem asChild><Link href={orders}><ReceiptText className="h-4 w-4" />Siparişlerim</Link></DropdownMenuItem>}<DropdownMenuItem asChild><Link href="/account/security"><ShieldCheck className="h-4 w-4" />Hesap güvenliği</Link></DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem onClick={logout}><LogOut className="h-4 w-4" />Çıkış yap</DropdownMenuItem></DropdownMenuContent></DropdownMenu> : <><Button variant="ghost" asChild><Link href={authPageHref("login", intent)}>Giriş yap</Link></Button><Button asChild className="bg-atlas-orange hover:bg-atlas-orange-dark text-white"><Link href={authPageHref("register", intent)}>Kayıt ol</Link></Button></>}
+        </div>
+        <div className="flex lg:hidden items-center gap-1">{(!account || customer) && <Button variant="ghost" size="icon" asChild><Link href={account ? "/cart" : authPageHref("login", "/cart")} aria-label="Sepetim"><ShoppingCart className="h-5 w-5" /></Link></Button>}<Sheet open={mobileOpen} onOpenChange={setMobileOpen}><SheetTrigger asChild><Button variant="ghost" size="icon" aria-label="Menüyü aç"><Menu className="h-6 w-6" /></Button></SheetTrigger><SheetContent side="right" className="p-0 flex flex-col"><div className="border-b p-5 pr-12"><SheetTitle>Atlas Derslik menüsü</SheetTitle><SheetDescription className="sr-only">Paketlere, sepetinize ve hesap işlemlerinize ulaşın.</SheetDescription></div><nav className="p-4 space-y-1" aria-label="Mobil ana menü">{navLinks.map(link => <Link href={link.href} key={link.href} onClick={close} className="block rounded-lg px-4 py-3 text-sm font-medium hover:bg-blue-50">{link.label}</Link>)}</nav><div className="mt-auto border-t p-4 space-y-2">{account ? <><Link onClick={close} href={accountHome(account.role)} className="block rounded-lg p-3 text-sm font-medium">Panelim</Link>{customer && <Link onClick={close} href="/cart" className="block rounded-lg p-3 text-sm font-medium">Sepetim</Link>}{orders && <Link onClick={close} href={orders} className="block rounded-lg p-3 text-sm font-medium">Siparişlerim</Link>}<Link onClick={close} href="/account/security" className="block rounded-lg p-3 text-sm font-medium">Hesap güvenliği</Link><Button variant="outline" className="w-full" onClick={logout}><LogOut className="h-4 w-4" />Çıkış yap</Button></> : <><Button variant="outline" asChild className="w-full"><Link onClick={close} href={authPageHref("login", intent)}>Giriş yap</Link></Button><Button asChild className="w-full"><Link onClick={close} href={authPageHref("register", intent)}>Kayıt ol</Link></Button></>}</div></SheetContent></Sheet></div>
+    </div></header>;
 }

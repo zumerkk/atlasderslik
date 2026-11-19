@@ -65,8 +65,8 @@ export default function SubjectsPage() {
                 const [gRes, sRes] = await Promise.all([
                     apiGet("/education/grades", { signal: controller.signal }),
                     apiGet(selectedGradeFilter === "ALL"
-                        ? "/education/subjects/all"
-                        : `/education/subjects?gradeId=${encodeURIComponent(selectedGradeFilter)}`,
+                        ? "/education/subjects/managed"
+                        : `/education/subjects/managed?gradeId=${encodeURIComponent(selectedGradeFilter)}`,
                     { signal: controller.signal }),
                 ]);
                 if (!gRes.ok || !sRes.ok) throw new Error("Dersler yüklenemedi. Lütfen tekrar deneyin.");

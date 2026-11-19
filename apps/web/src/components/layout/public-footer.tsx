@@ -1,5 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import { Mail, Phone, MapPin } from "lucide-react";
+import { contactEmailHref, contactPhoneLabel, usePublicContact } from "@/lib/public-contact";
+import { LEGAL_DOCUMENTS } from "@/lib/legal-documents";
 
 const footerLinks = {
     platform: [
@@ -12,15 +16,15 @@ const footerLinks = {
         { label: "Hakkımızda", href: "/hakkimizda" },
         { label: "Öğretmenler", href: "/ogretmenler" },
         { label: "SSS", href: "/sss" },
+        { label: "İletişim ve Satıcı Bilgileri", href: "/iletisim" },
     ],
     legal: [
-        { label: "Gizlilik Politikası", href: "/gizlilik-politikasi" },
-        { label: "Kullanım Şartları", href: "/kullanim-sartlari" },
-        { label: "KVKK", href: "/kvkk" },
+        ...Object.values(LEGAL_DOCUMENTS).map(document => ({ label: document.title, href: document.href })),
     ],
 };
 
 export function PublicFooter() {
+    const contact = usePublicContact();
     return (
         <footer className="bg-gray-900 text-gray-300">
             {/* Main Footer */}
@@ -44,21 +48,21 @@ export function PublicFooter() {
                             <span style={{ fontSize: "22px", fontWeight: 800, color: "#ffffff", whiteSpace: "nowrap" }}>Atlas Derslik</span>
                         </Link>
                         <p className="text-sm text-gray-400 leading-relaxed mb-6">
-                            Ortaokul müfredatına ve LGS&apos;ye yönelik online eğitim platformu.
-                            Uzman öğretmenlerle kaliteli eğitim.
+                            Ders programı, eğitim içerikleri ve öğrenci takibi için
+                            çevrim içi eğitim platformu.
                         </p>
                         <div className="space-y-3">
                             <div className="flex items-center gap-3 text-sm">
                                 <Mail className="h-4 w-4 text-atlas-blue" />
-                                <span>info@atlasderslik.com</span>
+                                <a href={contactEmailHref(contact)} className="hover:text-white transition-colors">{contact.email}</a>
                             </div>
                             <div className="flex items-center gap-3 text-sm">
                                 <Phone className="h-4 w-4 text-atlas-blue" />
-                                <span>+90 546 119 10 09</span>
+                                <a href={`tel:${contact.phone}`} className="hover:text-white transition-colors">{contactPhoneLabel(contact.phone)}</a>
                             </div>
                             <div className="flex items-center gap-3 text-sm">
                                 <MapPin className="h-4 w-4 text-atlas-blue" />
-                                <span>Antalya/Gazipaşa</span>
+                                <Link href="/iletisim" className="hover:text-white transition-colors">Açık adres ve satıcı bilgileri</Link>
                             </div>
                         </div>
                     </div>
@@ -137,11 +141,11 @@ export function PublicFooter() {
                         >
                             Instagram
                         </a>
-                        <a href="mailto:info@atlasderslik.com" className="text-gray-500 hover:text-atlas-blue transition-colors text-sm">
+                        <a href={contactEmailHref(contact)} className="text-gray-500 hover:text-atlas-blue transition-colors text-sm">
                             E-posta
                         </a>
-                        <a href="tel:+905461191009" className="text-gray-500 hover:text-atlas-blue transition-colors text-sm">
-                            0546 119 10 09
+                        <a href={`tel:${contact.phone}`} className="text-gray-500 hover:text-atlas-blue transition-colors text-sm">
+                            {contactPhoneLabel(contact.phone)}
                         </a>
                     </div>
                 </div>

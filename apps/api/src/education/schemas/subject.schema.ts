@@ -21,13 +21,13 @@ export class Subject {
     isActive: boolean;
 
     // Zoom meeting link fields
-    @Prop({ default: '' })
+    @Prop({ default: '', select: false })
     zoomUrl: string;
 
-    @Prop({ default: '' })
+    @Prop({ default: '', select: false })
     zoomMeetingId: string;
 
-    @Prop({ default: '' })
+    @Prop({ default: '', select: false })
     zoomPasscode: string;
 }
 

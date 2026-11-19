@@ -115,19 +115,26 @@ async function serve() {
     });
     const secretFile = join(local, 'server-secret');
     if (!existsSync(secretFile)) writeFileSync(secretFile, randomBytes(48).toString('base64url'), { mode: 0o600 });
+    const { ATLAS_LOCAL_OPENAI_KEY, ...inherited } = process.env;
     const env = {
-      ...process.env, NODE_ENV: 'development', MONGO_URI: mongoUri, ATLAS_LOCAL_MONGO_URI: mongoUri,
+      ...inherited, NODE_ENV: 'development', MONGO_URI: mongoUri, ATLAS_LOCAL_MONGO_URI: mongoUri,
       JWT_SECRET: readFileSync(secretFile, 'utf8').trim(), HOST: '127.0.0.1', PORT: String(ports.api),
       CORS_ORIGIN: 'http://localhost:3000,http://127.0.0.1:3000', FRONTEND_URL: 'http://localhost:3000',
       // A local test account must never start a real checkout.
       IYZICO_API_KEY: '', IYZICO_SECRET_KEY: '', IYZICO_BASE_URL: '',
+      // Local opt-in accepts a separate test-project key only. Never inherit
+      // the production key from apps/api/.env or the parent shell.
+      OPENAI_API_KEY: ATLAS_LOCAL_OPENAI_KEY?.trim() || '',
+      ATLAS_OPENAI_BUDGET_USD: ATLAS_LOCAL_OPENAI_KEY?.trim() ? '2' : '0',
+      GROQ_API_KEY: '', HUGGINGFACE_API_KEY: '',
       NEXT_TELEMETRY_DISABLED: '1',
     };
-    await run(process.execPath, [join(root, 'scripts/seed-local.cjs')], { env });
+    const noSecretsForWeb = { ...env, OPENAI_API_KEY: '', JWT_SECRET: '' };
+    await run(process.execPath, [join(root, 'scripts/seed-local.cjs')], { env: { ...env, OPENAI_API_KEY: '' } });
     launch('api', [join(root, 'apps/api/dist/main.js')], join(root, 'apps/api'), env);
     await health(`http://127.0.0.1:${ports.api}/ping`);
     launch('web', [join(root, 'apps/web/node_modules/next/dist/bin/next'), 'dev', '--webpack', '-H', '127.0.0.1', '-p', String(ports.web)], join(root, 'apps/web'), {
-      ...env, NEXT_PUBLIC_API_URL: '/api', ATLAS_API_PROXY_URL: `http://127.0.0.1:${ports.api}`,
+      ...noSecretsForWeb, NEXT_PUBLIC_API_URL: '/api', ATLAS_API_PROXY_URL: `http://127.0.0.1:${ports.api}`,
     });
     await health(`http://127.0.0.1:${ports.web}/login`);
     saveState('ready');

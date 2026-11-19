@@ -13,6 +13,8 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { apiGet, apiPost, apiDelete, apiPatch } from "@/lib/api";
 import { useRouter } from "next/navigation";
+import { uploadLessonVideo } from "@/lib/lesson-video";
+import { LessonVideoPlayer } from "@/components/lesson-video/lesson-video-player";
 
 interface TeacherAssignment {
     _id: string;
@@ -25,6 +27,7 @@ interface Video {
     title: string;
     description: string;
     videoUrl: string;
+    source?: 'link' | 'upload';
     gradeLevel: number;
     gradeId?: { _id: string; level: number; label?: string };
     subjectId: { _id: string; name: string };
@@ -41,6 +44,12 @@ export default function TeacherVideosPage() {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState<Video | null>(null);
     const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+    const [sourceMode, setSourceMode] = useState<'link' | 'upload'>('upload');
+    const [uploadFile, setUploadFile] = useState<File | null>(null);
+    const [uploadLimits, setUploadLimits] = useState({ uploadReady: false, maxUploadMb: 256, maxDurationMinutes: 60 });
+    const [curriculumTopics, setCurriculumTopics] = useState<{ id: string; name: string; gradeId: string; subjectId: string }[]>([]);
+    const [topicId, setTopicId] = useState('');
+    const [activeVideo, setActiveVideo] = useState<Video | null>(null);
 
     const [formData, setFormData] = useState({ title: "", description: "", videoUrl: "", assignmentId: "" });
     const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -48,6 +57,13 @@ export default function TeacherVideosPage() {
     const [editFormData, setEditFormData] = useState({ title: "", description: "", videoUrl: "" });
 
     useEffect(() => { fetchVideos(); fetchAssignments(); }, []);
+    useEffect(() => {
+        apiGet('/lesson-videos/status').then(async res => { if (res.ok) setUploadLimits(await res.json()); }).catch(() => {});
+        apiGet('/atlas-ai/curriculum/scope').then(async res => { if (res.ok) setCurriculumTopics((await res.json()).topics || []); }).catch(() => {});
+    }, []);
+    useEffect(() => {
+        if (isDialogOpen) apiGet('/atlas-ai/curriculum/scope').then(async res => { if (res.ok) setCurriculumTopics((await res.json()).topics || []); }).catch(() => {});
+    }, [isDialogOpen]);
     useEffect(() => { if (feedback) { const t = setTimeout(() => setFeedback(null), 3000); return () => clearTimeout(t); } }, [feedback]);
 
     const fetchVideos = async () => {
@@ -69,6 +85,7 @@ export default function TeacherVideosPage() {
     };
 
     const selectedAssignment = assignments.find(a => a._id === formData.assignmentId);
+    const availableTopics = curriculumTopics.filter(topic => topic.gradeId === selectedAssignment?.gradeId._id && topic.subjectId === selectedAssignment?.subjectId._id);
 
     const handleCreate = async () => {
         if (!selectedAssignment) return;
@@ -79,13 +96,22 @@ export default function TeacherVideosPage() {
                 subjectId: selectedAssignment.subjectId._id, gradeLevel: selectedAssignment.gradeId.level,
                 gradeId: selectedAssignment.gradeId._id,
             };
-            const res = await apiPost("/education/videos", payload);
+            let res: Response;
+            if (sourceMode === 'upload') {
+                if (!uploadFile || !topicId) throw new Error('Video dosyası ve onaylı müfredat konusu seçin.');
+                if (uploadFile.size > uploadLimits.maxUploadMb * 1024 * 1024) throw new Error(`Video en fazla ${uploadLimits.maxUploadMb} MB olabilir.`);
+                const form = new FormData();
+                form.append('file', uploadFile); form.append('title', payload.title); form.append('description', payload.description);
+                form.append('subjectId', payload.subjectId); form.append('gradeId', payload.gradeId); form.append('topicId', topicId);
+                res = await uploadLessonVideo(form);
+            } else res = await apiPost("/education/videos", payload);
             if (res.ok) {
                 setIsDialogOpen(false); fetchVideos();
                 setFormData({ title: "", description: "", videoUrl: "", assignmentId: "" });
+                setUploadFile(null); setTopicId('');
                 setFeedback({ type: "success", message: "Video başarıyla eklendi!" });
-            } else { setFeedback({ type: "error", message: "Video eklenirken hata oluştu." }); }
-        } catch { setFeedback({ type: "error", message: "Bir hata oluştu." }); }
+            } else { const err = await res.json().catch(() => ({})); setFeedback({ type: "error", message: err.message || "Video eklenirken hata oluştu." }); }
+        } catch (error) { setFeedback({ type: "error", message: error instanceof Error ? error.message : "Bir hata oluştu." }); }
         finally { setSubmitting(false); }
     };
 
@@ -93,7 +119,7 @@ export default function TeacherVideosPage() {
         if (!deleteTarget) return;
         setSubmitting(true);
         try {
-            const res = await apiDelete(`/education/videos/${deleteTarget._id}`);
+            const res = await apiDelete(`${deleteTarget.source === 'upload' ? '/lesson-videos' : '/education/videos'}/${deleteTarget._id}`);
             if (res.ok) { setDeleteDialogOpen(false); setDeleteTarget(null); fetchVideos(); setFeedback({ type: "success", message: "Video silindi." }); }
             else { setFeedback({ type: "error", message: "Silme başarısız." }); }
         } catch { setFeedback({ type: "error", message: "Bir hata oluştu." }); }
@@ -108,13 +134,13 @@ export default function TeacherVideosPage() {
 
     const handleEdit = async () => {
         if (!editTarget) return;
-        if (!editFormData.videoUrl.trim()) {
+        if (editTarget.source !== 'upload' && !editFormData.videoUrl.trim()) {
             setFeedback({ type: "error", message: "Video URL boş olamaz." });
             return;
         }
         setSubmitting(true);
         try {
-            const res = await apiPatch(`/education/videos/${editTarget._id}`, editFormData);
+            const res = await apiPatch(`${editTarget.source === 'upload' ? '/lesson-videos' : '/education/videos'}/${editTarget._id}`, editTarget.source === 'upload' ? { title: editFormData.title, description: editFormData.description } : editFormData);
             if (res.ok) {
                 setEditDialogOpen(false);
                 setEditTarget(null);
@@ -166,7 +192,7 @@ export default function TeacherVideosPage() {
                                 <CardTitle className="text-lg truncate mt-2" title={vid.title}>{vid.title}</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3">
-                                <div className="aspect-video bg-muted rounded-xl flex items-center justify-center relative group cursor-pointer" onClick={() => window.open(vid.videoUrl, '_blank')}>
+                                <div className="aspect-video bg-muted rounded-xl flex items-center justify-center relative group cursor-pointer" onClick={() => vid.source === 'upload' ? setActiveVideo(vid) : window.open(vid.videoUrl, '_blank', 'noopener,noreferrer')}>
                                     <PlayCircle className="h-12 w-12 text-primary opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-all" />
                                 </div>
                                 <p className="text-sm text-muted-foreground truncate">{vid.description || "Açıklama yok"}</p>
@@ -180,9 +206,7 @@ export default function TeacherVideosPage() {
                                         <Trash2 className="h-4 w-4" />
                                     </Button>
                                 </div>
-                                <Button size="sm" variant="outline" asChild>
-                                    <a href={vid.videoUrl} target="_blank">İzle <ExternalLink className="ml-1.5 h-3.5 w-3.5" /></a>
-                                </Button>
+                                {vid.source === 'upload' ? <Button size="sm" variant="outline" onClick={() => setActiveVideo(vid)}>İzle ve özetle <PlayCircle className="ml-1.5 h-3.5 w-3.5" /></Button> : <Button size="sm" variant="outline" asChild><a href={vid.videoUrl} target="_blank" rel="noopener noreferrer">İzle <ExternalLink className="ml-1.5 h-3.5 w-3.5" /></a></Button>}
                             </CardFooter>
                         </Card>
                     ))}
@@ -195,30 +219,33 @@ export default function TeacherVideosPage() {
             )}
 
             {/* Create Dialog */}
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogContent className="sm:max-w-md">
+            <Dialog open={isDialogOpen} onOpenChange={open => { setIsDialogOpen(open); if (!open) setUploadFile(null); }}>
+                <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Yeni Video Ekle</DialogTitle>
-                        <DialogDescription>YouTube veya başka bir platformdan video linki ekleyin.</DialogDescription>
+                        <DialogDescription>Ders kaydınızı yükleyin. AtlasAI, kayıttaki ses ve görüntüleri onaylı müfredatla birlikte inceleyebilir.</DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
+                        <div className="flex gap-2"><Button variant={sourceMode === 'upload' ? 'default' : 'outline'} size="sm" onClick={() => setSourceMode('upload')}>Video dosyası</Button><Button variant={sourceMode === 'link' ? 'default' : 'outline'} size="sm" onClick={() => setSourceMode('link')}>Video bağlantısı</Button></div>
                         <div className="grid gap-2">
                             <Label>Atanmış Dersim</Label>
-                            <Select value={formData.assignmentId} onValueChange={(val) => setFormData({ ...formData, assignmentId: val })}>
+                            <Select value={formData.assignmentId} onValueChange={(val) => { setFormData({ ...formData, assignmentId: val }); setTopicId(''); }}>
                                 <SelectTrigger><SelectValue placeholder="Sınıf + Ders Seçin" /></SelectTrigger>
                                 <SelectContent>
                                     {assignments.map(a => (<SelectItem key={a._id} value={a._id}>{a.gradeId?.level}. Sınıf {a.gradeId?.label ? `(${a.gradeId.label}) ` : ''}• {a.subjectId?.name}</SelectItem>))}
                                 </SelectContent>
                             </Select>
                         </div>
+                        {sourceMode === 'upload' && <div className="grid gap-2"><Label>Onaylı müfredat konusu</Label><Select value={topicId} onValueChange={setTopicId}><SelectTrigger><SelectValue placeholder="Ders konusu seçin" /></SelectTrigger><SelectContent>{availableTopics.map(topic => <SelectItem key={topic.id} value={topic.id}>{topic.name}</SelectItem>)}</SelectContent></Select>{formData.assignmentId && !availableTopics.length && <p className="text-xs text-amber-700">Bu ders için yönetici tarafından onaylanmış müfredat bulunamadı. Müfredat onaylandıktan sonra dosya yükleyebilirsiniz.</p>}</div>}
                         <div className="grid gap-2">
                             <Label>Video Başlığı</Label>
                             <Input value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="Örn: Hücre Bölünmesi Konu Anlatımı" />
                         </div>
-                        <div className="grid gap-2">
+                        {sourceMode === 'link' ? <div className="grid gap-2">
                             <Label>Video URL</Label>
                             <Input value={formData.videoUrl} onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })} placeholder="https://youtube.com/watch?v=..." />
-                        </div>
+                            <p className="text-xs text-muted-foreground">Bağlantıyla eklenen videolarda AtlasAI ders özeti kullanılamaz.</p>
+                        </div> : <div className="grid gap-2"><Label htmlFor="lesson-file">Ders videosu</Label><Input id="lesson-file" type="file" accept="video/mp4,video/webm" onChange={e => setUploadFile(e.target.files?.[0] || null)} /><p className="text-xs text-muted-foreground">MP4 veya WebM; en fazla {uploadLimits.maxUploadMb} MB, {uploadLimits.maxDurationMinutes} dakika.</p>{!uploadLimits.uploadReady && <p className="text-xs text-amber-700">Video yükleme altyapısı henüz hazır değil.</p>}</div>}
                         <div className="grid gap-2">
                             <Label>Açıklama</Label>
                             <Input value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Video hakkında kısa bilgi..." />
@@ -226,8 +253,8 @@ export default function TeacherVideosPage() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsDialogOpen(false)}>İptal</Button>
-                        <Button onClick={handleCreate} disabled={submitting || !formData.assignmentId || !formData.title || !formData.videoUrl}>
-                            {submitting && <Loader2 className="h-4 w-4 animate-spin" />} Ekle
+                        <Button onClick={handleCreate} disabled={submitting || !formData.assignmentId || !formData.title || (sourceMode === 'link' ? !formData.videoUrl : !uploadFile || !topicId || !uploadLimits.uploadReady)}>
+                            {submitting && <Loader2 className="h-4 w-4 animate-spin" />} {submitting && sourceMode === 'upload' ? 'Yükleniyor…' : 'Ekle'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -261,10 +288,10 @@ export default function TeacherVideosPage() {
                             <Label>Video Başlığı</Label>
                             <Input value={editFormData.title} onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })} />
                         </div>
-                        <div className="grid gap-2">
+                        {editTarget?.source !== 'upload' && <div className="grid gap-2">
                             <Label>Video URL</Label>
                             <Input value={editFormData.videoUrl} onChange={(e) => setEditFormData({ ...editFormData, videoUrl: e.target.value })} />
-                        </div>
+                        </div>}
                         <div className="grid gap-2">
                             <Label>Açıklama</Label>
                             <Input value={editFormData.description} onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })} />
@@ -272,12 +299,13 @@ export default function TeacherVideosPage() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setEditDialogOpen(false)}>İptal</Button>
-                        <Button onClick={handleEdit} disabled={submitting || !editFormData.videoUrl.trim()}>
+                        <Button onClick={handleEdit} disabled={submitting || !editFormData.title.trim() || (editTarget?.source !== 'upload' && !editFormData.videoUrl.trim())}>
                             {submitting && <Loader2 className="h-4 w-4 animate-spin" />} Güncelle
                         </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+            <Dialog open={!!activeVideo} onOpenChange={open => !open && setActiveVideo(null)}><DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>{activeVideo?.title}</DialogTitle><DialogDescription>Yüklenen ders kaydı ve müfredatla doğrulanan AtlasAI özeti.</DialogDescription></DialogHeader>{activeVideo && <LessonVideoPlayer videoId={activeVideo._id} title={activeVideo.title} />}</DialogContent></Dialog>
         </div>
     );
 }

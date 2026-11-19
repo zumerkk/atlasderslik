@@ -43,10 +43,12 @@ import { Topic, TopicSchema } from '../education/schemas/topic.schema';
 import { Unit, UnitSchema } from '../education/schemas/unit.schema';
 import { AtlasSavedPlan, AtlasSavedPlanSchema } from './atlas-ai.saved-plan.schema';
 import { AtlasSavedPlanService } from './atlas-ai.saved-plan.service';
+import { AtlasCurriculumModule } from './atlas-ai.curriculum.module';
 
 @Module({
   imports: [
     GamificationModule,
+    AtlasCurriculumModule,
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: StudentEnrollment.name, schema: StudentEnrollmentSchema },
@@ -68,5 +70,6 @@ import { AtlasSavedPlanService } from './atlas-ai.saved-plan.service';
   ],
   controllers: [AtlasAiController],
   providers: [AtlasAiService, AtlasAiRateLimitGuard, AtlasAnalyticsService, AtlasSavedPlanService],
+  exports: [AtlasCurriculumModule],
 })
 export class AtlasAiModule {}

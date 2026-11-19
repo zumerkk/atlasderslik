@@ -1,3 +1,5 @@
+import { authPageHref } from "./auth-navigation";
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 interface ApiOptions extends RequestInit {
@@ -51,7 +53,7 @@ export function warmUpBackend(): void {
  *
  * Returns the cached data (or null) synchronously-like via the returned promise.
  */
-export async function cachedApiGet<T = any>(
+export async function cachedApiGet<T = unknown>(
     endpoint: string,
     onFresh: (data: T) => void,
     options: ApiOptions = {},
@@ -109,6 +111,7 @@ export async function api(endpoint: string, options: ApiOptions = {}): Promise<R
     };
 
     const requestToken = !skipAuth && typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const accountChanged = () => !skipAuth && typeof window !== "undefined" && localStorage.getItem("token") !== requestToken;
     if (requestToken) {
         headers["Authorization"] = `Bearer ${requestToken}`;
     }
@@ -117,7 +120,7 @@ export async function api(endpoint: string, options: ApiOptions = {}): Promise<R
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         if (externalSignal?.aborted) throw new DOMException("İstek iptal edildi.", "AbortError");
-        if (!skipAuth && typeof window !== "undefined" && localStorage.getItem("token") !== requestToken) {
+        if (accountChanged()) {
             throw new DOMException("Oturum değiştiği için istek iptal edildi.", "AbortError");
         }
         const controller = new AbortController();
@@ -140,11 +143,17 @@ export async function api(endpoint: string, options: ApiOptions = {}): Promise<R
 
             clearTimeout(timeoutId);
 
+            if (accountChanged()) {
+                controller.abort();
+                throw new DOMException("Oturum değiştiği için istek iptal edildi.", "AbortError");
+            }
+
             // Handle auth errors globally
             if (res.status === 401 && !skipAuth && typeof window !== "undefined" && localStorage.getItem("token") === requestToken) {
                 localStorage.removeItem("token");
                 localStorage.removeItem("user");
-                window.location.href = "/login";
+                window.dispatchEvent(new Event("atlas:auth-changed"));
+                window.location.href = authPageHref("login", window.location.pathname + window.location.search);
                 throw new Error("Oturum süresi doldu. Lütfen tekrar giriş yapın.");
             }
 
@@ -163,14 +172,15 @@ export async function api(endpoint: string, options: ApiOptions = {}): Promise<R
             }
 
             return res;
-        } catch (err: any) {
+        } catch (err: unknown) {
             clearTimeout(timeoutId);
 
             const isLastAttempt = attempt >= maxAttempts;
-            const isAbort = err?.name === "AbortError";
-            const isNetworkError = err?.name === "TypeError" || isAbort;
+            const errorName = err && typeof err === "object" && "name" in err ? err.name : null;
+            const isAbort = errorName === "AbortError";
+            const isNetworkError = errorName === "TypeError" || isAbort;
 
-            if (externalSignal?.aborted || isLastAttempt || !isNetworkError) {
+            if (accountChanged() || externalSignal?.aborted || isLastAttempt || !isNetworkError) {
                 throw err;
             }
 

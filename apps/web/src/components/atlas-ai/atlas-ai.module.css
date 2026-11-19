@@ -8,6 +8,17 @@
 .workspaceGrid { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 22px; align-items: start; }
 .chatPanel { position: relative; display: flex; flex-direction: column; min-width: 0; height: min(760px, calc(100dvh - 216px)); min-height: 620px; background: #fff; border: 1px solid #e1e7ef; border-radius: 21px; overflow: hidden; box-shadow: 0 6px 28px #253b6110; color: #18283c; }
 .chatTopbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-shrink: 0; min-height: 80px; padding: 16px 23px; border-bottom: 1px solid #edf0f4; }
+.chatScopeControls { display: flex; flex-wrap: wrap; gap: 9px 12px; padding: 12px 23px 10px; background: #f7f9fd; border-bottom: 1px solid #e8eef6; flex-shrink: 0; }
+.chatScopeControls label { display: flex; flex: 1 1 180px; flex-direction: column; gap: 5px; min-width: 0; }
+.chatScopeControls label > span { color: #5f7594; font-size: 10px; font-weight: 650; }
+.chatScopeControls label small { color: #8c9ab0; font-weight: 400; margin-left: 4px; }
+.chatScopeControls select { width: 100%; min-width: 0; padding: 8px 25px 8px 10px; border: 1px solid #dce5f2; border-radius: 8px; background: #fff; color: #355477; font-size: 11px; text-overflow: ellipsis; }
+.chatScopeControls select:focus-visible { outline: 2px solid #8daeed; outline-offset: 2px; }
+.chatScopeControls select:disabled { color: #8d9bad; background: #f0f4f9; }
+.chatScopeNotice { display: flex; align-items: center; gap: 10px; flex: 1 1 100%; margin: 0; color: #8393a9; font-size: 9px; line-height: 1.6; }
+.chatScopeNotice[role="alert"] { color: #ab694b; }
+.chatScopeNotice > span { flex: 1; }
+.chatScopeNotice button { flex-shrink: 0; text-decoration: underline; font-weight: 650; cursor: pointer; }
 .chatIdentity { display: flex; gap: 11px; align-items: center; }
 .brandIcon { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 13px; background: #edf2ff; color: #3966d9; }
 .brandIcon .mascot { width: 47px; height: 50px; }
@@ -155,6 +166,8 @@
 .dialogHeading button:hover, .dialogHeading a:hover { background: #eaf0fb; }
 .compact { border: 0; border-radius: 0; box-shadow: none; height: auto; min-height: 0; flex: 1; }
 .compact .chatTopbar { padding: 12px 17px; min-height: 70px; }
+.compact .chatScopeControls { padding: 9px 17px; gap: 6px 9px; }
+.compact .chatScopeControls label { flex-basis: 150px; }
 .compact .welcome { padding: 10px 21px 17px; }
 .compact .welcome h2 { font-size: 23px; }
 .compact .welcome > p { max-width: 325px; font-size: 11px; }
@@ -195,6 +208,9 @@
     .pageHeader p { font-size: 11px; }
     .chatPanel { min-height: 620px; height: calc(100dvh - 205px); border-radius: 17px; }
     .chatTopbar { min-height: 70px; padding: 13px; }
+    .chatScopeControls, .compact .chatScopeControls { padding: 9px 13px; gap: 7px; }
+    .chatScopeControls label, .compact .chatScopeControls label { flex-basis: 130px; }
+    .chatScopeControls select { font-size: 16px; padding-block: 7px; }
     .brandIcon { width: 33px; height: 33px; border-radius: 11px; }
     .chatIdentity { gap: 8px; }
     .chatIdentity strong { font-size: 17px; }

@@ -4,6 +4,9 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: '25 2 * * *'
 
 permissions:
   contents: read
@@ -22,9 +25,13 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm audit --prod --audit-level high
       - run: pnpm --filter @repo/shared build
       - run: pnpm --filter @repo/ui build
+      - run: pnpm verify:auth-navigation
+      - run: pnpm verify:api-session
       - run: pnpm --filter api exec jest --runInBand
+      - run: pnpm verify:commerce
       - run: pnpm --filter api build
       - run: pnpm --filter web build
         env:

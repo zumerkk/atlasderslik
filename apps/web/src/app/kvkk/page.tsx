@@ -1,91 +1,16 @@
-import { PublicHeader } from "@/components/layout/public-header";
-import { PublicFooter } from "@/components/layout/public-footer";
+import Link from "next/link";
+import { PublicLegalPage, LegalSection } from "@/components/legal/public-legal-page";
+import { LEGAL_SOURCES } from "@/lib/legal-documents";
 
-export default function KVKKPage() {
-    return (
-        <div className="flex flex-col min-h-screen">
-            <PublicHeader />
-            <main className="flex-1">
-                <section className="bg-gradient-to-br from-atlas-blue via-blue-600 to-atlas-indigo pt-32 pb-16">
-                    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-                        <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4">KVKK Aydınlatma Metni</h1>
-                        <p className="text-lg text-white/80 max-w-2xl mx-auto">
-                            6698 Sayılı Kişisel Verilerin Korunması Kanunu Kapsamında Aydınlatma Metni
-                        </p>
-                    </div>
-                </section>
+export const metadata = { title: "KVKK Aydınlatma Metni" };
 
-                <section className="py-20">
-                    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-                        <div className="bg-white rounded-2xl p-8 lg:p-12 border border-gray-100 shadow-sm prose prose-gray max-w-none">
-                            <h2 className="text-xl font-bold text-gray-900 mb-4">1. Veri Sorumlusu</h2>
-                            <p className="text-gray-600 mb-6">
-                                6698 sayılı Kişisel Verilerin Korunması Kanunu (&quot;KVKK&quot;) kapsamında,
-                                kişisel verileriniz veri sorumlusu sıfatıyla Atlas Derslik tarafından
-                                aşağıda açıklanan amaçlar doğrultusunda işlenmektedir.
-                            </p>
-
-                            <h2 className="text-xl font-bold text-gray-900 mb-4">2. İşlenen Kişisel Veriler</h2>
-                            <p className="text-gray-600 mb-4">Platformumuz kapsamında aşağıdaki kişisel veriler işlenmektedir:</p>
-                            <ul className="text-gray-600 mb-6 list-disc pl-5 space-y-2">
-                                <li><strong>Kimlik Bilgileri:</strong> Ad, soyad</li>
-                                <li><strong>İletişim Bilgileri:</strong> E-posta adresi, telefon numarası</li>
-                                <li><strong>Eğitim Bilgileri:</strong> Sınıf düzeyi, ders katılım bilgileri, performans verileri</li>
-                                <li><strong>İşlem Güvenliği:</strong> IP adresi, giriş/çıkış kayıtları</li>
-                                <li><strong>Finansal Bilgiler:</strong> Ödeme kayıtları (ödeme aracı bilgileri saklanmaz)</li>
-                            </ul>
-
-                            <h2 className="text-xl font-bold text-gray-900 mb-4">3. Verilerin İşlenme Amaçları</h2>
-                            <ul className="text-gray-600 mb-6 list-disc pl-5 space-y-2">
-                                <li>Eğitim hizmetlerinin sunulması ve yürütülmesi</li>
-                                <li>Öğrenci ve veli hesaplarının oluşturulması ve yönetimi</li>
-                                <li>Ders programı ve içerik yönetimi</li>
-                                <li>Performans değerlendirme ve raporlama</li>
-                                <li>Ödeme ve faturalandırma işlemleri</li>
-                                <li>Yasal yükümlülüklerin yerine getirilmesi</li>
-                                <li>Platformun güvenliğinin sağlanması</li>
-                            </ul>
-
-                            <h2 className="text-xl font-bold text-gray-900 mb-4">4. Verilerin Aktarılması</h2>
-                            <p className="text-gray-600 mb-6">
-                                Kişisel verileriniz, yasal yükümlülükler ve hizmet gereksinimleri doğrultusunda
-                                yalnızca ödeme hizmet sağlayıcıları ve yasal merciler ile paylaşılabilir.
-                                Verileriniz yurt dışına aktarılmamaktadır.
-                            </p>
-
-                            <h2 className="text-xl font-bold text-gray-900 mb-4">5. Veri Saklama Süresi</h2>
-                            <p className="text-gray-600 mb-6">
-                                Kişisel verileriniz, işlenme amacının gerektirdiği süre boyunca ve yasal
-                                saklama süreleri dahilinde muhafaza edilmektedir.
-                            </p>
-
-                            <h2 className="text-xl font-bold text-gray-900 mb-4">6. Haklarınız (KVKK m.11)</h2>
-                            <p className="text-gray-600 mb-4">KVKK&apos;nın 11. maddesi kapsamında aşağıdaki haklara sahipsiniz:</p>
-                            <ul className="text-gray-600 mb-6 list-disc pl-5 space-y-2">
-                                <li>Kişisel verilerinizin işlenip işlenmediğini öğrenme</li>
-                                <li>İşlenmişse buna ilişkin bilgi talep etme</li>
-                                <li>İşlenme amacını ve bunların amacına uygun kullanılıp kullanılmadığını öğrenme</li>
-                                <li>Yurt içinde veya yurt dışında aktarıldığı üçüncü kişileri bilme</li>
-                                <li>Eksik veya yanlış işlenmiş olması halinde düzeltilmesini isteme</li>
-                                <li>Kanun&apos;da öngörülen şartlar çerçevesinde silinmesini isteme</li>
-                                <li>İşlenen verilerin münhasıran otomatik sistemler vasıtasıyla analiz edilmesi suretiyle aleyhinize bir sonucun ortaya çıkmasına itiraz etme</li>
-                                <li>Kanuna aykırı olarak işlenmesi sebebiyle zarara uğramanız halinde zararın giderilmesini talep etme</li>
-                            </ul>
-
-                            <h2 className="text-xl font-bold text-gray-900 mb-4">7. Başvuru</h2>
-                            <p className="text-gray-600">
-                                KVKK kapsamındaki haklarınızı kullanmak için{" "}
-                                <a href="mailto:info@atlasderslik.com" className="text-atlas-blue hover:underline">
-                                    info@atlasderslik.com
-                                </a>{" "}
-                                adresine yazılı olarak başvurabilirsiniz. Başvurularınız en geç 30 gün
-                                içinde ücretsiz olarak yanıtlanacaktır.
-                            </p>
-                        </div>
-                    </div>
-                </section>
-            </main>
-            <PublicFooter />
-        </div>
-    );
+export default function KvkkPage() {
+  return <PublicLegalPage document="kvkk" intro="6698 sayılı Kişisel Verilerin Korunması Kanunu kapsamında veri işleme ve başvuru bilgileri.">
+    <LegalSection title="1. Veri sorumlusu"><p>Veri sorumlusu, Atlas Derslik hizmetini sunan ve yukarıda ticari unvanı, açık adresi ve iletişim bilgileri gösterilen işletmedir. Bu aydınlatma; hesap, eğitim, sipariş, destek ve yapay zekâ özellikleri kapsamındadır.</p></LegalSection>
+    <LegalSection title="2. Veriler, toplama yöntemi ve amaçlar"><p>Bilgiler internet sitesi ve hesap formları, ders/ödev/test işlemleri, dosya yüklemeleri, destek yazışmaları, ödeme kuruluşunun işlem bildirimleri ve teknik işlem kayıtları üzerinden elektronik ortamda elde edilir.</p><ul><li>Kimlik/iletişim, öğrenci sınıfı ve veli bağlantısı: hesap oluşturma, kullanıcı doğrulama, eğitim planlama ve veli erişimi.</li><li>Eğitim/performans, soru ve yüklenen içerikler: ders sunumu, değerlendirme, materyal ve talep edilen AI yanıtı/özeti.</li><li>Alıcı kimliği, adresi, sipariş, ödeme ve metin kabul bilgileri: satın alma, hizmetin atanması, kanuni kayıtlar ve taleplerin çözümü.</li><li>IP, oturum ve işlem kayıtları: yetkilendirme, güvenlik, kötüye kullanımın önlenmesi ve sistemin işletilmesi.</li></ul><p>İşlenen veri türleri ve özellik bazındaki ayrıntılar <Link href="/gizlilik-politikasi">Gizlilik Politikası</Link> içinde de yer alır.</p></LegalSection>
+    <LegalSection title="3. Hukuki sebepler"><p>İşlemin niteliğine göre KVKK m.5/2 kapsamındaki sözleşmenin kurulması/ifası, hukuki yükümlülük, hakkın tesisi/kullanılması/korunması ve ilgili kişinin temel haklarına zarar vermeyen meşru menfaat sebepleri değerlendirilir. Açık rıza gerektiren ayrı bir işlem varsa bu rıza ayrıca alınmalıdır. Bu metnin okunması genel bir açık rıza değildir.</p><p>Kaynak: <a href={LEGAL_SOURCES.dataProcessing} target="_blank" rel="noopener noreferrer">KVKK kişisel veri işleme şartları</a>.</p></LegalSection>
+    <LegalSection title="4. Alıcı grupları ve yurt dışı aktarım"><p>İlgili işleme gerekli olan bilgiler; yetkili eğitim personeli, bağlı veli/öğrenci, ödeme kuruluşu iyzico, barındırma/depolama sağlayıcıları, kullanılan canlı ders sağlayıcısı ve talep edilen AI işlemleri için OpenAI gibi yapay zekâ sağlayıcılarıyla işlenebilir. Hukuken yetkili kurumlara zorunlu kayıtlar iletilebilir.</p><p>Yabancı bulut ve AI hizmetleri nedeniyle yurt dışında işleme söz konusu olabilir. KVKK m.9 uyarınca yurt dışı aktarım için uygun hukuki şart ve mekanizma gerekir. Bu sayfa tek başına aktarım güvencesi sağlamaz, bir standart sözleşmenin imzalandığı veya tüm verilerin Türkiye&apos;de kaldığı iddiasını içermez. Kullanılan sağlayıcı ve aktarım düzenine ilişkin bilgi talep edebilirsiniz.</p><p>Kaynak: <a href={LEGAL_SOURCES.dataTransfer} target="_blank" rel="noopener noreferrer">KVKK yurt dışına aktarım açıklaması</a>.</p></LegalSection>
+    <LegalSection title="5. Saklama ve haklar"><p>Veriler, ilgili hizmet amacı ve uygulanabilir kanuni saklama gereklilikleri dikkate alınarak tutulur. KVKK m.11 kapsamında işleme hakkında bilgi, amaç ve alıcıları öğrenme, yanlış veriyi düzeltme, şartları oluştuğunda silme/yok etme ve bunların alıcılara bildirilmesini isteme haklarınız vardır. Yalnız otomatik analizin aleyhinize sonucuna itiraz ve hukuka aykırı işleme nedeniyle zararınızın giderilmesini talep edebilirsiniz.</p><p>Kaynak: <a href={LEGAL_SOURCES.dataRights} target="_blank" rel="noopener noreferrer">İlgili kişinin hakları</a>.</p></LegalSection>
+    <LegalSection title="6. Başvuru"><p>Taleplerinizi <Link href="/iletisim">İletişim</Link> sayfasındaki kayıtlı e-posta veya veri sorumlusunun adresi üzerinden yazılı iletebilirsiniz. Başvurunun size ait olduğunu doğrulayabilmek için gerekli bilgiler istenebilir; gereksiz kimlik belgesi veya hassas veri göndermeyin.</p><p>Başvurular niteliğine göre en kısa sürede, en geç 30 gün içinde sonuçlandırılır. Esas olan ücretsiz yanıttır; ayrıca maliyet gerektiren işlemler için mevzuattaki ücret kuralları geçerlidir. Kanuni şartlarla Kişisel Verileri Koruma Kuruluna şikâyet hakkınız saklıdır.</p><p>Kaynak: <a href={LEGAL_SOURCES.dataApplications} target="_blank" rel="noopener noreferrer">KVKK başvuruların cevaplanması</a>.</p></LegalSection>
+  </PublicLegalPage>;
 }

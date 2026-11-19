@@ -3,9 +3,11 @@
 import React, { useState } from "react";
 import { Zap, CheckCircle2, XCircle, Sparkles, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { apiGet, apiPost } from "@/lib/api";
+import { apiPost } from "@/lib/api";
 
 export interface DailyChallengeData {
+  available?: boolean;
+  message?: string;
   id?: string;
   subject: string;
   questionText: string;
@@ -49,8 +51,8 @@ export function DailyChallenge({ data, loading = false, onAnswered, className = 
       }
       setResult(await res.json());
       onAnswered?.();
-    } catch (e: any) {
-      setError(e?.message || "Cevap gönderilirken hata oluştu.");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Cevap gönderilirken hata oluştu.");
       setSelected(null);
     } finally {
       setSubmitting(false);
@@ -66,6 +68,8 @@ export function DailyChallenge({ data, loading = false, onAnswered, className = 
       </div>
     );
   }
+
+  if (data.available === false) return <div className={`rounded-2xl border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-950 ${className}`}><p className="font-semibold">Günün sorusu</p><p className="mt-1">{data.message || "Günün sorusu henüz hazır değil."}</p></div>;
 
   return (
     <div className={`p-4 rounded-2xl bg-gradient-to-br from-indigo-900 via-slate-900 to-purple-950 text-white shadow-xl border border-indigo-800/60 relative overflow-hidden ${className}`}>

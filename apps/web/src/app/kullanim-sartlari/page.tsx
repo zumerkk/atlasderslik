@@ -1,79 +1,15 @@
-import { PublicHeader } from "@/components/layout/public-header";
-import { PublicFooter } from "@/components/layout/public-footer";
+import Link from "next/link";
+import { PublicLegalPage, LegalSection } from "@/components/legal/public-legal-page";
 
-export default function KullanimSartlariPage() {
-    return (
-        <div className="flex flex-col min-h-screen">
-            <PublicHeader />
-            <main className="flex-1">
-                <section className="bg-gradient-to-br from-atlas-blue via-blue-600 to-atlas-indigo pt-32 pb-16">
-                    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-                        <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4">Kullanım Şartları</h1>
-                        <p className="text-lg text-white/80 max-w-2xl mx-auto">
-                            Son güncelleme: Şubat 2025
-                        </p>
-                    </div>
-                </section>
+export const metadata = { title: "Kullanım Şartları" };
 
-                <section className="py-20">
-                    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-                        <div className="bg-white rounded-2xl p-8 lg:p-12 border border-gray-100 shadow-sm prose prose-gray max-w-none">
-                            <h2 className="text-xl font-bold text-gray-900 mb-4">1. Genel Hükümler</h2>
-                            <p className="text-gray-600 mb-6">
-                                Bu kullanım şartları, Atlas Derslik platformunu (&quot;Platform&quot;) kullanan tüm kullanıcılar
-                                için geçerlidir. Platformu kullanarak bu şartları kabul etmiş sayılırsınız.
-                            </p>
-
-                            <h2 className="text-xl font-bold text-gray-900 mb-4">2. Hizmet Tanımı</h2>
-                            <p className="text-gray-600 mb-6">
-                                Atlas Derslik, ortaokul öğrencilerine yönelik online eğitim hizmeti sunan bir platformdur.
-                                Canlı dersler, video içerikler, soru bankası ve ödev takibi gibi eğitim hizmetleri
-                                sunulmaktadır.
-                            </p>
-
-                            <h2 className="text-xl font-bold text-gray-900 mb-4">3. Üyelik ve Hesap</h2>
-                            <ul className="text-gray-600 mb-6 list-disc pl-5 space-y-2">
-                                <li>Platforma kayıt olmak için doğru ve güncel bilgiler sağlanmalıdır.</li>
-                                <li>Hesap bilgileri kişiseldir ve üçüncü kişilerle paylaşılmamalıdır.</li>
-                                <li>18 yaşından küçük kullanıcılar, velilerinin onayıyla kayıt olabilir.</li>
-                                <li>Hesap güvenliğinden kullanıcı sorumludur.</li>
-                            </ul>
-
-                            <h2 className="text-xl font-bold text-gray-900 mb-4">4. Ödeme ve İade</h2>
-                            <ul className="text-gray-600 mb-6 list-disc pl-5 space-y-2">
-                                <li>Paket satın alımları online ödeme yöntemiyle gerçekleştirilir.</li>
-                                <li>Ödeme işlemleri güvenli altyapı üzerinden yapılmaktadır.</li>
-                                <li>İade talepleri satın alma tarihinden itibaren 14 gün içinde yapılmalıdır.</li>
-                                <li>Satın alınan hizmetin kullanılmış kısmı iade kapsamı dışındadır.</li>
-                            </ul>
-
-                            <h2 className="text-xl font-bold text-gray-900 mb-4">5. Fikri Mülkiyet</h2>
-                            <p className="text-gray-600 mb-6">
-                                Platformdaki tüm içerikler (videolar, dokümanlar, sorular, tasarımlar) Atlas Derslik&apos;e
-                                aittir. İçeriklerin izinsiz kopyalanması, dağıtılması veya paylaşılması yasaktır.
-                            </p>
-
-                            <h2 className="text-xl font-bold text-gray-900 mb-4">6. Kullanıcı Sorumlulukları</h2>
-                            <ul className="text-gray-600 mb-6 list-disc pl-5 space-y-2">
-                                <li>Platform kurallarına ve eğitim etiğine uygun davranılmalıdır.</li>
-                                <li>Diğer kullanıcılara saygılı olunmalıdır.</li>
-                                <li>İçerikler yalnızca kişisel eğitim amaçlı kullanılmalıdır.</li>
-                                <li>Platformun teknik altyapısına zarar verecek eylemlerden kaçınılmalıdır.</li>
-                            </ul>
-
-                            <h2 className="text-xl font-bold text-gray-900 mb-4">7. İletişim</h2>
-                            <p className="text-gray-600">
-                                Kullanım şartları hakkında sorularınız için{" "}
-                                <a href="mailto:info@atlasderslik.com" className="text-atlas-blue hover:underline">
-                                    info@atlasderslik.com
-                                </a>{" "}
-                                adresinden bizimle iletişime geçebilirsiniz.
-                            </p>
-                        </div>
-                    </div>
-                </section>
-            </main>
-            <PublicFooter />
-        </div>
-    );
+export default function TermsPage() {
+  return <PublicLegalPage document="terms" intro="Atlas Derslik hesabının ve dijital eğitim araçlarının kullanım koşulları.">
+    <LegalSection title="1. Hizmet ve hesap"><p>Atlas Derslik çevrim içi ders, öğretmen tarafından yüklenen içerik, soru/ödev/test takibi ve etkinleştirilen AI araçlarını sunar. Kullanabileceğiniz hizmetler rolünüze, sınıf atamanıza ve varsa satın aldığınız pakete bağlıdır. Ücretsiz hesap açılması ücretli eğitim erişimi sağlamaz.</p><p>Kayıt bilgileriniz doğru ve güncel olmalıdır. Çocukların hesabı ve satın alma işlemleri veli/yasal temsilci gözetimiyle yürütülmelidir. Veli erişimi yalnız hesabına bağlı öğrenci için geçerlidir.</p></LegalSection>
+    <LegalSection title="2. Hesap güvenliği ve kullanım"><p>Şifrenizi paylaşmayın; yalnız kendi hesabınızla giriş yapın. Başkasının hesabına veya erişim yetkiniz dışındaki sınıf, içerik ve kayıtlara ulaşmaya çalışmayın. Güvenlik sorunu fark ederseniz <Link href="/iletisim">destek kanallarından</Link> bildirin.</p><p>Diğer kullanıcılara saygı gösterin. İzinsiz kişisel veri, hakaret, zararlı yazılım veya başkasının hakkını ihlal eden içerik yüklemeyin. Yüklediğiniz içerik için gerekli kullanım/paylaşım yetkisine sahip olmalısınız.</p></LegalSection>
+    <LegalSection title="3. Eğitim erişimi ve içerikler"><p>Ders programı öğrencinin hesabında gösterilir. Katılım için uygun cihaz, internet bağlantısı ve kullanılan canlı ders yazılımı gerekir. Yalnız yüklenmiş ve size yetkilendirilmiş kayıtlar izlenebilir; her canlı dersin kaydı veya süresiz video erişimi taahhüt edilmez.</p><p>İçerikler Atlas Derslik&apos;in veya ilgili hak sahibinin koruması altındadır. Satın alma, içerikleri kamuya dağıtma veya ticari olarak çoğaltma hakkı vermez. Kanunen izin verilen kullanımlar saklıdır.</p></LegalSection>
+    <LegalSection title="4. Paket, ödeme ve süre"><p>Hizmet kapsamı, sınıflar, dönem ve toplam bedel satın almadan önce paket detayında ve sepette gösterilir. Erişim doğrulanmış ödeme ve öğrenci sınıf kaydı sonrasında açılır. Süreli paket bitince o pakete dayalı erişim sona erer; otomatik yenileme yapılmaz. Tek seferlik paket, seçilen sınıf kapsamında süre sonu olmadan erişim sağlar; diğer sınıf seviyelerini kapsamaz.</p><p>Satın alma için <Link href="/on-bilgilendirme">Ön Bilgilendirme</Link> ve <Link href="/mesafeli-satis-sozlesmesi">Mesafeli Satış Sözleşmesi</Link>; talepler için <Link href="/iptal-iade">Teslimat, İptal ve İade</Link> koşulları geçerlidir. Kanuni tüketici hakları sınırlandırılmaz.</p></LegalSection>
+    <LegalSection title="5. Atlas AI"><p>AI araçları eğitim desteğidir; çıktıların doğruluğu garanti edilmez. Öğretmen kontrolü gerektiren konularda çıktıyı doğrulayın. Sorular onaylı müfredat ve öğrencinin erişim kapsamına göre ele alınır; uygun kapsam belirlenemezse yanıt veya üretim reddedilebilir.</p><p>Video özeti ses dökümü ve sınırlı örnek kareler üzerinden hazırlanır; her görüntü anının incelendiği varsayılmamalıdır. Kişisel/hassas bilgileri gereksiz yere AI&apos;a göndermeyin. Veri işleme açıklamaları <Link href="/gizlilik-politikasi">Gizlilik Politikası</Link> ve <Link href="/kvkk">KVKK metnindedir</Link>.</p></LegalSection>
+    <LegalSection title="6. İletişim ve değişiklikler"><p>Hesap, hizmet veya bu koşullarla ilgili taleplerinizi <Link href="/iletisim">resmî iletişim kanallarından</Link> iletebilirsiniz. Güncel metin sürümü bu sayfada gösterilir. Sonradan yapılan içerik/fiyat güncellemeleri, tamamlanmış siparişin kaydedilmiş kapsamını ve kanuni haklarınızı kendiliğinden değiştirmez.</p></LegalSection>
+  </PublicLegalPage>;
 }

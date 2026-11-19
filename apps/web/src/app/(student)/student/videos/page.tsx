@@ -6,15 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { PlayCircle, ExternalLink, Clock, Eye, AlertCircle, RefreshCw } from "lucide-react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { PlayCircle, Clock, Eye, AlertCircle, RefreshCw } from "lucide-react";
 import { apiGet, apiPost } from "@/lib/api";
+import { LessonVideoPlayer } from "@/components/lesson-video/lesson-video-player";
 
 interface VideoItem {
     _id: string;
     title: string;
     description: string;
     videoUrl: string;
+    source?: 'link' | 'upload';
     durationMinutes: number;
     views: number;
     subjectId: { _id: string; name: string };
@@ -141,11 +143,12 @@ export default function StudentVideosPage() {
 
             {/* Video Player Modal */}
             <Dialog open={!!activeVideo} onOpenChange={(open) => !open && setActiveVideo(null)}>
-                <DialogContent className="max-w-4xl p-0 overflow-hidden bg-black border-none rounded-2xl shadow-2xl">
+                <DialogContent className="max-w-4xl p-0 max-h-[90vh] overflow-y-auto bg-card border-none rounded-2xl shadow-2xl">
+                    <DialogTitle className="sr-only">{activeVideo?.title || 'Ders videosu'}</DialogTitle>
                     {activeVideo && (
                         <div className="flex flex-col">
                             {/* YouTube Responsive Iframe */}
-                            <div className="aspect-video w-full bg-black relative">
+                            {activeVideo.source === 'upload' ? <div className="p-6"><LessonVideoPlayer videoId={activeVideo._id} title={activeVideo.title} /></div> : <div className="aspect-video w-full bg-black relative">
                                 {(() => {
                                     const match = activeVideo.videoUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
                                     const videoId = match ? match[1] : null;
@@ -168,7 +171,7 @@ export default function StudentVideosPage() {
                                         );
                                     }
                                 })()}
-                            </div>
+                            </div>}
                             {/* Video Info */}
                             <div className="p-6 bg-card text-card-foreground border-t">
                                 <div className="flex items-center gap-2 mb-2">

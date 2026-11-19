@@ -1,0 +1,6 @@
+import Image from "next/image";
+import Link from "next/link";
+
+export function AuthShell({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
+    return <main className="flex min-h-screen bg-slate-50"><aside className="hidden lg:flex lg:w-5/12 flex-col justify-center items-center bg-gradient-to-br from-atlas-blue to-atlas-indigo p-12 text-white text-center"><Image src="/assets/images/deer-logo.png" alt="Atlas Derslik" width={96} height={96} unoptimized className="mb-7" /><h1 className="text-4xl font-bold">Atlas Derslik</h1><p className="mt-5 max-w-sm text-lg text-white/80">Öğrenme yolculuğunuzu güvenli hesabınızdan yönetin.</p><Link href="/packages" className="mt-8 text-sm text-white underline underline-offset-4">Eğitim paketlerini incele</Link></aside><div className="flex-1 flex items-center justify-center px-4 py-10 sm:px-8"><div className="w-full max-w-lg"><Link href="/" className="inline-flex items-center gap-2 mb-6 text-lg font-bold text-atlas-blue"><Image src="/assets/images/deer-logo.png" alt="" width={36} height={36} unoptimized />Atlas Derslik</Link><section className="rounded-2xl border bg-white p-6 sm:p-8 shadow-sm"><h1 className="text-2xl font-bold">{title}</h1><p className="mt-2 mb-7 text-sm text-muted-foreground">{description}</p>{children}</section></div></div></main>;
+}

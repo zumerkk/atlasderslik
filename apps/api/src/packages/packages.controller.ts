@@ -1,31 +1,37 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, GoneException, Req } from '@nestjs/common';
 import { PackagesService } from './packages.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { UserRole } from '@repo/shared';
-import { SkipThrottle } from '@nestjs/throttler';
 
-@SkipThrottle()
 @Controller('packages')
 export class PackagesController {
     constructor(private readonly packagesService: PackagesService) { }
 
     @Post()
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles(UserRole.ADMIN)
-    create(@Body() createPackageDto: any) {
-        return this.packagesService.create(createPackageDto);
+    @UseGuards(JwtAuthGuard)
+    create(@Body() body: unknown, @Req() req: any) {
+        return this.packagesService.create(body, req.user.userId);
     }
 
     @Get()
     findAll() {
-        return this.packagesService.findAll(); // Public: Active & Inactive (or filter via query)
+        return this.packagesService.findActive();
     }
 
     @Get('active')
     findActive() {
-        return this.packagesService.findActive(); // Public: Only Active
+        return this.packagesService.findActive();
+    }
+
+    @Get('admin')
+    @UseGuards(JwtAuthGuard)
+    findAdmin(@Req() req: any) {
+        return this.packagesService.findAll(req.user.userId);
+    }
+
+    @Get('admin/:id')
+    @UseGuards(JwtAuthGuard)
+    findAdminOne(@Param('id') id: string, @Req() req: any) {
+        return this.packagesService.findAdminOne(id, req.user.userId);
     }
 
     @Get(':id')
@@ -34,23 +40,20 @@ export class PackagesController {
     }
 
     @Patch(':id')
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles(UserRole.ADMIN)
-    update(@Param('id') id: string, @Body() updatePackageDto: any) {
-        return this.packagesService.update(id, updatePackageDto);
+    @UseGuards(JwtAuthGuard)
+    update(@Param('id') id: string, @Body() body: unknown, @Req() req: any) {
+        return this.packagesService.update(id, body, req.user.userId);
     }
 
     @Delete(':id')
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles(UserRole.ADMIN)
-    remove(@Param('id') id: string) {
-        return this.packagesService.remove(id);
+    @UseGuards(JwtAuthGuard)
+    remove(@Param('id') id: string, @Req() req: any) {
+        return this.packagesService.remove(id, req.user.userId);
     }
 
     @Post('purchase')
     @UseGuards(JwtAuthGuard)
-    purchase(@Request() req, @Body('packageId') packageId: string) {
-        // Mock purchase flow
-        return this.packagesService.createOrder(req.user.userId, packageId);
+    purchase() {
+        throw new GoneException('Satın alma işlemi güvenli ödeme sayfasından başlatılmalıdır.');
     }
 }

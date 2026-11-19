@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
-import { AiService } from './ai.service';
+import { AiProviderModule } from './ai-provider.module';
+import { AtlasCurriculumModule } from '../atlas-ai/atlas-ai.curriculum.module';
 import { AiController } from './ai.controller';
 import { GamificationController } from './gamification.controller';
 import { GamificationService } from './gamification.service';
@@ -14,6 +15,8 @@ import { User, UserSchema } from '../users/schemas/user.schema';
 @Module({
     imports: [
         ConfigModule,
+        AiProviderModule,
+        AtlasCurriculumModule,
         MongooseModule.forFeature([
             { name: StudentProgress.name, schema: StudentProgressSchema },
             { name: DailyChallenge.name, schema: DailyChallengeSchema },
@@ -23,7 +26,7 @@ import { User, UserSchema } from '../users/schemas/user.schema';
         ]),
     ],
     controllers: [GamificationController, AiController],
-    providers: [GamificationService, AiService],
-    exports: [GamificationService, AiService],
+    providers: [GamificationService],
+    exports: [GamificationService, AiProviderModule],
 })
 export class GamificationModule { }

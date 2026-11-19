@@ -60,6 +60,12 @@ export class EducationController {
         return this.educationService.getAllSubjects();
     }
 
+    @Get('subjects/managed')
+    @UseGuards(JwtAuthGuard)
+    getManagedSubjects(@Req() req: any, @Query('gradeId') gradeId?: string) {
+        return this.educationService.getManagedSubjects(req.user.userId, gradeId);
+    }
+
     @Post('subjects/batch')
     getSubjectsBatch(@Body('ids') ids: string[]) {
         return this.educationService.getSubjectsByIds(ids);
@@ -138,10 +144,7 @@ export class EducationController {
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.TEACHER, UserRole.ADMIN)
     createLiveClass(@Body() data: any, @Req() req) {
-        const teacherId = (req.user.role === UserRole.ADMIN && data.teacherId)
-            ? data.teacherId
-            : req.user.userId;
-        return this.educationService.createLiveClass(data, teacherId);
+        return this.educationService.createLiveClass(data, req.user.userId);
     }
 
     @Get('live-classes/teacher')
@@ -154,8 +157,8 @@ export class EducationController {
     @Get('live-classes')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.ADMIN)
-    getAllLiveClasses() {
-        return this.educationService.getAllLiveClasses();
+    getAllLiveClasses(@Req() req: any) {
+        return this.educationService.getAllLiveClasses(req.user.userId);
     }
 
     @Get('live-classes/student')
@@ -168,8 +171,8 @@ export class EducationController {
     @Delete('live-classes/:id')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.TEACHER, UserRole.ADMIN)
-    deleteLiveClass(@Param('id') id: string) {
-        return this.educationService.deleteLiveClass(id);
+    deleteLiveClass(@Param('id') id: string, @Req() req: any) {
+        return this.educationService.deleteLiveClass(id, req.user.userId);
     }
 
     // ─── VIDEOS ─────────────────────────────────────────
@@ -189,28 +192,29 @@ export class EducationController {
         if (req.user?.role === UserRole.STUDENT) {
             return this.educationService.getVideosForStudent(req.user.userId, query);
         }
-        return this.educationService.getVideos(query);
+        if (req.user?.role === UserRole.TEACHER) query.teacherId = req.user.userId;
+        return this.educationService.getVideos(query, req.user.userId);
     }
 
     @Patch('videos/:id')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.TEACHER, UserRole.ADMIN)
-    updateVideo(@Param('id') id: string, @Body() body: any) {
-        return this.educationService.updateVideo(id, body);
+    updateVideo(@Param('id') id: string, @Body() body: any, @Req() req: any) {
+        return this.educationService.updateVideo(id, body, req.user.userId);
     }
 
     @Delete('videos/:id')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.TEACHER, UserRole.ADMIN)
-    deleteVideo(@Param('id') id: string) {
-        return this.educationService.deleteVideo(id);
+    deleteVideo(@Param('id') id: string, @Req() req: any) {
+        return this.educationService.deleteVideo(id, req.user.userId);
     }
 
     @Post('videos/:id/view')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.TEACHER, UserRole.STUDENT, UserRole.ADMIN)
-    incrementVideoViews(@Param('id') id: string) {
-        return this.educationService.incrementVideoViews(id);
+    incrementVideoViews(@Param('id') id: string, @Req() req: any) {
+        return this.educationService.incrementVideoViews(id, req.user.userId);
     }
 
     // ─── ASSIGNMENTS ────────────────────────────────────
@@ -234,21 +238,21 @@ export class EducationController {
         if (req.user?.role === UserRole.TEACHER && !query.teacherId) {
             query.teacherId = req.user.userId;
         }
-        return this.educationService.getAssignments(query);
+        return this.educationService.getAssignments(query, req.user.userId);
     }
 
     @Patch('assignments/:id')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.TEACHER, UserRole.ADMIN)
-    updateAssignment(@Param('id') id: string, @Body() body: any) {
-        return this.educationService.updateAssignment(id, body);
+    updateAssignment(@Param('id') id: string, @Body() body: any, @Req() req: any) {
+        return this.educationService.updateAssignment(id, body, req.user.userId);
     }
 
     @Delete('assignments/:id')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.TEACHER, UserRole.ADMIN)
-    deleteAssignment(@Param('id') id: string) {
-        return this.educationService.deleteAssignment(id);
+    deleteAssignment(@Param('id') id: string, @Req() req: any) {
+        return this.educationService.deleteAssignment(id, req.user.userId);
     }
 
     @Post('assignments/submit')
@@ -313,15 +317,15 @@ export class EducationController {
     @Get('assignments/:id/submissions')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.TEACHER, UserRole.ADMIN)
-    getSubmissions(@Param('id') id: string) {
-        return this.educationService.getSubmissions(id);
+    getSubmissions(@Param('id') id: string, @Req() req: any) {
+        return this.educationService.getSubmissions(id, req.user.userId);
     }
 
     @Patch('submissions/:id/grade')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.TEACHER, UserRole.ADMIN)
-    gradeSubmission(@Param('id') id: string, @Body() body: any) {
-        return this.educationService.gradeSubmission(id, body.grade, body.feedback);
+    gradeSubmission(@Param('id') id: string, @Body() body: any, @Req() req: any) {
+        return this.educationService.gradeSubmission(id, body.grade, body.feedback, req.user.userId);
     }
 
     // ─── TEACHER ASSIGNMENTS ────────────────────────────
@@ -335,8 +339,8 @@ export class EducationController {
     @Get('teacher-assignments')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.ADMIN)
-    getTeacherAssignments(@Query() query) {
-        return this.educationService.getTeacherAssignments(query);
+    getTeacherAssignments(@Query() query, @Req() req: any) {
+        return this.educationService.getTeacherAssignments(query, req.user.userId);
     }
 
     @Get('teacher-assignments/mine')
@@ -398,21 +402,21 @@ export class EducationController {
         if (req.user.role === UserRole.TEACHER) {
             query.teacherId = req.user.userId;
         }
-        return this.educationService.getQuestions(query);
+        return this.educationService.getQuestions(query, req.user.userId);
     }
 
     @Patch('questions/:id')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.TEACHER, UserRole.ADMIN)
-    updateQuestion(@Param('id') id: string, @Body() body: any) {
-        return this.educationService.updateQuestion(id, body);
+    updateQuestion(@Param('id') id: string, @Body() body: any, @Req() req: any) {
+        return this.educationService.updateQuestion(id, body, req.user.userId);
     }
 
     @Delete('questions/:id')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.TEACHER, UserRole.ADMIN)
-    deleteQuestion(@Param('id') id: string) {
-        return this.educationService.deleteQuestion(id);
+    deleteQuestion(@Param('id') id: string, @Req() req: any) {
+        return this.educationService.deleteQuestion(id, req.user.userId);
     }
 
     // ─── SCHEDULES (Haftalık Ders Programı) ─────────────
@@ -426,8 +430,8 @@ export class EducationController {
     @Get('schedules')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.ADMIN)
-    getSchedules(@Query() query) {
-        return this.educationService.getSchedules(query);
+    getSchedules(@Query() query, @Req() req: any) {
+        return this.educationService.getSchedules(query, req.user.userId);
     }
 
     @Get('schedules/teacher')
@@ -460,11 +464,12 @@ export class EducationController {
 
     @Get('calendar/events')
     @UseGuards(JwtAuthGuard)
-    getCalendarEvents(@Query() query) {
+    getCalendarEvents(@Query() query, @Req() req: any) {
         return this.educationService.getCalendarEvents(
             Number(query.gradeLevel),
             query.startDate,
             query.endDate,
+            req.user,
         );
     }
 
@@ -511,28 +516,28 @@ export class EducationController {
         if (req.user.role === UserRole.TEACHER) {
             query.teacherId = req.user.userId;
         }
-        return this.educationService.getTests(query);
+        return this.educationService.getTests(query, req.user);
     }
 
     @Get('tests/:id')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.TEACHER, UserRole.ADMIN, UserRole.STUDENT)
-    getTestById(@Param('id') id: string) {
-        return this.educationService.getTestById(id);
+    getTestById(@Param('id') id: string, @Req() req: any) {
+        return this.educationService.getTestById(id, req.user);
     }
 
     @Patch('tests/:id')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.TEACHER, UserRole.ADMIN)
-    updateTest(@Param('id') id: string, @Body() body: any) {
-        return this.educationService.updateTest(id, body);
+    updateTest(@Param('id') id: string, @Body() body: any, @Req() req: any) {
+        return this.educationService.updateTest(id, body, req.user.userId);
     }
 
     @Delete('tests/:id')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.TEACHER, UserRole.ADMIN)
-    deleteTest(@Param('id') id: string) {
-        return this.educationService.deleteTest(id);
+    deleteTest(@Param('id') id: string, @Req() req: any) {
+        return this.educationService.deleteTest(id, req.user.userId);
     }
 
     @Post('tests/:id/submit')
@@ -547,13 +552,13 @@ export class EducationController {
     @Roles(UserRole.STUDENT, UserRole.TEACHER, UserRole.ADMIN)
     getTestResultForStudent(@Param('id') id: string, @Req() req) {
         const studentId = req.user.role === UserRole.STUDENT ? req.user.userId : req.query.studentId;
-        return this.educationService.getTestResultForStudent(id, studentId);
+        return this.educationService.getTestResultForStudent(id, studentId, req.user);
     }
 
     @Get('tests/:id/results')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.TEACHER, UserRole.ADMIN)
-    getTestResultsForTeacher(@Param('id') id: string) {
-        return this.educationService.getTestResultsForTeacher(id);
+    getTestResultsForTeacher(@Param('id') id: string, @Req() req: any) {
+        return this.educationService.getTestResultsForTeacher(id, req.user);
     }
 }

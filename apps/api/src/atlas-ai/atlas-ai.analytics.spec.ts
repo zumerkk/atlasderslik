@@ -90,6 +90,7 @@ describe('Atlas learning facts and student access', () => {
   let questions: ReturnType<typeof model>;
   let schedules: ReturnType<typeof model>;
   let liveClasses: ReturnType<typeof model>;
+  let subjects: ReturnType<typeof model>;
   const seedQuestions = (changes: Record<string, any> = {}) => {
     tests.find.mockReturnValue(
       query([{ _id: testId, subjectId, questionIds: [q1, q2, q3] }]),
@@ -123,6 +124,7 @@ describe('Atlas learning facts and student access', () => {
       questions,
       schedules,
       liveClasses,
+      subjects,
     ] = [
       'users',
       'studentenrollments',
@@ -134,6 +136,7 @@ describe('Atlas learning facts and student access', () => {
       'questions',
       'schedules',
       'liveclasses',
+      'subjects',
     ].map(model);
     service = new AtlasAnalyticsService(
       users as any,
@@ -146,9 +149,14 @@ describe('Atlas learning facts and student access', () => {
       questions as any,
       schedules as any,
       liveClasses as any,
+      subjects as any,
     );
+    subjects.find.mockReturnValue(query([
+      { _id: subjectId, gradeLevel: 8, isActive: true },
+      { _id: otherSubjectId, gradeLevel: 7, isActive: true },
+    ]));
     enrollments.find.mockReturnValue(
-      query([{ gradeId: { _id: gradeId, level: 8, label: '8 A' } }]),
+      query([{ gradeId: { _id: gradeId, level: 8, isActive: true, label: '8 A' } }]),
     );
     results.aggregate.mockReturnValue(
       query([
@@ -169,6 +177,84 @@ describe('Atlas learning facts and student access', () => {
     );
     submissions.aggregate.mockReturnValue(query([{ count: 12 }]));
     seedQuestions();
+  });
+
+  it.each([UserRole.STUDENT, UserRole.PARENT])('uses exact subject bindings for %s paid-cohort assignment and live metadata', async role => {
+    const bound = oid('31'), global = oid('32'), foreign = oid('33'), inactive = oid('34');
+    const actor = role === UserRole.STUDENT ? student : { _id: parentId, role };
+    if (role === UserRole.PARENT) users.find.mockReturnValue(query([student]));
+    enrollments.find.mockReturnValue(query([{ gradeId: { _id: gradeId, level: 8, isActive: true }, accessSource: 'package', packageGrants: [{ environment: 'live', startsAt: new Date('2026-01-01'), expiresAt: new Date('2030-01-01') }] }]));
+    teaching.find.mockReturnValue(query([{ gradeId, subjectId: global }, { gradeId, subjectId: foreign }]));
+    subjects.find.mockReturnValue(query([
+      { _id: bound, gradeId, gradeLevel: 8, isActive: true },
+      { _id: global, gradeLevel: 8, isActive: true },
+      { _id: otherSubjectId, gradeLevel: 8, isActive: true },
+      { _id: foreign, gradeId: otherGradeId, gradeLevel: 8, isActive: true },
+      { _id: inactive, gradeId, gradeLevel: 8, isActive: false },
+    ]));
+    await service.build(actor, role === UserRole.PARENT ? String(studentId) : undefined, now);
+    const assignmentScope = assignments.find.mock.calls[0][0].$and[0];
+    const liveScope = liveClasses.find.mock.calls[0][0];
+    for (const scope of [assignmentScope, liveScope]) {
+      expect(scope.$or[0].gradeId.$in).toEqual([gradeId]);
+      const legacy = scope.$or[2].$and[1].$or;
+      expect(legacy[0].$or.map(branch => branch.$and[0].$expr.$eq[1])).toEqual([String(bound), String(global)]);
+      expect(legacy[1].$and[0].$expr.$in[1]).toEqual([]);
+      for (const rejected of [otherSubjectId, foreign, inactive]) expect(JSON.stringify(legacy)).not.toContain(String(rejected));
+    }
+    expect(enrollments.find.mock.results[0].value.select).toHaveBeenCalledWith('gradeId accessSource packageGrants');
+  });
+
+  it.each(['manual', undefined])('keeps %s legacy level access without granting foreign-subject content', async source => {
+    enrollments.find.mockReturnValue(query([{ gradeId: { _id: gradeId, level: 8, isActive: true }, accessSource: source }]));
+    subjects.find.mockReturnValue(query([
+      { _id: subjectId, gradeLevel: 8, isActive: true },
+      { _id: otherSubjectId, gradeId: otherGradeId, gradeLevel: 8, isActive: true },
+    ]));
+    await service.build(student, undefined, now);
+    for (const scope of [assignments.find.mock.calls[0][0].$and[0], liveClasses.find.mock.calls[0][0]]) {
+      const legacy = scope.$or[2].$and[1].$or[0].$and;
+      expect(legacy[0].$expr.$in[1]).toEqual([8]);
+      expect(JSON.stringify(legacy[1])).toContain(String(subjectId));
+      expect(JSON.stringify(legacy[1])).not.toContain(String(otherSubjectId));
+    }
+  });
+
+  it.each([UserRole.STUDENT, UserRole.PARENT])('does not let an inactive or deleted Grade authorize %s analysis context', async role => {
+    const actor = role === UserRole.STUDENT ? student : { _id: parentId, role };
+    if (role === UserRole.PARENT) users.find.mockReturnValue(query([student]));
+    const rows = query([
+      { gradeId: { _id: gradeId, level: 8, label: 'CLOSED_CLASS', isActive: false }, accessSource: 'manual' },
+      { gradeId: null, accessSource: 'package' },
+      { gradeId, accessSource: 'manual' },
+      { gradeId: { _id: gradeId, level: 13, isActive: true }, accessSource: 'manual' },
+    ]);
+    enrollments.find.mockReturnValue(rows);
+    const result = await service.build(actor, role === UserRole.PARENT ? String(studentId) : undefined, now);
+    expect(rows.populate).toHaveBeenCalledWith({ path: 'gradeId', select: 'level label isActive', match: { isActive: true } });
+    expect(result.students[0].classes).toEqual([]);
+    for (const filter of [assignments.find.mock.calls[0][0].$and[0], liveClasses.find.mock.calls[0][0], schedules.find.mock.calls[0][0]]) {
+      expect(filter.$or[0].gradeId.$in).toEqual([]);
+      expect(filter.$or[1].$expr.$in[1]).toEqual([]);
+      expect(filter.$or[2].$and[1].$or[0].$and[0].$expr.$in[1]).toEqual([]);
+    }
+    expect(subjects.find).not.toHaveBeenCalled();
+  });
+
+  it.each([UserRole.STUDENT, UserRole.PARENT])('retains manual access without granting expired/future paid class context for %s', async role => {
+    const actor = role === UserRole.STUDENT ? student : { _id: parentId, role };
+    if (role === UserRole.PARENT) users.find.mockReturnValue(query([student]));
+    const futureGrade = oid('35');
+    enrollments.find.mockReturnValue(query([
+      { gradeId: { _id: gradeId, level: 8, label: 'Current manual', isActive: true }, accessSource: 'manual' },
+      { gradeId: { _id: otherGradeId, level: 8, label: 'Expired paid', isActive: true }, accessSource: 'package', packageGrants: [{ environment: 'live', startsAt: new Date('2000-01-01'), expiresAt: new Date('2001-01-01') }] },
+      { gradeId: { _id: futureGrade, level: 8, label: 'Future paid', isActive: true }, accessSource: 'package', packageGrants: [{ environment: 'live', startsAt: new Date('2099-01-01'), unlimited: true }] },
+    ]));
+    const result = await service.build(actor, role === UserRole.PARENT ? String(studentId) : undefined, now);
+    expect(result.students[0].classes).toEqual(['Current manual']);
+    for (const filter of [assignments.find.mock.calls[0][0].$and[0], liveClasses.find.mock.calls[0][0], schedules.find.mock.calls[0][0]])
+      expect(filter.$or[0].gradeId.$in).toEqual([gradeId]);
+    expect(enrollments.find.mock.calls[0][0].$and[1].$or[2].packageGrants.$elemMatch.startsAt.$lte).toEqual(now);
   });
 
   it('uses full monthly aggregates while calculating topics from answered questions', async () => {
@@ -414,6 +500,17 @@ describe('Atlas learning facts and student access', () => {
     expect(result.evidence.notes.join(' ')).toContain('öğretmen');
   });
 
+  it('does not grant a teacher foreign-bound subject data through an inconsistent class assignment', async () => {
+    teaching.find.mockReturnValue(query([{ gradeId, subjectId }]));
+    subjects.find.mockReturnValue(query([{ _id: subjectId, gradeId: otherGradeId, gradeLevel: 8, isActive: true }]));
+    enrollments.aggregate.mockReturnValue(query([{ _id: String(studentId) }]));
+    users.find.mockReturnValue(query([student]));
+    await service.build({ _id: teacherId, role: UserRole.TEACHER }, String(studentId), now);
+    expect(assignments.find.mock.calls[0][0].$and[0].$expr).toEqual({ $or: [] });
+    expect(results.aggregate.mock.calls[0][0]!.find(stage => stage.$match?.$expr).$match.$expr).toEqual({ $or: [] });
+    expect(submissions.aggregate.mock.calls[0][0]!.find(stage => stage.$match?.$expr).$match.$expr).toEqual({ $or: [] });
+  });
+
   it('keeps class/subject permissions paired and masks other courses while retaining every busy slot', async () => {
     teaching.find.mockReturnValue(
       query([
@@ -424,8 +521,8 @@ describe('Atlas learning facts and student access', () => {
     enrollments.aggregate.mockReturnValue(query([{ _id: String(studentId) }]));
     enrollments.find.mockReturnValue(
       query([
-        { gradeId: { _id: gradeId, level: 8, label: '8 A' } },
-        { gradeId: { _id: otherGradeId, level: 7, label: '7 B' } },
+        { gradeId: { _id: gradeId, level: 8, isActive: true, label: '8 A' } },
+        { gradeId: { _id: otherGradeId, level: 7, isActive: true, label: '7 B' } },
       ]),
     );
     users.find.mockReturnValue(query([student]));
@@ -499,8 +596,8 @@ describe('Atlas learning facts and student access', () => {
     enrollments.aggregate.mockReturnValue(query([{ _id: String(studentId) }]));
     enrollments.find.mockReturnValue(
       query([
-        { gradeId: { _id: gradeId, level: 8, label: '8 A' } },
-        { gradeId: { _id: otherGradeId, level: 7, label: 'PRIVATE_CLASS' } },
+        { gradeId: { _id: gradeId, level: 8, isActive: true, label: '8 A' } },
+        { gradeId: { _id: otherGradeId, level: 7, isActive: true, label: 'PRIVATE_CLASS' } },
       ]),
     );
     users.find.mockReturnValue(query([student]));

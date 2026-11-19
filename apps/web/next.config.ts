@@ -1,7 +1,23 @@
 import type { NextConfig } from "next";
+import { resolve } from "node:path";
+
+function requireHttpsApiRoot(value: string | undefined, key: string) {
+  try {
+    const url = new URL(value || "");
+    if (url.protocol === "https:" && !url.username && !url.password && !url.search && !url.hash && url.pathname === "/" && !/^(?:localhost|127\.|\[::1\])/i.test(url.hostname)) return;
+  } catch { /* The message intentionally does not print any configured value. */ }
+  throw new Error(`${key} must be the HTTPS root URL of the Atlas API for this deployment.`);
+}
+
+if (process.env.RENDER === "true" || ["production", "preview"].includes(process.env.VERCEL_ENV || "")) {
+  // Uploads and streaming must go directly to the long-running API, not through a serverless web function.
+  requireHttpsApiRoot(process.env.NEXT_PUBLIC_API_URL, "NEXT_PUBLIC_API_URL");
+  if (process.env.ATLAS_API_PROXY_URL) requireHttpsApiRoot(process.env.ATLAS_API_PROXY_URL, "ATLAS_API_PROXY_URL");
+}
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  outputFileTracingRoot: resolve(__dirname, "../.."),
   compress: true,
   poweredByHeader: false,
   reactStrictMode: true,

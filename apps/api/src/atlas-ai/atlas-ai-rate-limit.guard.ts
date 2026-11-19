@@ -18,8 +18,11 @@ export class AtlasAiRateLimitGuard implements CanActivate {
     const imageRequest = context.getHandler().name === 'chat' && request.body?.mode === 'image';
     // Images carry a separate, lower spend budget; reports don't consume chat quota.
     const progressRequest = context.getHandler().name === 'updatePlanProgress';
-    const operation = imageRequest ? 'image' : progressRequest ? 'progress' : context.getHandler().name === 'chat' ? 'chat' : 'learning';
-    const limit = imageRequest ? 3 : progressRequest ? 60 : 20;
+    const materialRequest = context.getClass().name === 'AtlasMaterialController' && context.getHandler().name === 'create';
+    const paidHelper = ['generateQuiz', 'getCoachTip', 'getStudyPlan'].includes(context.getHandler().name);
+    const dailyQuestion = ['getDailyChallenge', 'getOverview'].includes(context.getHandler().name);
+    const operation = paidHelper ? context.getHandler().name : dailyQuestion ? 'daily-question' : materialRequest ? 'material' : imageRequest ? 'image' : progressRequest ? 'progress' : context.getHandler().name === 'chat' ? 'chat' : 'learning';
+    const limit = paidHelper ? 2 : dailyQuestion ? 6 : materialRequest ? 2 : imageRequest ? 3 : progressRequest ? 60 : 20;
     const result = await this.storage.increment(
       `atlas-ai:${operation}:${userId}`,
       60000,

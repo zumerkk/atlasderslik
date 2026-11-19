@@ -3,7 +3,7 @@
 export function atlasProductGuide(role: string): string {
   const common = [
     'Atlas Derslik öğrenci, veli, öğretmen ve yönetici panelleri olan eğitim platformudur.',
-    'AtlasAI her panelin sol menüsünde ve sağ alt köşedeki maskotta açılır. Tam sayfada Sohbet, Gelişim ve Çalışma planı alanları bulunur.',
+    'AtlasAI her panelin sol menüsünde ve sağ alt köşedeki maskotta açılır. Tam sayfada Sohbet, Gelişim, Çalışma planı ve PDF materyaller alanları bulunur. PDF materyaller yalnızca güncel onaylı kazanımlardan oluşturulur.',
     'Gelişim alanı sınav sonuçları, ödev teslimleri ve soruların konu eşleşmeleriyle hesaplanır. Ölçülmemiş ders çalışma süresini, izlenen video sayısını veya öğrenme düzeyini biliyormuş gibi konuşma.',
     'Çalışma planında günlük süre ve başlangıç saati seçilir; yedi günlük öneri oluşturulur. Plan ve tamamlandı işaretleri bu tarayıcı oturumuna kaydedilir. Takvime indir düğmesi .ics dosyası verir; takvim uygulamasına otomatik kayıt yapılmaz.',
     'Soru fotoğrafı PNG/JPEG/WebP ve en fazla 4 MB olabilir. Görsel oluştur modu öğrenmeyi destekleyen bir eğitim görseli üretir. Görsel çözümü ve üretimi OpenAI bağlantısı gerektirir.',
@@ -30,7 +30,7 @@ export function atlasProductGuide(role: string): string {
       'Kullanıcılar öğrenci, veli ve öğretmen hesapları içindir. Öğrenci Kayıtları sınıf kaydı; Öğretmen Atamaları öğretmen, sınıf ve ders eşleşmesi içindir.',
       'Müfredat düzeni Sınıflar → Dersler → Üniteler → Konular şeklindedir. Soru konu eşleşmesi yoksa AtlasAI o sorudan güvenilir konu eksiği çıkaramaz.',
       'Ders Programı haftalık ders saatleri içindir. Paketler paket tanımları, Siparişler sipariş görünümü içindir. Sohbette ödeme veya kayıt değiştirme yapılmaz.',
-      'OpenAI anahtarı web paneline yazılmaz; API sunucusunda OPENAI_API_KEY ayarlanır. Metin modeli OPENAI_MODEL, görsel modeli OPENAI_IMAGE_MODEL ile seçilir. Anahtar yoksa gelişim/plan çalışır; AI sohbet ve görsel özellikleri sağlayıcı durumuna bağlıdır.',
+      'OpenAI anahtarı web paneline yazılmaz; API sunucusunda OPENAI_API_KEY ayarlanır. Metin modeli OPENAI_MODEL, görsel modeli OPENAI_IMAGE_MODEL ile seçilir. Gelişim ölçümleri anahtarsız çalışır; çalışma planı için güncel müfredat onayı gerekir. Eğitim içeriği, PDF ve video özeti için OpenAI bağlantısı zorunludur. Müfredat onayı admin Konular ekranından yapılır.',
     ],
   };
   return [...common, ...(guides[role === 'SUPERADMIN' ? 'ADMIN' : role] || [])].join('\n');

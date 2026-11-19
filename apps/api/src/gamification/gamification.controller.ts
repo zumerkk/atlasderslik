@@ -5,6 +5,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { GamificationService } from './gamification.service';
+import { AtlasAiRateLimitGuard } from '../atlas-ai/atlas-ai-rate-limit.guard';
 
 @SkipThrottle()
 @Controller('gamification')
@@ -15,6 +16,7 @@ export class GamificationController {
 
     /** Single round trip for the whole student dashboard. */
     @Get('overview')
+    @UseGuards(AtlasAiRateLimitGuard)
     getOverview(@Req() req: any) {
         return this.gamification.getOverview(req.user.userId);
     }
@@ -40,6 +42,7 @@ export class GamificationController {
     }
 
     @Get('daily-challenge')
+    @UseGuards(AtlasAiRateLimitGuard)
     getDailyChallenge(@Req() req: any) {
         return this.gamification.getDailyChallenge(req.user.userId);
     }
@@ -67,11 +70,13 @@ export class GamificationController {
     // ─── AI (key stays server-side) ─────────────────────
 
     @Get('ai/coach-tip')
+    @UseGuards(AtlasAiRateLimitGuard)
     getCoachTip(@Req() req: any) {
         return this.gamification.getCoachTip(req.user.userId);
     }
 
     @Get('ai/study-plan')
+    @UseGuards(AtlasAiRateLimitGuard)
     getStudyPlan(@Req() req: any) {
         return this.gamification.getStudyPlan(req.user.userId);
     }

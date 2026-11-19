@@ -1,76 +1,16 @@
-import { PublicHeader } from "@/components/layout/public-header";
-import { PublicFooter } from "@/components/layout/public-footer";
+import Link from "next/link";
+import { PublicLegalPage, LegalSection } from "@/components/legal/public-legal-page";
 
-export default function GizlilikPolitikasiPage() {
-    return (
-        <div className="flex flex-col min-h-screen">
-            <PublicHeader />
-            <main className="flex-1">
-                <section className="bg-gradient-to-br from-atlas-blue via-blue-600 to-atlas-indigo pt-32 pb-16">
-                    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-                        <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4">Gizlilik Politikası</h1>
-                        <p className="text-lg text-white/80 max-w-2xl mx-auto">
-                            Son güncelleme: Şubat 2025
-                        </p>
-                    </div>
-                </section>
+export const metadata = { title: "Gizlilik Politikası" };
 
-                <section className="py-20">
-                    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-                        <div className="bg-white rounded-2xl p-8 lg:p-12 border border-gray-100 shadow-sm prose prose-gray max-w-none">
-                            <h2 className="text-xl font-bold text-gray-900 mb-4">1. Genel Bilgilendirme</h2>
-                            <p className="text-gray-600 mb-6">
-                                Atlas Derslik (&quot;Platform&quot;) olarak kişisel verilerinizin korunmasına büyük önem veriyoruz.
-                                Bu gizlilik politikası, platformumuzu kullanırken toplanan, işlenen ve saklanan
-                                kişisel verileriniz hakkında sizi bilgilendirmek amacıyla hazırlanmıştır.
-                            </p>
-
-                            <h2 className="text-xl font-bold text-gray-900 mb-4">2. Toplanan Veriler</h2>
-                            <p className="text-gray-600 mb-4">Platformumuz aşağıdaki kişisel verileri toplayabilir:</p>
-                            <ul className="text-gray-600 mb-6 list-disc pl-5 space-y-2">
-                                <li>Ad, soyad ve iletişim bilgileri (e-posta, telefon)</li>
-                                <li>Eğitim bilgileri (sınıf, okul)</li>
-                                <li>Ders katılım ve performans verileri</li>
-                                <li>Ödeme bilgileri (ödeme hizmet sağlayıcısı aracılığıyla)</li>
-                                <li>Cihaz ve oturum bilgileri</li>
-                            </ul>
-
-                            <h2 className="text-xl font-bold text-gray-900 mb-4">3. Verilerin Kullanım Amacı</h2>
-                            <p className="text-gray-600 mb-4">Toplanan veriler aşağıdaki amaçlarla kullanılmaktadır:</p>
-                            <ul className="text-gray-600 mb-6 list-disc pl-5 space-y-2">
-                                <li>Eğitim hizmetinin sunulması ve iyileştirilmesi</li>
-                                <li>Öğrenci performansının takibi ve raporlanması</li>
-                                <li>Ödeme işlemlerinin gerçekleştirilmesi</li>
-                                <li>İletişim ve bilgilendirme</li>
-                                <li>Yasal yükümlülüklerin yerine getirilmesi</li>
-                            </ul>
-
-                            <h2 className="text-xl font-bold text-gray-900 mb-4">4. Verilerin Paylaşılması</h2>
-                            <p className="text-gray-600 mb-6">
-                                Kişisel verileriniz, yasal zorunluluklar dışında üçüncü taraflarla paylaşılmaz.
-                                Ödeme işlemleri için güvenli ödeme altyapı sağlayıcıları kullanılmaktadır.
-                            </p>
-
-                            <h2 className="text-xl font-bold text-gray-900 mb-4">5. Veri Güvenliği</h2>
-                            <p className="text-gray-600 mb-6">
-                                Kişisel verilerinizin güvenliğini sağlamak için endüstri standardı güvenlik
-                                önlemleri uygulanmaktadır. Veriler şifreli bağlantılar üzerinden iletilmekte
-                                ve güvenli sunucularda saklanmaktadır.
-                            </p>
-
-                            <h2 className="text-xl font-bold text-gray-900 mb-4">6. İletişim</h2>
-                            <p className="text-gray-600">
-                                Gizlilik politikamız hakkında sorularınız için{" "}
-                                <a href="mailto:info@atlasderslik.com" className="text-atlas-blue hover:underline">
-                                    info@atlasderslik.com
-                                </a>{" "}
-                                adresinden bizimle iletişime geçebilirsiniz.
-                            </p>
-                        </div>
-                    </div>
-                </section>
-            </main>
-            <PublicFooter />
-        </div>
-    );
+export default function PrivacyPage() {
+  return <PublicLegalPage document="privacy" intro="Hesap, eğitim, ödeme ve Atlas AI özelliklerinde kullanılan verilere ilişkin bilgi.">
+    <LegalSection title="1. Kapsam ve sorumlu işletme"><p>Atlas Derslik hizmetini işleten işletmenin kimlik ve iletişim bilgileri yukarıda gösterilir. Bu bildirim öğrenci, veli, öğretmen ve site ziyaretçilerine yöneliktir. Kişisel veri hakları ve başvuru usulü ayrıca <Link href="/kvkk">KVKK Aydınlatma Metni</Link> içinde açıklanır.</p></LegalSection>
+    <LegalSection title="2. İşlenen bilgi türleri"><ul><li>Hesap ve iletişim: ad, soyad, e-posta, telefon, hesap rolü, sınıf bilgisi ve öğrenci–veli bağlantısı.</li><li>Eğitim: sınıf kayıtları, ders programı, katılım, ödev, soru, test cevapları, sonuçlar ve gelişim raporları.</li><li>Alışveriş: alıcı bilgileri, ödeme adımında istenen kimlik numarası ve adres, seçilen öğrenci/paket, sipariş, ödeme/iade durumu ve sözleşme kabul kayıtları.</li><li>Kullanıcının sunduğu içerik: destek mesajları, sorular, yüklenen belgeler/görseller, öğretmenin yüklediği ders videoları ve oluşturulan özetler.</li><li>Teknik bilgiler: oturum bilgisi, IP adresi ve hizmetin çalışması/güvenliği için tutulan işlem kayıtları.</li></ul><p>Tam kart numarası ve CVV, Atlas Derslik sipariş veritabanına kaydedilmez; kart girişi ödeme kuruluşunun ekranında yapılır.</p></LegalSection>
+    <LegalSection title="3. Kullanım amaçları ve erişim"><p>Bilgiler; hesap açılması, kimlik ve yetki kontrolü, eğitim erişiminin sağlanması, veli takibi, ödeme/sipariş yönetimi, destek, güvenlik ve kanuni yükümlülükler için kullanılır. Yetkili öğretmenler atandıkları sınıflarla, veliler bağlı öğrencilerle, öğrenciler kendi erişimleriyle ilgili bilgilere ulaşır. Kurum yönetimi hizmetin yürütülmesi için gerekli kayıtlara erişir.</p></LegalSection>
+    <LegalSection title="4. Atlas AI ve ders videoları"><p>Atlas AI isteği oluşturulduğunda, gönderdiğiniz soru, ilgili konuşma bağlamı, eklediğiniz görseller ve ilgili müfredat bilgileri yanıt üretimi için OpenAI hizmetine iletilebilir. Yapılandırılmış diğer yapay zekâ sağlayıcıları etkinleştirilmiş bazı metin özelliklerinde kullanılabilir.</p><p>Yüklenmiş ders videosunun özeti istendiğinde videodan çıkarılan ses parçaları yazıya dönüştürme için, sınırlı sayıda örnek kare ise görsel inceleme için OpenAI&apos;a gönderilir. Tam sesin işlenmesi ve kare örneklemesi, videonun her anındaki görüntünün incelendiği anlamına gelmez. Kaynak video ve özet iş kayıtları hizmetin depolama altyapısında tutulur.</p><p>Yapay zekâya gereksiz kimlik, iletişim, sağlık veya başka hassas bilgiler göndermeyin. Yanıtlar hata içerebilir; öğretmen değerlendirmesinin yerini almaz. Tüm canlı derslerin otomatik olarak kaydedildiği varsayılmamalıdır.</p></LegalSection>
+    <LegalSection title="5. Hizmet sağlayıcılar ve yurt dışı işleme"><p>Hizmetin ilgili kısmı için gerekli bilgiler ödeme kuruluşu iyzico, barındırma/depolama altyapısı, canlı ders aracı kullanılıyorsa Zoom ve yapay zekâ sağlayıcılarıyla işlenebilir. Yasal yükümlülük bulunduğunda yetkili kurumlara bilgi verilebilir. Her özellik bütün bu sağlayıcılara veri göndermez.</p><p>Özellikle OpenAI ve diğer yabancı hizmetlerin kullanımı yurt dışında veri işlenmesini içerebilir. Aktarımın hukuki koşulları <Link href="/kvkk">KVKK metninde</Link> açıklanır; bu politika tüm verilerin Türkiye&apos;de kaldığı veya bir sağlayıcının hiç veri saklamadığı güvencesini vermez.</p></LegalSection>
+    <LegalSection title="6. Tarayıcı depolaması ve güvenlik"><p>Tarayıcıdaki yerel ve oturum depolaması, giriş oturumunun sürdürülmesi, arayüz tercihleri ve verilerin geçici önbelleği için kullanılabilir. Ortak cihazlarda oturumu kapatın; şifrenizi ve oturum bilgilerinizi paylaşmayın. Yetki kontrolleri ve işlem sınırları uygulanır; hiçbir internet hizmeti için mutlak güvenlik taahhüdü verilemez.</p></LegalSection>
+    <LegalSection title="7. Saklama ve talepler"><p>Hesap/eğitim verileri hizmet amacı ve gerekli süreler; sipariş, ödeme ve kabul kayıtları kanuni yükümlülükler ve uyuşmazlıkların çözümü için saklanır. Hesabı kapatmak yasal saklama zorunluluğundaki bütün kayıtların hemen silinmesi anlamına gelmez. Veri türüne özgü saklama bilgisi, erişim/düzeltme/silme veya bilgi talebi için <Link href="/iletisim">resmî iletişim kanallarından</Link> başvurabilirsiniz.</p><p>Bu bildirimin okunduğuna ilişkin kayıt; isteğe bağlı pazarlama, hassas veri işleme veya yurt dışı aktarımı için kendiliğinden açık rıza oluşturmaz.</p></LegalSection>
+  </PublicLegalPage>;
 }

@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
+import { AddToCartLink } from "@/components/commerce/add-to-cart-link";
 import { Button } from "@/components/ui/button";
 import { ApiStatus, PackageSkeleton } from "@/components/ui/api-status";
 import { CheckCircle2, ArrowRight, Crown, Star } from "lucide-react";
+import { apiGet } from "@/lib/api";
+import { commerceJson, money, PERIOD_LABELS, type CommercePackage } from "@/lib/commerce";
 
 const COLORS = [
     { color: "from-sky-500 to-blue-600" },
@@ -18,104 +21,30 @@ const BADGE_STYLES: Record<string, string> = {
     "En Popüler": "bg-gradient-to-r from-emerald-500 to-teal-500",
 };
 
-const PACKAGES_CACHE_KEY = "atlas_packages_cache";
-const PACKAGES_CACHE_TTL = 1000 * 60 * 30; // 30 minutes
-
-function getCachedPackages(): any[] | null {
-    if (typeof window === "undefined") return null;
-    try {
-        const raw = localStorage.getItem(PACKAGES_CACHE_KEY);
-        if (!raw) return null;
-        const { data, ts } = JSON.parse(raw);
-        if (Date.now() - ts > PACKAGES_CACHE_TTL) return null;
-        return data;
-    } catch {
-        return null;
-    }
-}
-
-function setCachedPackages(data: any[]) {
-    if (typeof window === "undefined") return;
-    try {
-        localStorage.setItem(PACKAGES_CACHE_KEY, JSON.stringify({ data, ts: Date.now() }));
-    } catch { /* quota exceeded — ignore */ }
-}
-
-export function HomePackages({ initialPackages }: { initialPackages: any[] }) {
-    const [homePackages, setHomePackages] = useState<any[]>(initialPackages);
+export function HomePackages({ initialPackages }: { initialPackages: CommercePackage[] }) {
+    const [homePackages, setHomePackages] = useState<CommercePackage[]>(initialPackages);
     const [pkgLoading, setPkgLoading] = useState(initialPackages.length === 0);
-    const [retryAttempt, setRetryAttempt] = useState(0);
     const [fetchFailed, setFetchFailed] = useState(false);
-
+    const request = useRef<AbortController | null>(null);
     const fetchPackages = useCallback(async () => {
-        if (initialPackages.length > 0) return;
-
-        setPkgLoading(true);
-        setFetchFailed(false);
-        setRetryAttempt(0);
-
-        const cached = getCachedPackages();
-        if (cached && cached.length > 0) {
-            setHomePackages(cached);
-            setPkgLoading(false);
-        }
-
-        const maxRetries = 3;
-        const timeout = 15000;
-
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), timeout);
-
-            try {
-                const res = await fetch(
-                    `${process.env.NEXT_PUBLIC_API_URL}/packages/active`,
-                    { cache: "no-store", signal: controller.signal }
-                );
-                clearTimeout(timeoutId);
-
-                if (res.ok) {
-                    const data = await res.json();
-                    const sliced = data.slice(0, 4);
-                    setHomePackages(sliced);
-                    setCachedPackages(sliced);
-                    setPkgLoading(false);
-                    setRetryAttempt(0);
-                    setFetchFailed(false);
-                    return;
-                }
-            } catch {
-                clearTimeout(timeoutId);
-            }
-
-            if (attempt < maxRetries) {
-                setRetryAttempt(attempt);
-                if (!cached || cached.length === 0) {
-                    setPkgLoading(true);
-                }
-                await new Promise((r) => setTimeout(r, 2000 * Math.pow(2, attempt - 1)));
-            }
-        }
-
-        setFetchFailed(true);
-        setPkgLoading(false);
-    }, [initialPackages]);
-
-    useEffect(() => {
-        fetchPackages();
-    }, [fetchPackages]);
+        request.current?.abort(); const controller = new AbortController(); request.current = controller;
+        setPkgLoading(true); setFetchFailed(false);
+        try {
+            const data = await commerceJson<CommercePackage[]>(await apiGet("/packages/active", { skipAuth: true, signal: controller.signal, retries: 0, timeout: 45000 }), "Paketler alınamadı.");
+            if (!Array.isArray(data)) throw new Error("Paket listesi doğrulanamadı.");
+            if (!controller.signal.aborted) setHomePackages(data.slice(0, 4));
+        } catch { if (!controller.signal.aborted) { setHomePackages([]); setFetchFailed(true); } }
+        finally { if (!controller.signal.aborted) setPkgLoading(false); }
+    }, []);
+    useEffect(() => { void fetchPackages(); return () => request.current?.abort(); }, [fetchPackages]);
 
     return (
         <>
-            {retryAttempt > 0 && homePackages.length === 0 && (
-                <ApiStatus retryAttempt={retryAttempt} maxRetries={3} />
-            )}
-
             {fetchFailed && homePackages.length === 0 && (
                 <ApiStatus failed onRetry={fetchPackages} />
             )}
 
-            {pkgLoading && homePackages.length === 0 && !fetchFailed && retryAttempt === 0 ? (
+            {pkgLoading && homePackages.length === 0 && !fetchFailed ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
                     {[...Array(4)].map((_, i) => (
                         <PackageSkeleton key={i} />
@@ -127,7 +56,7 @@ export function HomePackages({ initialPackages }: { initialPackages: any[] }) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
                     {homePackages.map((pkg, idx) => {
                         const ci = COLORS[idx % COLORS.length];
-                        const badgeStyle = BADGE_STYLES[pkg.badge] || BADGE_STYLES["En Popüler"];
+                        const badgeStyle = BADGE_STYLES[pkg.badge || ""] || BADGE_STYLES["En Popüler"];
                         return (
                             <div
                                 key={pkg._id}
@@ -145,8 +74,8 @@ export function HomePackages({ initialPackages }: { initialPackages: any[] }) {
                                 <div className={`bg-gradient-to-r ${ci.color} px-5 py-4`}>
                                     <h3 className="text-base font-bold text-white mb-2">{pkg.name}</h3>
                                     <div className="flex items-baseline gap-1">
-                                        <span className="text-2xl font-extrabold text-white">{pkg.price.toLocaleString("tr-TR")} TL</span>
-                                        <span className="text-white/70 text-xs font-medium">/ Ay</span>
+                                        <span className="text-2xl font-extrabold text-white">{money(pkg.price)}</span>
+                                        <span className="text-white/70 text-xs font-medium">{PERIOD_LABELS[pkg.period]}</span>
                                     </div>
                                 </div>
 
@@ -170,12 +99,7 @@ export function HomePackages({ initialPackages }: { initialPackages: any[] }) {
                                 </div>
 
                                 <div className="px-5 pb-5">
-                                    <Link href="/packages">
-                                        <Button className={`w-full bg-gradient-to-r ${ci.color} hover:opacity-90 text-white py-4 text-sm font-semibold shadow-md transition-all`}>
-                                            Detayları Gör
-                                            <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-                                        </Button>
-                                    </Link>
+                                    <AddToCartLink packageId={pkg._id} className={`w-full bg-gradient-to-r ${ci.color} hover:opacity-90 text-white py-4 text-sm font-semibold shadow-md transition-all`}>Sepete ekle<ArrowRight className="ml-1.5 h-3.5 w-3.5" /></AddToCartLink><Link href={`/packages/${encodeURIComponent(pkg._id)}`} className="mt-3 block text-center text-sm text-atlas-blue underline">Paket ayrıntıları</Link>
                                 </div>
                             </div>
                         );

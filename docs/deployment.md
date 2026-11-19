@@ -1,0 +1,21 @@
+# Atlas Derslik yayın hazırlığı
+
+Bu belge depo tanımlarını açıklar. Barındırma hesabına bağlanıldığı, yeni kodun canlıya alındığı, bir ödeme başlatıldığı veya OpenAI isteği yapıldığı anlamına gelmez.
+
+## Render
+
+`render.yaml` iki Node servisi tanımlar. Her ikisinin kökü depo kökü olmalıdır: API ve web derlemesi `packages/` ve workspace kilit dosyasını kullanır. Mevcut Dashboard servisinde daha önce `apps/api` veya `apps/web` Root Directory olarak ayarlandıysa, bu ayarı kontrol edin ve Blueprint komutlarıyla uyumlu olarak kökü boş/depo kökü bırakın. [Render monorepo desteği](https://render.com/docs/monorepo-support).
+
+Build komutları Node 22 ve pnpm 10.2.0 ile kilitli workspace bağımlılıklarını, derleme için gereken geliştirme bağımlılıklarıyla birlikte kurar. API çıktısında `dist/main.js` ve çalıştırılabilir FFmpeg/FFprobe; web çıktısında Next standalone sunucusu ve genel/statik dosyalar kontrol edilir. Başlangıç komutları depo kökünden başlar, API kendi çalışma klasörüne geçer. Render `PORT` değerini sağlar. Üretimde API başlangıcı geçerli `MONGO_URI`, özel ve en az 32 karakterli `JWT_SECRET` ve gerçek HTTPS `CORS_ORIGIN` listesini ister; hata mesajları yapılandırma değerlerini yazmaz. `TRUST_PROXY_HOPS` doğrudan sunucuda varsayılan `0`, Render şablonunda `1` olarak ayarlanır. Gerçek proxy topolojisi değişirse değeri yeniden kontrol edin.
+
+Web için `NEXT_PUBLIC_API_URL` derleme sırasında dışarıdan erişilebilir API'nin HTTPS kök adresi olmalıdır. Bu bir tarayıcı ayarıdır; sır içermez. `CORS_ORIGIN`, yalnız gerçek web alan adlarını veya izin verilen önizleme adreslerini içermelidir. Ödeme, OpenAI ve satıcı kimliği ayarları ilgili API servisindedir; yapılandırma hazır görünse bile gerçek sağlayıcı onayı ve işlem doğrulaması ayrı kalır. [Ticaret hazırlığı](commerce.md).
+
+İlk yayında üretim API'sinde `PAYMENT_CHECKOUT_ENABLED` ve `ATLAS_OPENAI_ENABLED` boş veya `false` kalabilir. Bu durumda üyelik, katalog, sepet ve yönetim ekranları kullanılabilir; yeni ödeme formu ve ücretli AtlasAI üretimi açılmaz. Mevcut ödeme bildirimlerinin doğrulanması için kullanılan sağlayıcı ayarlarını koruyun. Ödeme bayrağını işyeri onayı ve testten sonra, AtlasAI bayrağını yeni sunucu anahtarı ve güncel müfredat kontrolünden sonra açın. İlk dağıtımı API ile başlatın; sağlık kontrolü 200, misafir sepeti 401 ve ödeme durumu `canAcceptPayments: false` olduktan sonra web sürümüne geçin. Önceki başarılı dağıtım kimliklerini geri dönüş için kaydedin.
+
+Render video diski `/var/data` yoluna bağlanır; video dosyaları `/var/data/atlas-videos` altındadır. Disk yalnız çalışma sırasında kullanılabilir. Bir Render diskine bağlı servis tek örnekle çalışır; MongoDB işi kalıcı tutar ama videonun kendisi disktedir. Diskli dağıtım sırasında kısa kesinti olabilir. Disk ve veritabanı yedeği birlikte ele alınmalıdır. [Render kalıcı diskler](https://render.com/docs/disks) · [Video kurulum ayrıntıları](lesson-video.md).
+
+## Vercel ve Docker sınırları
+
+Bu depoda Vercel için ayrı bir API dağıtım tanımı veya hazır bir Dockerfile yoktur. Vercel kullanılıyorsa Next web uygulamasını monorepo projesi olarak `apps/web` ile bağlayın ve ortak workspace kaynaklarının derlemede erişilebilir olduğunu doğrulayın. API ve video işçisi uzun süre çalışan ayrı bir sunucuda kalmalıdır. Video yükleme ve oynatma tarayıcıdan doğrudan HTTPS API'ye gider; Vercel Function üzerinden taşınırsa işlevin istek/yanıt boyutu sınırına takılır. [Vercel monorepo desteği](https://vercel.com/docs/monorepos) · [Vercel Functions sınırları](https://vercel.com/docs/functions/limitations).
+
+Kurum kendi Docker görüntüsünü hazırlarsa bağımlılıkları hedef Linux mimarisi için görüntü içinde kurmalı, Mac/Windows `node_modules` kopyalamamalıdır. FFmpeg ve FFprobe paketleri kurulumda doğrulanmalı veya görüntüde sistem paketleri kurulup iki mutlak yol API'ye verilmelidir. Video dizini image/container katmanında ya da `tmpfs` üzerinde bırakılmamalıdır; çalışma sırasında ayrı yazılabilir bir volume olarak bağlanmalıdır. Mevcut dosya adaptörü, bağımsız diskleri olan birden fazla API örneği için uygun değildir.
