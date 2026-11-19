@@ -3,6 +3,8 @@ services:
   - type: web
     name: atlasderslik-api
     runtime: node
+    rootDir: .
+    autoDeployTrigger: "off"
     region: frankfurt
     plan: starter
     # Shared workspace files must be visible during the build.
@@ -31,7 +33,7 @@ services:
       - key: OPENAI_API_KEY
         sync: false  # AtlasAI text + image reasoning; API service only
       - key: ATLAS_OPENAI_ENABLED
-        sync: false  # Production defaults to off; enable only after a verified key and content review
+        value: "false"  # Enable in the API environment after verifying the key and curriculum
       - key: OPENAI_MODEL
         value: gpt-6-luna
       - key: OPENAI_IMAGE_MODEL
@@ -61,7 +63,7 @@ services:
       - key: IYZICO_BASE_URL
         sync: false
       - key: PAYMENT_CHECKOUT_ENABLED
-        sync: false  # Production defaults to off; existing callbacks remain available
+        value: "false"  # Enable after merchant approval; existing callbacks remain available
       - key: PAYMENT_CALLBACK_URL
         sync: false
       - key: FRONTEND_URL
@@ -97,6 +99,8 @@ services:
   - type: web
     name: atlasderslik-web
     runtime: node
+    rootDir: .
+    autoDeployTrigger: "off"
     region: frankfurt
     plan: starter
     buildCommand: npm install -g pnpm@10.2.0 && pnpm install --frozen-lockfile --prod=false && pnpm --filter @repo/shared build && pnpm --filter @repo/ui build && pnpm --filter web build && node scripts/check-render-artifact.cjs web
