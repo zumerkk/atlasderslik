@@ -1,11 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none">
-  <title>Atlas Derslik</title>
-  <rect width="256" height="256" rx="64" fill="#102D35"/>
-  <path d="M78 113C49 95 40 74 46 49M60 91L72 57M60 91L35 73M178 113C207 95 216 74 210 49M196 91L184 57M196 91L221 73" stroke="#5EE6AD" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M84 116L55 108C55 131 67 141 86 143M172 116L201 108C201 131 189 141 170 143" fill="#5EE6AD"/>
-  <path d="M128 107C103 107 81 128 84 156L91 183L128 219L165 183L172 156C175 128 153 107 128 107Z" fill="#F1FAF6"/>
-  <path d="M128 107V207L150 183L144 158Z" fill="#C2E6DC"/>
-  <path d="M101 153L108 160M155 153L148 160" stroke="#102D35" stroke-width="10" stroke-linecap="round"/>
-  <path d="M117 186Q128 179 139 186L128 197Z" fill="#102D35"/>
-  <path d="M128 38L135 61L158 68L135 75L128 98L121 75L98 68L121 61Z" fill="#F8CA6B"/>
+  <title>Atlas Derslik - kitap ve yıldız</title>
+  <rect width="256" height="256" rx="64" fill="#E5F7F2"/>
+  <path d="M128 113C102 94 74 93 42 102V197C74 188 103 193 128 212C153 193 182 188 214 197V102C182 93 154 94 128 113Z" fill="#16A394"/>
+  <path d="M128 107C104 90 76 89 48 96V184C77 179 104 185 128 202Z" fill="#FFFFFF" stroke="#155E68" stroke-width="9" stroke-linejoin="round"/>
+  <path d="M128 107C152 90 180 89 208 96V184C179 179 152 185 128 202Z" fill="#F7FFFC" stroke="#155E68" stroke-width="9" stroke-linejoin="round"/>
+  <path d="M128 109V201" stroke="#155E68" stroke-width="8" stroke-linecap="round"/>
+  <path d="M69 122C81 121 92 124 103 130M69 146C81 145 92 148 103 154" stroke="#69C7B9" stroke-width="8" stroke-linecap="round"/>
+  <path d="M154 130C165 124 177 122 188 123M154 154C165 148 177 146 188 147" stroke="#69C7B9" stroke-width="8" stroke-linecap="round"/>
+  <path d="M184 32L193 52L215 55L199 71L202 93L184 82L165 93L169 71L153 55L175 52Z" fill="#F7BE4F" stroke="#FFFFFF" stroke-width="5" stroke-linejoin="round"/>
 </svg>
