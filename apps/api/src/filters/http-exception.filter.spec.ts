@@ -29,4 +29,19 @@ describe('API error disclosure boundary', () => {
             statusCode: 429, message: 'Kullanım bütçesi doldu.', error: 'Too Many Requests', path: '/payment/callback',
         }));
     });
+
+    it('preserves actionable AtlasAI codes without exposing arbitrary exception data', () => {
+        const { response, host } = context();
+        new GlobalExceptionFilter().catch(new HttpException({
+            message: 'Daha net bir soru fotoğrafı yükleyin.', code: 'ATLAS_INPUT_UNREADABLE', privateData: 'private-fixture',
+        }, 400), host);
+        expect(response.json.mock.calls[0][0]).toMatchObject({ statusCode: 400, code: 'ATLAS_INPUT_UNREADABLE' });
+        expect(JSON.stringify(response.json.mock.calls)).not.toContain('private-fixture');
+    });
+
+    it.each(['PRIVATE_SECRET', 'ATLAS_bad', 'ATLAS_' + 'A'.repeat(71), { secret: 'private-fixture' }])('omits an unrecognized error code', code => {
+        const { response, host } = context();
+        new GlobalExceptionFilter().catch(new HttpException({ message: 'İstek tamamlanamadı.', code }, 503), host);
+        expect(response.json.mock.calls[0][0]).not.toHaveProperty('code');
+    });
 });

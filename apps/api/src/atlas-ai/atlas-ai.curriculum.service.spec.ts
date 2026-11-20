@@ -18,7 +18,7 @@ describe('AtlasCurriculumService server-enforced boundary', () => {
   let users: ReturnType<typeof model>, enrollments: ReturnType<typeof model>, teaching: ReturnType<typeof model>, grades: ReturnType<typeof model>, subjects: ReturnType<typeof model>, units: ReturnType<typeof model>, topics: ReturnType<typeof model>, entries: ReturnType<typeof model>;
   let approved: any;
   beforeEach(() => {
-    ai = { isOpenAiConfigured: true, chatStructured: jest.fn() };
+    ai = { isOpenAiConfigured: true, reviewModel: 'gpt-6-sol', chatStructured: jest.fn() };
     [users, enrollments, teaching, grades, subjects, units, topics, entries] = Array.from({ length: 8 }, model);
     users.findById.mockImplementation(key => query({ _id: new Types.ObjectId(String(key)), role: UserRole.STUDENT, isActive: true }));
     enrollments.find.mockReturnValue(query([{ gradeId }]));
@@ -30,6 +30,198 @@ describe('AtlasCurriculumService server-enforced boundary', () => {
     approved.contentHash = curriculumContentHash(approved); approved.approvedHash = approved.contentHash;
     entries.find.mockReturnValue(query([approved]));
     service = new AtlasCurriculumService(ai, users as any, enrollments as any, teaching as any, grades as any, subjects as any, units as any, topics as any, entries as any);
+  });
+
+  function subjectProgramFixture(level: number, subjectName: string, program: 'TYMM' | 'PREVIOUS') {
+    grades.find.mockReturnValue(query([{ _id: gradeId, level, label: 'A' }]));
+    grades.findById.mockReturnValue(query({ _id: gradeId, level, isActive: true }));
+    subjects.findById.mockReturnValue(query({ _id: subjectId, name: subjectName, gradeId, gradeLevel: level, isActive: true }));
+    Object.assign(approved, { gradeLevel: level, subjectName, program });
+    approved.contentHash = curriculumContentHash(approved);
+    approved.approvedHash = approved.contentHash;
+  }
+
+  it('routes current and historical photos plus every content review to the server review model', async () => {
+    const scope = await service.requireScope(actorId);
+    const matchedOutcomeIds = [scope.outcomes[0].id];
+    ai.chatStructured.mockResolvedValue({ allowed: true, matchedOutcomeIds, confidence: .98 });
+    expect((await service.assertRequest(scope, { message: 'Üslü ifadeleri çalışalım.' })).allowed).toBe(true);
+    expect(ai.chatStructured.mock.calls.at(-1)[0].model).toBeUndefined();
+    const image = 'data:image/png;base64,c3ludGhldGlj';
+    expect((await service.assertRequest(scope, { message: 'Fotoğraftaki soruyu incele.', image })).allowed).toBe(true);
+    expect(ai.chatStructured.mock.calls.at(-1)[0]).toMatchObject({ model: 'gpt-6-sol', images: [image] });
+    expect((await service.assertRequest(scope, { message: 'Önceki fotoğrafı karşılaştır.', history: [{ role: 'user', content: 'Sorum', image }] })).allowed).toBe(true);
+    expect(ai.chatStructured.mock.calls.at(-1)[0]).toMatchObject({ model: 'gpt-6-sol', images: [image] });
+    expect(await service.verifyContent(scope, 'Üslü ifadeleri karşılaştıralım.', matchedOutcomeIds)).toBe(true);
+    expect(ai.chatStructured.mock.calls.at(-1)[0].model).toBe('gpt-6-sol');
+    ai.chatStructured.mockResolvedValue({ allowed: false, matchedOutcomeIds: [], confidence: .99 });
+    expect(await service.verifyContent(scope, 'Müfredat dışında üniversite integralleri.', matchedOutcomeIds)).toBe(false);
+    expect(ai.chatStructured.mock.calls.at(-1)[0].model).toBe('gpt-6-sol');
+  });
+
+  it.each([
+    [8, 'Fen Bilimleri', 'F.8.3.1.2', true],
+    [8, 'Fen Bilimleri', ' f.8.3.1.2 ', true],
+    [8, 'FEN BİLİMLERİ', 'F.8.3.1.2', true],
+    [7, 'Fen Bilimleri', 'F.8.3.1.2', false],
+    [8, 'Matematik', 'F.8.3.1.2', false],
+    [8, 'Fen Bilimleri', 'F.8.3.1.1', false],
+    [8, 'Fen Bilimleri', 'F.8.3.1.20', false],
+  ] as const)('clarifies qualitative pressure only for the approved grade %s %s outcome %s', async (level, subjectName, code, expected) => {
+    subjectProgramFixture(level, subjectName, level === 7 ? 'TYMM' : 'PREVIOUS');
+    approved.outcomes = [{ code, text: 'Sıvı basıncını etkileyen değişkenleri açıklar. Matematiksel bağıntılara girilmez.' }];
+    approved.contentHash = curriculumContentHash(approved); approved.approvedHash = approved.contentHash;
+    const scope = await service.requireScope(actorId);
+    const decision = { allowed: true, matchedOutcomeIds: [scope.outcomes[0].id], confidence: .98 };
+    ai.chatStructured.mockResolvedValue(decision);
+    await service.assertRequest(scope, { message: 'Sıvı derinliği ile basıncı nitel karşılaştır.' });
+    await service.verifyContent(scope, 'Derinlik arttıkça sıvı basıncı artar.', [scope.outcomes[0].id]);
+    for (const [options] of ai.chatStructured.mock.calls) {
+      expect(options.system.includes('nitel derinlik/basınç kıyasları')).toBe(expected);
+      if (expected) {
+        expect(options.system).toContain('sayısal ölçeksiz basınç-zaman grafiği');
+        expect(options.system).toContain('h/P büyük-küçük sıralaması');
+        expect(options.system).toContain('P=ρgh gibi cebirsel basınç yasaları');
+        expect(options.system).toContain('gaz basıncını etkileyen değişkenleri');
+      }
+    }
+  });
+
+  it('does not apply the pressure clarification to an output matched only to another approved outcome', async () => {
+    subjectProgramFixture(8, 'Fen Bilimleri', 'PREVIOUS');
+    approved.outcomes = [
+      { code: 'F.8.3.1.2', text: 'Sıvı basıncını etkileyen değişkenleri açıklar.' },
+      { code: 'F.8.1.1.1', text: 'Mevsimlerin oluşumunu açıklar.' },
+    ];
+    approved.contentHash = curriculumContentHash(approved); approved.approvedHash = approved.contentHash;
+    const scope = await service.requireScope(actorId);
+    const selected = scope.outcomes[1].id;
+    ai.chatStructured.mockResolvedValue({ allowed: true, matchedOutcomeIds: [selected], confidence: .98 });
+    expect(await service.verifyContent(scope, 'Mevsimleri öğrenelim.', [selected])).toBe(true);
+    const options = ai.chatStructured.mock.calls[0][0];
+    expect(options.system).not.toContain('nitel derinlik/basınç kıyasları');
+    expect(JSON.parse(options.user).approvedTopics[0].outcomes.map(outcome => outcome.id)).toEqual([selected]);
+  });
+
+  it('keeps pressure algebra and unsupported advanced content subject to rejection and the existing confidence threshold', async () => {
+    subjectProgramFixture(8, 'Fen Bilimleri', 'PREVIOUS');
+    approved.outcomes = [{ code: 'F.8.3.1.2', text: 'Sıvı basıncını etkileyen değişkenleri açıklar.' }];
+    approved.contentHash = curriculumContentHash(approved); approved.approvedHash = approved.contentHash;
+    const scope = await service.requireScope(actorId);
+    ai.chatStructured.mockResolvedValue({ allowed: false, matchedOutcomeIds: [], confidence: .99 });
+    expect((await service.assertRequest(scope, { message: 'Basıncı P=rho*g*h ile sayısal hesapla ve gaz basıncı değişkenlerini anlat.' })).allowed).toBe(false);
+    expect(await service.verifyContent(scope, 'Üniversite düzeyinde akışkanlar mekaniği.')).toBe(false);
+    ai.chatStructured.mockResolvedValue({ allowed: true, matchedOutcomeIds: [scope.outcomes[0].id], confidence: .89 });
+    expect((await service.assertRequest(scope, { message: 'Derinlikleri karşılaştır.' })).allowed).toBe(false);
+    expect(await service.verifyContent(scope, 'Derinlik arttıkça basınç artar.')).toBe(false);
+    ai.chatStructured.mockClear();
+    const noApproval = { ...scope, topics: [], outcomes: [] };
+    expect((await service.assertRequest(noApproval, { message: 'Basınç grafiğini çiz.' })).allowed).toBe(false);
+    expect(await service.verifyContent(noApproval, 'Derinlikleri karşılaştır.')).toBe(false);
+    expect(ai.chatStructured).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [5, 'İngilizce', 'TYMM'],
+    [6, 'İngilizce', 'TYMM'],
+    [7, 'İngilizce', 'PREVIOUS'],
+    [7, ' İNGİLİZCE ', 'PREVIOUS'],
+    [7, 'İngilizce Dersi', 'PREVIOUS'],
+    [7, 'English', 'PREVIOUS'],
+    [8, 'İngilizce', 'PREVIOUS'],
+    [7, 'Matematik', 'TYMM'],
+  ] as const)('resolves only the 2026–2027 class and subject program for grade %s %s', async (level, subjectName, program) => {
+    subjectProgramFixture(level, subjectName, program);
+    expect((await service.requireScope(actorId)).topics).toHaveLength(1);
+    expect(ai.chatStructured).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [6, 'İngilizce', 'PREVIOUS'],
+    [7, 'İngilizce', 'TYMM'],
+    [7, 'Matematik', 'PREVIOUS'],
+    [8, 'İngilizce', 'TYMM'],
+  ] as const)('blocks a hash-valid approval of the wrong program for grade %s %s', async (level, subjectName, program) => {
+    subjectProgramFixture(level, subjectName, program);
+    await expect(service.requireScope(actorId)).rejects.toBeInstanceOf(BadRequestException);
+    expect(ai.chatStructured).not.toHaveBeenCalled();
+  });
+
+  it('uses the selected child subject policy for a parent without broadening the approved scope', async () => {
+    subjectProgramFixture(7, 'İngilizce', 'PREVIOUS');
+    users.findById.mockImplementation(key => query(String(key) === actorId
+      ? { _id: actorId, role: UserRole.PARENT, isActive: true }
+      : { _id: studentId, role: UserRole.STUDENT, isActive: true, grade: 7, parentId: actorId }));
+    const scope = await service.requireScope(actorId, studentId, String(topicId));
+    expect(scope.studentId).toBe(studentId);
+    expect(scope.topics).toHaveLength(1);
+    expect(scope.topics[0].program).toBe('PREVIOUS');
+    subjectProgramFixture(7, 'İngilizce', 'TYMM');
+    await expect(service.requireScope(actorId, studentId, String(topicId))).rejects.toBeInstanceOf(ForbiddenException);
+    expect(ai.chatStructured).not.toHaveBeenCalled();
+  });
+
+  it('saves and approves the previous grade 7 English program, and refuses TYMM at both write boundaries', async () => {
+    subjectProgramFixture(7, 'İngilizce', 'PREVIOUS');
+    users.findById.mockReturnValue(query({ _id: actorId, role: UserRole.ADMIN, isActive: true }));
+    const draft = { topicId: String(topicId), gradeId: String(gradeId), schoolYear: atlasAcademicYear(),
+      version: '2018', program: 'PREVIOUS' as const, sourceUrl: approved.sourceUrl,
+      sourceTitle: approved.sourceTitle, sourceLocator: approved.sourceLocator, outcomes: approved.outcomes };
+    await service.saveDraft(actorId, draft);
+    expect(entries.findOneAndUpdate).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      $set: expect.objectContaining({ status: 'draft', program: 'PREVIOUS', subjectName: 'İngilizce' }),
+      $unset: expect.objectContaining({ approvedBy: '', approvedHash: '' }),
+    }), expect.anything());
+    entries.findOneAndUpdate.mockClear();
+    await expect(service.saveDraft(actorId, { ...draft, program: 'TYMM' })).rejects.toThrow('önceki öğretim programı');
+    expect(entries.findOneAndUpdate).not.toHaveBeenCalled();
+
+    approved.status = 'draft';
+    entries.findById.mockReturnValue(query(approved));
+    entries.findOneAndUpdate.mockReturnValue(query({ ...approved, status: 'approved' }));
+    const review = { contentHash: approved.contentHash, reviewNote: 'Sentetik test incelemesi.' };
+    expect((await service.approve(actorId, String(approved._id), review)).status).toBe('approved');
+    entries.findOneAndUpdate.mockClear();
+    subjectProgramFixture(7, 'İngilizce', 'TYMM');
+    await expect(service.approve(actorId, String(approved._id), { ...review, contentHash: approved.contentHash })).rejects.toBeInstanceOf(BadRequestException);
+    expect(entries.findOneAndUpdate).not.toHaveBeenCalled();
+  });
+
+  it('returns live subject guidance for the review form without trusting the topic title', async () => {
+    subjectProgramFixture(7, 'İngilizce', 'PREVIOUS');
+    users.findById.mockReturnValue(query({ _id: actorId, role: UserRole.ADMIN, isActive: true }));
+    const review = await service.listForReview(actorId, String(topicId));
+    expect(review).toEqual(expect.objectContaining({ subjectName: 'İngilizce', gradeLevel: 7, expectedProgram: 'PREVIOUS' }));
+    subjects.findById.mockReturnValue(query({ _id: subjectId, name: 'İngilizce', gradeLevel: 7, isActive: false }));
+    expect((await service.listForReview(actorId, String(topicId))).subjectName).toBeUndefined();
+  });
+
+  it('does not reveal canonical review guidance for a subject outside the teacher assignments', async () => {
+    subjectProgramFixture(7, 'İngilizce', 'PREVIOUS');
+    users.findById.mockReturnValue(query({ _id: actorId, role: UserRole.TEACHER, isActive: true }));
+    teaching.find.mockReturnValue(query([{ gradeId, subjectId: unitId }]));
+    subjects.find.mockReturnValue(query([{ _id: unitId, gradeId, gradeLevel: 7, isActive: true }]));
+    const review = await service.listForReview(actorId, String(topicId));
+    expect(review.subjectName).toBeUndefined();
+    expect(review.expectedProgram).toBeUndefined();
+  });
+
+  it('fails closed for an unverified future school year in scope, draft, review guidance and approval', async () => {
+    jest.useFakeTimers({ now: new Date('2027-11-20T10:00:00Z') });
+    try {
+      subjectProgramFixture(7, 'İngilizce', 'PREVIOUS');
+      approved.schoolYear = atlasAcademicYear();
+      approved.contentHash = curriculumContentHash(approved); approved.approvedHash = approved.contentHash;
+      await expect(service.requireScope(actorId)).rejects.toBeInstanceOf(BadRequestException);
+      users.findById.mockReturnValue(query({ _id: actorId, role: UserRole.ADMIN, isActive: true }));
+      expect((await service.listForReview(actorId, String(topicId))).expectedProgram).toBeUndefined();
+      await expect(service.saveDraft(actorId, { topicId: String(topicId), gradeId: String(gradeId), schoolYear: atlasAcademicYear(),
+        version: 'unverified', program: 'PREVIOUS', sourceUrl: approved.sourceUrl, sourceTitle: approved.sourceTitle,
+        sourceLocator: approved.sourceLocator, outcomes: approved.outcomes })).rejects.toThrow('henüz doğrulanmadı');
+      approved.status = 'draft'; entries.findById.mockReturnValue(query(approved));
+      await expect(service.approve(actorId, String(approved._id), { contentHash: approved.contentHash, reviewNote: 'Sentetik inceleme.' })).rejects.toBeInstanceOf(BadRequestException);
+      expect(entries.findOneAndUpdate).not.toHaveBeenCalled(); expect(ai.chatStructured).not.toHaveBeenCalled();
+    } finally { jest.useRealTimers(); }
   });
 
   it('rejects cross-student access and unlinked parents before reading approved content', async () => {

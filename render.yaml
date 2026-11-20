@@ -33,9 +33,11 @@ services:
       - key: OPENAI_API_KEY
         sync: false  # AtlasAI text + image reasoning; API service only
       - key: ATLAS_OPENAI_ENABLED
-        value: "false"  # Enable in the API environment after verifying the key and curriculum
+        sync: false  # Explicit runtime switch; preserve the reviewed production activation
       - key: OPENAI_MODEL
         value: gpt-6-luna
+      - key: OPENAI_REVIEW_MODEL
+        value: gpt-6-sol
       - key: OPENAI_IMAGE_MODEL
         value: gpt-image-2.5-flare
       - key: ATLAS_IMAGE_GENERATION_ENABLED
@@ -43,7 +45,7 @@ services:
       - key: OPENAI_TRANSCRIPTION_MODEL
         value: gpt-transcribe
       - key: ATLAS_OPENAI_BUDGET_USD
-        value: "50"
+        sync: false  # Preserve the remaining allowance after controlled activation tests
       - key: ATLAS_VIDEO_STORAGE_DIR
         value: /var/data/atlas-videos
       - key: ATLAS_VIDEO_STORAGE_MOUNT

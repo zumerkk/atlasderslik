@@ -17,7 +17,7 @@ export interface AtlasMessage {
     actions?: AtlasAction[];
     contextUpdatedAt?: string;
 }
-interface AtlasStatus { available: boolean; vision: boolean; imageGeneration: boolean; message: string }
+interface AtlasStatus { available: boolean; vision: boolean; imageGeneration: boolean; materialGeneration: boolean; message: string; connectionFailed?: boolean }
 interface AtlasUser { id: string; firstName: string }
 export interface AtlasChatStudent { id: string; name: string; classes: string[] }
 export interface AtlasChatTopic { id: string; name: string; subject: string; gradeId: string; gradeLevel: number }
@@ -54,6 +54,7 @@ interface AtlasContextValue {
     conversationScopeKey: string;
     mode: "chat" | "image";
     setMode: (mode: "chat" | "image") => void;
+    prepareQuestionImage: (messageId: string) => void;
     messages: AtlasMessage[];
     draft: string;
     setDraft: (value: string) => void;
@@ -301,10 +302,10 @@ export function AtlasAIProvider({ children, role }: { children: ReactNode; role:
             if (!response.ok) throw new Error("status");
             const data = await response.json();
             if (!mountedRef.current || statusRequest !== statusRequestRef.current || readUser()?.id !== actorId) return;
-            setStatus({ available: data.available === true, vision: data.vision === true || data.supportsImages === true, imageGeneration: data.imageGeneration === true, message: typeof data.message === "string" ? data.message : "" });
+            setStatus({ available: data.available === true, vision: data.vision === true || data.supportsImages === true, imageGeneration: data.imageGeneration === true, materialGeneration: data.materialGeneration === true, message: typeof data.message === "string" ? data.message : "", connectionFailed: false });
         } catch {
             if (!mountedRef.current || controller.signal.aborted || statusRequest !== statusRequestRef.current || readUser()?.id !== actorId) return;
-            setStatus({ available: false, vision: false, imageGeneration: false, message: "Atlas'a şu an ulaşamıyoruz. Bağlantıyı yeniden kontrol edebilirsin." });
+            setStatus({ available: false, vision: false, imageGeneration: false, materialGeneration: false, message: "Atlas'a şu an ulaşamıyoruz. Bağlantıyı yeniden kontrol edebilirsin.", connectionFailed: true });
         }
     }, []);
 
@@ -395,7 +396,7 @@ export function AtlasAIProvider({ children, role }: { children: ReactNode; role:
         if (selectedStudentId !== chatScopeRef.current.studentId || selectedTopicId !== chatScopeRef.current.topicId) return;
         if (role === "PARENT" && (!selectedStudentId || chatStudentsLoading || chatStudentsError)) { setError(chatStudentsError || "Eğitim sohbeti için önce öğrencini seç."); return; }
         if (text.length > 4000) { setError("Sorunu 4.000 karakterden kısa tutabilir misin?"); return; }
-        if (mode === "image" && !status?.imageGeneration) { setError("Görsel oluşturma henüz etkin değil. Yöneticin görsel desteğini açtığında burada kullanabilirsin."); return; }
+        if (mode === "image" && !status?.imageGeneration) { setError("Görsel oluşturma şu anda kullanılamıyor. Bağlantıyı yenileyebilir veya sorun üzerinde sohbetle ilerleyebilirsin."); return; }
         if (attachment && !status?.vision) { setError("Görselli soru çözümü şu an kullanılamıyor. Soruyu yazarak gönderebilirsin."); return; }
         if (prompt !== undefined) setDraft(prompt);
         stopListening();
@@ -411,8 +412,9 @@ export function AtlasAIProvider({ children, role }: { children: ReactNode; role:
         const requestScopeKey = chatScopeRef.current.key;
         const currentImage = attachment;
         const history = messages.slice(-12);
-        const lastImageIndex = !currentImage && mode === "chat" ? history.findLastIndex((message) => message.role === "user" && message.image) : -1;
-        const userMessage: AtlasMessage = { id: `${Date.now()}-user`, role: "user", content: text || "Bu görseldeki soruyu adım adım açıklar mısın?", ...(currentImage ? { image: currentImage, hasImage: true } : {}) };
+        const lastImageIndex = !currentImage ? history.findLastIndex((message) => message.role === "user" && message.image) : -1;
+        const imagePrompt = mode === "image" ? "Bu fotoğraftaki soruyu ve verilenleri doğru yansıtan, çözümü adım adım açıklayan Türkçe bir eğitim görseli oluştur." : "Bu görseldeki soruyu adım adım açıklar mısın?";
+        const userMessage: AtlasMessage = { id: `${Date.now()}-user`, role: "user", content: text || imagePrompt, ...(currentImage ? { image: currentImage, hasImage: true } : {}) };
         setPending(userMessage);
         try {
             const response = await apiPost("/atlas-ai/chat", {
@@ -422,11 +424,12 @@ export function AtlasAIProvider({ children, role }: { children: ReactNode; role:
                 ...(selectedTopicId ? { topicId: selectedTopicId } : {}),
                 history: history.map(({ role: messageRole, content, image }, index) => ({ role: messageRole, content: content.slice(0, 4000), ...(index === lastImageIndex && image ? { image } : {}) })),
                 ...(currentImage ? { image: currentImage } : {}),
-            }, { timeout: mode === "image" ? 180000 : 135000, retries: 0, signal: controller.signal });
+            }, { timeout: mode === "image" ? 420000 : 300000, retries: 0, signal: controller.signal });
             const data = await response.json().catch(() => ({}));
             if (!response.ok) {
                 const fallback = response.status === 429 ? "Biraz yoğunluk var. Sorun burada duruyor; kısa bir süre sonra tekrar gönderebilirsin." : "Yanıtı getiremedim. Sorun burada duruyor; tekrar deneyebilirsin.";
-                throw new Error(typeof data.message === "string" ? data.message : fallback);
+                const message = typeof data.message === "string" ? data.message : fallback;
+                throw new Error(!["ADMIN", "SUPERADMIN"].includes(role) && /OpenAI|API.?key|anahtar|sağlayıcı/i.test(message) ? fallback : message);
             }
             if (typeof data.reply !== "string" || !data.reply.trim()) throw new Error("Yanıt boş geldi. Sorunu tekrar gönderebilirsin.");
             if (controller.signal.aborted || requestRef.current !== requestId || readUser()?.id !== currentUserId || chatScopeRef.current.key !== requestScopeKey) return;
@@ -453,6 +456,19 @@ export function AtlasAIProvider({ children, role }: { children: ReactNode; role:
         }
     };
 
+    const prepareQuestionImage = (messageId: string) => {
+        if (busyRef.current || !userRef.current || readUser()?.id !== userRef.current.id || user?.id !== userRef.current.id || chatScopeRef.current.accountId !== user.id) return;
+        const question = messages.slice(-12).find(message => message.id === messageId && message.role === "user" && message.image);
+        if (!question?.image) { setError("Bu sorunun fotoğrafını yeniden ekleyerek görsel hazırlayabilirsin."); return; }
+        requestRef.current += 1;
+        stopListening();
+        stopSpeaking();
+        setAttachment(question.image);
+        setMode("image");
+        setDraft("Bu fotoğraftaki sorunun çözümünü adım adım açıklayan, verilenleri ve doğru sonucu koruyan Türkçe bir eğitim görseli oluştur.");
+        setError(null);
+    };
+
     const cancel = () => {
         requestRef.current += 1;
         chatAbortRef.current?.abort();
@@ -460,7 +476,7 @@ export function AtlasAIProvider({ children, role }: { children: ReactNode; role:
         busyRef.current = false;
         setLoading(false);
         setPending(null);
-        setError("Yanıt durduruldu. Sorun burada duruyor; düzenleyip yeniden gönderebilirsin.");
+        setError("Yanıtı beklemeyi durdurdun. Sorun burada duruyor; düzenleyip yeniden gönderebilirsin.");
         stopSpeaking();
     };
 
@@ -512,7 +528,7 @@ export function AtlasAIProvider({ children, role }: { children: ReactNode; role:
         try { recognition.start(); setListening(true); setError(null); } catch { setError("Mikrofon açılamadı. Sorunu yazarak devam edebilirsin."); }
     };
 
-    return <AtlasContext.Provider value={{ role, name: user?.firstName || "", accountId: user?.id || null, chatStudents, chatStudentsLoading, chatStudentsError, selectedStudentId, selectChatStudent, refreshChatStudents, chatTopics, chatTopicsLoading, chatTopicsError, selectedTopicId, selectChatTopic, refreshChatTopics, studentSelectionRequired: role === "PARENT" && (!selectedStudentId || chatStudentsLoading || !!chatStudentsError), conversationScopeKey: user ? conversationKey(user.id, selectedStudentId, selectedTopicId) : "", mode, setMode: (next) => { setMode(next); if (next === "image") setAttachment(null); setError(null); }, messages, draft, setDraft, attachment, setAttachment, loading, pending, error, setError, status, refreshStatus, send, clear, cancel, getConversationRevision: () => requestRef.current, open, setOpen: (next) => { visibleRef.current = next || pathname.endsWith("/atlas-ai"); setOpen(next); }, voiceEnabled, toggleVoice: () => { voiceRef.current = !voiceRef.current; setVoiceEnabled(voiceRef.current); if (!voiceRef.current) stopSpeaking(); }, speechSupported, recognitionSupported, listening, toggleListening, stopListening, speaking, replyAnimating, speak, stopSpeaking }}>
+    return <AtlasContext.Provider value={{ role, name: user?.firstName || "", accountId: user?.id || null, chatStudents, chatStudentsLoading, chatStudentsError, selectedStudentId, selectChatStudent, refreshChatStudents, chatTopics, chatTopicsLoading, chatTopicsError, selectedTopicId, selectChatTopic, refreshChatTopics, studentSelectionRequired: role === "PARENT" && (!selectedStudentId || chatStudentsLoading || !!chatStudentsError), conversationScopeKey: user ? conversationKey(user.id, selectedStudentId, selectedTopicId) : "", mode, setMode: (next) => { setMode(next); setError(null); }, prepareQuestionImage, messages, draft, setDraft, attachment, setAttachment, loading, pending, error, setError, status, refreshStatus, send, clear, cancel, getConversationRevision: () => requestRef.current, open, setOpen: (next) => { visibleRef.current = next || pathname.endsWith("/atlas-ai"); setOpen(next); }, voiceEnabled, toggleVoice: () => { voiceRef.current = !voiceRef.current; setVoiceEnabled(voiceRef.current); if (!voiceRef.current) stopSpeaking(); }, speechSupported, recognitionSupported, listening, toggleListening, stopListening, speaking, replyAnimating, speak, stopSpeaking }}>
         {children}
         <AtlasAILauncher />
     </AtlasContext.Provider>;

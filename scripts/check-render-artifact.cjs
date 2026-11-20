@@ -10,6 +10,11 @@ if (process.argv[2] === 'api') {
   const api = join(root, 'apps/api');
   accessSync(join(api, 'dist/main.js'), constants.R_OK);
   const requireApi = createRequire(join(api, 'package.json'));
+  if (!requireApi('sharp').versions.vips) throw new Error('AtlasAI image renderer is unavailable.');
+  for (const name of ['AtlasSans-Regular.ttf', 'AtlasSans-Bold.ttf']) {
+    const font = requireApi('fontkit').openSync(join(api, 'assets/pdf', name));
+    if (!font.hasGlyphForCodePoint('ı'.codePointAt(0))) throw new Error('AtlasAI Turkish font is unavailable.');
+  }
   const binaries = {
     ffmpeg: process.env.FFMPEG_PATH || requireApi('ffmpeg-static'),
     ffprobe: process.env.FFPROBE_PATH || requireApi('ffprobe-static').path,
@@ -19,7 +24,7 @@ if (process.argv[2] === 'api') {
       throw new Error(`${name} is not executable for this deployment platform.`);
     }
   }
-  console.log('API entry point, ffmpeg and ffprobe are ready.');
+  console.log('API entry point, image renderer, Turkish fonts, ffmpeg and ffprobe are ready.');
 } else if (process.argv[2] === 'web') {
   const web = join(root, 'apps/web');
   const server = join(web, '.next/standalone/apps/web');

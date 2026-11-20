@@ -33,7 +33,7 @@ describe('LessonVideoService private access and durable summaries', () => {
   beforeEach(() => {
     [videos, users, grades, subjects, enrollments, teaching, jobs, quotas] = Array.from({ length: 8 }, model);
     curriculum = { requireVideoScope: jest.fn().mockResolvedValue(approved), assertRequest: jest.fn().mockResolvedValue({ allowed: true, matchedOutcomeIds: ['approved:0'] }), verifyContent: jest.fn().mockResolvedValue(true) };
-    ai = { chatStructured: jest.fn(), transcribeAudio: jest.fn(), isOpenAiConfigured: true };
+    ai = { chatStructured: jest.fn(), transcribeAudio: jest.fn(), isOpenAiConfigured: true, reviewModel: 'gpt-6-sol' };
     service = new LessonVideoService(videos as any, users as any, grades as any, subjects as any, enrollments as any, teaching as any, jobs as any, quotas as any, curriculum, ai, new ConfigService({ JWT_SECRET: 'private-test-video-secret-123456', OPENAI_API_KEY: 'test-not-real' }));
     videos.findById.mockReturnValue(chain(video()));
     actor('student'); enrollments.find.mockReturnValue(chain([{ gradeId: new Types.ObjectId(gradeId), accessSource: 'manual' }]));
@@ -198,6 +198,30 @@ describe('LessonVideoService private access and durable summaries', () => {
     ai.chatStructured.mockResolvedValue({ grounded: false, confidence: .95 });
     await service.processJob({ _id: new Types.ObjectId(jobId), requestedBy: actorId, videoId, curriculumVersion: 'approved-version', sourceHash: 'hash', attempts: 1 });
     expect(curriculum.verifyContent).not.toHaveBeenCalled(); expect(jobs.updateOne.mock.calls.some(call => (call[1] as any)?.$set?.summary)).toBe(false);
+  });
+  it('routes summary generation and independent evidence review through the quality model before publishing', async () => {
+    const content = { transcript: '[0–90 saniye] İki üzeri üç sekizdir.', frames: [{ seconds: 45, dataUrl: 'data:image/jpeg;base64,fixture' }], audioMinutes: 2 };
+    const generated = {
+      overview: 'İki sayısının üçüncü kuvveti sekizdir.',
+      sections: [{ title: 'Tam sayı kuvveti', summary: 'İki üzeri üç sekizdir.', outcomeIds: ['approved:0'], timestampSeconds: 0 }],
+      keyPoints: ['İki üzeri üç sekizdir.'], excludedContentNote: '',
+    };
+    jest.spyOn(service as any, 'scopeVersion').mockReturnValue('approved-version');
+    jest.spyOn(service as any, 'extract').mockResolvedValue(content);
+    ai.chatStructured.mockResolvedValueOnce(generated).mockResolvedValueOnce({ grounded: true, confidence: .95 });
+
+    await service.processJob({ _id: new Types.ObjectId(jobId), requestedBy: actorId, videoId, curriculumVersion: 'approved-version', sourceHash: 'hash', attempts: 1 });
+
+    expect(ai.chatStructured).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      model: 'gpt-6-sol', images: [content.frames[0].dataUrl], user: expect.stringContaining(content.transcript),
+    }), expect.any(Object), 'atlas_lesson_video_summary');
+    expect(ai.chatStructured).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      model: 'gpt-6-sol', images: [content.frames[0].dataUrl], user: expect.stringContaining(generated.overview),
+    }), expect.any(Object), 'atlas_lesson_video_evidence');
+    expect(curriculum.verifyContent).toHaveBeenCalledWith(approved, expect.stringContaining(generated.overview), ['approved:0']);
+    expect(jobs.updateOne).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'processing' }), expect.objectContaining({
+      $set: expect.objectContaining({ status: 'completed', summary: expect.objectContaining({ overview: generated.overview }) }),
+    }));
   });
   it('rechecks worker access before extracting a queued lesson', async () => {
     enrollments.find.mockReturnValue(chain([]));

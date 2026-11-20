@@ -22,6 +22,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         let status = HttpStatus.INTERNAL_SERVER_ERROR;
         let message: string | string[] = 'Sunucu hatası oluştu.';
         let error = 'Internal Server Error';
+        let code: string | undefined;
 
         if (exception instanceof HttpException) {
             status = exception.getStatus();
@@ -32,6 +33,9 @@ export class GlobalExceptionFilter implements ExceptionFilter {
             } else if (typeof res === 'object' && res !== null) {
                 message = (res as any).message || message;
                 error = (res as any).error || error;
+                // Only intentional, bounded AtlasAI codes cross the HTTP boundary.
+                const candidate = (res as any).code;
+                if (typeof candidate === 'string' && /^ATLAS_[A-Z0-9_]{1,70}$/.test(candidate)) code = candidate;
             }
         } else if (exception instanceof Error) {
             // Driver/SDK messages and stacks may contain credentials or
@@ -46,6 +50,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
                 statusCode: status,
                 message,
                 error,
+                ...(code ? { code } : {}),
                 timestamp: new Date().toISOString(),
                 path: route || request.path,
             });

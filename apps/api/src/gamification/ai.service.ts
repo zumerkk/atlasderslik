@@ -5,6 +5,8 @@ import { OpenAiBudgetService } from './openai-budget.service';
 export interface ChatOptions {
     system: string;
     user: string;
+    /** Server-only, priced OpenAI model override. Never accepted from a request DTO. */
+    model?: string;
     history?: { role: 'user' | 'assistant'; content: string; image?: string }[];
     image?: string;
     images?: string[];
@@ -99,6 +101,30 @@ export class AiService {
         return this.providers.some(provider => provider.name === 'openai' && OPENAI_RATES.has(provider.model));
     }
 
+    /** Use a stronger independent reviewer without changing routine generation. */
+    get reviewModel(): string {
+        const model = this.config.get<string>('OPENAI_REVIEW_MODEL')?.trim() || 'gpt-6-sol';
+        this.validateModelOverride(model);
+        return model;
+    }
+
+    private validateModelOverride(model: unknown): string | undefined {
+        if (model === undefined) return undefined;
+        if (typeof model !== 'string' || !OPENAI_RATES.has(model))
+            throw new ServiceUnavailableException('AtlasAI için bütçe hesabı tanımlı bir OpenAI modeli seçilmeli.');
+        return model;
+    }
+
+    private providersFor(opts: ChatOptions): Provider[] {
+        const model = this.validateModelOverride(opts.model);
+        const providers = this.providers;
+        if (model === undefined) return providers;
+        // An explicit OpenAI choice may not become a weaker provider or silently
+        // use the configured default after failure, disabled access or missing keys.
+        const openai = providers.find(provider => provider.name === 'openai');
+        return openai ? [{ ...openai, model }] : [];
+    }
+
     get supportsImages(): boolean {
         return this.isOpenAiConfigured;
     }
@@ -117,7 +143,7 @@ export class AiService {
     /** Images must never silently fall through to a model that cannot see them. */
     async chat(opts: ChatOptions): Promise<string | null> {
         const needsVision = !!opts.image || !!opts.images?.length || opts.history?.some((message) => !!message.image);
-        const providers = this.providers.filter((provider) => !needsVision || provider.vision);
+        const providers = this.providersFor(opts).filter((provider) => !needsVision || provider.vision);
         if (!providers.length) return null;
         for (const provider of providers) {
             const reply = await this.callProvider(provider, opts);
@@ -268,7 +294,7 @@ export class AiService {
 
     /** Strict structured generation is OpenAI-only; callers still validate semantics. */
     async chatStructured<T>(opts: ChatOptions, schema: Record<string, unknown>, name: string): Promise<T | null> {
-        const provider = this.providers.find(item => item.name === 'openai');
+        const provider = this.providersFor(opts).find(item => item.name === 'openai');
         if (!provider) return null;
         const result = await this.openAiResponse(provider, {
             ...this.requestBody(provider, opts),
@@ -289,7 +315,7 @@ export class AiService {
         generatedImage?: { dataUrl: string; alt: string };
     } | null> {
         if (!this.supportsImageGeneration) return null;
-        const provider = this.providers.find((item) => item.name === 'openai');
+        const provider = this.providersFor(opts).find((item) => item.name === 'openai');
         if (!provider) return null;
         const data = await this.openAiResponse(provider, {
             ...this.requestBody(provider, opts),

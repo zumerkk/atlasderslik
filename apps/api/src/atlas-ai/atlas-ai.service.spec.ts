@@ -8,11 +8,18 @@ import { Types } from 'mongoose';
 import { UserRole } from '@repo/shared';
 import { AtlasAiService } from './atlas-ai.service';
 import { buildAtlasClassScope } from './atlas-ai.scope';
+import { OpenAiBudgetException } from '../gamification/openai-budget.service';
 
 const actorId = '507f1f77bcf86cd799439011';
 const gradeId = new Types.ObjectId('507f1f77bcf86cd799439012');
 const childId = new Types.ObjectId('507f1f77bcf86cd799439013');
 const assignmentId = new Types.ObjectId('507f1f77bcf86cd799439014');
+const acceptedReview = (image = false) => ({
+  sourceHasChoices: false, optionChecks: [],
+  sourceReadable: true, answerCorrect: true, explanationCorrect: true, replyConsistent: true, noInventedGivens: true,
+  ...(image ? { diagramCorrect: true } : {}),
+  matchedOutcomeIds: ['outcome-1'], confidence: .98, independentConclusion: 'Özgün sorunun verilenleri ve çözümü birbiriyle uyumlu.',
+});
 const query = (value: any) => {
   const chain: any = { exec: jest.fn().mockResolvedValue(value) };
   for (const name of ['select', 'populate', 'sort', 'limit', 'lean'])
@@ -43,6 +50,7 @@ describe('AtlasAiService authorization and context', () => {
   let analytics: any;
   let savedPlans: any;
   let curriculum: any;
+  let diagramFactory: jest.Mock;
   const setActor = (role = UserRole.STUDENT, isActive = true) =>
     users.findById.mockImplementation(() =>
       query({
@@ -83,7 +91,9 @@ describe('AtlasAiService authorization and context', () => {
             alt: 'Fen şeması',
           },
         }),
-      chatStructured: jest.fn().mockResolvedValue({ reply: 'Birlikte adım adım çözelim.' }),
+      chatStructured: jest.fn(async (options, _schema, name) => name === 'atlas_educational_output_review'
+        ? acceptedReview(JSON.parse(options.user).candidateImageNumber !== undefined)
+        : { reply: 'Birlikte adım adım çözelim.' }),
       requireConfigured: jest.fn(() => {
         if (!ai.isConfigured) throw new ServiceUnavailableException();
       }),
@@ -107,6 +117,7 @@ describe('AtlasAiService authorization and context', () => {
       verifyProductReply: jest.fn().mockResolvedValue(true),
       isCurrent: jest.fn().mockResolvedValue(true),
     };
+    diagramFactory = jest.fn().mockResolvedValue(null);
     service = new AtlasAiService(
       ai,
       analytics,
@@ -122,6 +133,7 @@ describe('AtlasAiService authorization and context', () => {
       savedPlans,
       curriculum,
       subjects as any,
+      diagramFactory,
     );
   });
 
@@ -307,7 +319,7 @@ describe('AtlasAiService authorization and context', () => {
     expect(analytics.build).not.toHaveBeenCalled();
     expect(users.find).not.toHaveBeenCalled();
     const options = ai.chatStructured.mock.calls[0][0];
-    expect(JSON.parse(options.user)).toMatchObject({ matchedOutcomeIds: ['outcome-1'], approvedTopics: [{ id: 'topic-1' }] });
+    expect(JSON.parse(options.user)).toMatchObject({ matchedOutcomeIds: ['outcome-1'], approvedTopics: [{ name: 'Üslü ifadeler' }] });
     expect(JSON.parse(options.user).context).toBeUndefined();
     expect(options.user).not.toMatch(new RegExp(`Ece|${childId}`));
   });
@@ -525,16 +537,17 @@ describe('AtlasAiService authorization and context', () => {
       message: 'Su döngüsü şeması',
       mode: 'image',
     });
-    expect(response.generatedImage?.alt).toBe('Su döngüsü şeması');
+    expect(response.generatedImage?.alt).toBe('Üslü ifadeler konusu için eğitim görseli.');
     expect(JSON.parse(ai.generateImage.mock.calls[0][0].user)).toMatchObject({
-      request: { message: 'Su döngüsü şeması' }, approvedTopics: [{ id: 'topic-1' }],
+      request: { message: 'Su döngüsü şeması' }, approvedTopics: [{ name: 'Üslü ifadeler' }],
     });
     expect(ai.generateImage.mock.calls[0][0].system).not.toContain(
       'SUNUCU_VERİSİ',
     );
     expect(analytics.build).not.toHaveBeenCalled();
     expect(enrollments.find).not.toHaveBeenCalled();
-    expect(ai.chatStructured).not.toHaveBeenCalled();
+    expect(ai.chatStructured).toHaveBeenCalledTimes(1);
+    expect(ai.chatStructured.mock.calls[0][2]).toBe('atlas_educational_output_review');
   });
 
   it('limits the generation and verification of an image to the outcomes approved for the specific request', async () => {
@@ -546,6 +559,86 @@ describe('AtlasAiService authorization and context', () => {
     expect(generated.approvedTopics[0].outcomes.map(outcome => outcome.id)).toEqual(['outcome-1']);
     const checked = curriculum.assertRequest.mock.calls[1][0];
     expect(checked.outcomes.map(outcome => outcome.id)).toEqual(['outcome-1']);
+  });
+
+  it('withholds an in-scope diagram with incorrect geometry despite a correct textual answer', async () => {
+    ai.generateImage.mockResolvedValue({ reply: 'C. Basınç önce azalır ve sonra artar.', generatedImage: { dataUrl: 'data:image/png;base64,cHJlc3N1cmU=', alt: 'Yanlış sıvı yüzeyi' } });
+    ai.chatStructured.mockResolvedValue({ ...acceptedReview(true), diagramCorrect: false });
+    const response = service.chat(actorId, { message: 'Kabın basınç grafiğini göster', mode: 'image', image: 'data:image/png;base64,c291cmNl' });
+    await expect(response).rejects.toMatchObject({ response: { code: 'ATLAS_OUTPUT_REVIEW_FAILED' } });
+    expect(curriculum.assertRequest).toHaveBeenCalledTimes(2);
+    expect(ai.generateImage).toHaveBeenCalledTimes(1);
+    expect(ai.chatStructured).toHaveBeenCalledTimes(1);
+    expect(curriculum.isCurrent).not.toHaveBeenCalled();
+  });
+
+  it('uses a trusted diagram factory before freeform generation and still independently reviews its output', async () => {
+    const result = { reply: 'C. Sıvı yüksekliği önce azalır, ardından artar.', generatedImage: { dataUrl: 'data:image/png;base64,ZGlhZ3JhbQ==', alt: 'Hesaplanan şema' } };
+    diagramFactory.mockResolvedValue(result);
+    const response = await service.chat(actorId, { message: 'Sıvı basıncını çiz', mode: 'image' });
+    expect(response.generatedImage?.dataUrl).toBe(result.generatedImage.dataUrl);
+    expect(response.generatedImage?.alt).toBe(result.generatedImage.alt);
+    expect(ai.generateImage).not.toHaveBeenCalled();
+    expect(ai.chatStructured.mock.calls[0][2]).toBe('atlas_educational_output_review');
+    expect(ai.chatStructured.mock.calls[0][0].images).toEqual([result.generatedImage.dataUrl]);
+    expect(curriculum.isCurrent).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(diagramFactory.mock.calls[0][0])).not.toContain('private@example.com');
+  });
+
+  it('does not bypass review or regenerate if a trusted diagram factory fails or its result is incorrect', async () => {
+    const failure = new BadRequestException('Şeklin verilenleri eksik.');
+    diagramFactory.mockRejectedValueOnce(failure);
+    await expect(service.chat(actorId, { message: 'Kap şeklini çiz', mode: 'image' })).rejects.toBe(failure);
+    expect(ai.generateImage).not.toHaveBeenCalled();
+    expect(ai.chatStructured).not.toHaveBeenCalled();
+    diagramFactory.mockResolvedValue({ reply: 'Çizim', generatedImage: { dataUrl: 'data:image/png;base64,ZGlhZ3JhbQ==', alt: 'Şema' } });
+    ai.chatStructured.mockResolvedValue({ ...acceptedReview(true), explanationCorrect: false });
+    await expect(service.chat(actorId, { message: 'Kap şeklini çiz', mode: 'image' }))
+      .rejects.toMatchObject({ response: { code: 'ATLAS_OUTPUT_REVIEW_FAILED' } });
+    expect(ai.generateImage).not.toHaveBeenCalled();
+  });
+
+  it('withholds an educational text answer with the correct choice but a false explanation', async () => {
+    curriculum.isProductHelp.mockReturnValue(false);
+    ai.chatStructured.mockResolvedValueOnce({ reply: 'C. A seçeneğinde su basıncı sıfır olabilir.' })
+      .mockResolvedValueOnce({ ...acceptedReview(), explanationCorrect: false });
+    await expect(service.chat(actorId, { message: 'Bu basınç sorusunu çöz', image: 'data:image/png;base64,c291cmNl' }))
+      .rejects.toMatchObject({ response: { code: 'ATLAS_OUTPUT_REVIEW_FAILED' } });
+    expect(curriculum.verifyContent).toHaveBeenCalledTimes(1);
+    expect(ai.chatStructured).toHaveBeenCalledTimes(2);
+    expect(ai.generateImage).not.toHaveBeenCalled();
+  });
+
+  it('reviews text against the exact question and photos without sending account metadata or unrelated product instructions', async () => {
+    curriculum.isProductHelp.mockReturnValue(false);
+    const source = 'data:image/png;base64,c291cmNl';
+    await service.chat(actorId, { message: 'Bu soruyu çöz', image: source });
+    const [generation, review] = ai.chatStructured.mock.calls;
+    expect(generation[0].system).not.toContain('DOĞRULANMIŞ ÜRÜN REHBERİ');
+    expect(JSON.parse(generation[0].user)).not.toHaveProperty('role');
+    expect(review[2]).toBe('atlas_educational_output_review');
+    expect(JSON.parse(review[0].user)).toMatchObject({ originalRequest: { message: 'Bu soruyu çöz', imageNumber: 1 } });
+    expect(review[0].images).toEqual([source]);
+    expect(JSON.stringify(ai.chatStructured.mock.calls)).not.toMatch(/NEVER_SEND_PASSWORD|private@example.com/);
+    expect(analytics.build).not.toHaveBeenCalled();
+    expect(enrollments.find).not.toHaveBeenCalled();
+  });
+
+  it('does not release a diagram when access changes during the additional review', async () => {
+    ai.chatStructured.mockImplementation(async () => {
+      curriculum.isCurrent.mockResolvedValue(false);
+      return acceptedReview(true);
+    });
+    await expect(service.chat(actorId, { message: 'Fen çizimi', mode: 'image' })).rejects.toThrow('erişimin değişti');
+    expect(ai.generateImage).toHaveBeenCalledTimes(1);
+  });
+
+  it('preserves a review budget denial without exposing the candidate or retrying generation', async () => {
+    const exhausted = new OpenAiBudgetException('limit');
+    ai.chatStructured.mockRejectedValue(exhausted);
+    await expect(service.chat(actorId, { message: 'Fen çizimi', mode: 'image' })).rejects.toBe(exhausted);
+    expect(ai.generateImage).toHaveBeenCalledTimes(1);
+    expect(ai.chatStructured).toHaveBeenCalledTimes(1);
   });
 
   it('treats missing image generation and provider failure as explicit errors', async () => {

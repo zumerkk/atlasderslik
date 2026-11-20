@@ -44,6 +44,8 @@ describe('AI provider boundary', () => {
             await expect(service.chat(prompt)).resolves.toBeNull();
             await expect(service.chat(visual)).resolves.toBeNull();
             await expect(service.chatStructured(visual, {}, 'fixture')).resolves.toBeNull();
+            await expect(service.chat({ ...visual, model: 'gpt-6-sol' })).resolves.toBeNull();
+            await expect(service.chatStructured({ ...visual, model: service.reviewModel }, {}, 'fixture')).resolves.toBeNull();
             await expect(service.generateImage(prompt)).resolves.toBeNull();
             await expect(service.transcribeAudio(new Uint8Array([1, 2, 3]), 60)).rejects.toMatchObject({ retryable: false });
             expect(budget.reserve).not.toHaveBeenCalled();
@@ -81,6 +83,73 @@ describe('AI provider boundary', () => {
         expect(previous[0].text).toHaveLength(4000);
         expect(body.input.at(-1).content[1].image_url).toBe(image);
         expect(service.supportsImages).toBe(true);
+    });
+
+    it('uses a stronger default reviewer and rejects an unpriced reviewer configuration', () => {
+        expect(create({ OPENAI_MODEL: 'gpt-6-luna' }).reviewModel).toBe('gpt-6-sol');
+        expect(create({ OPENAI_REVIEW_MODEL: ' gpt-6-astra ' }).reviewModel).toBe('gpt-6-astra');
+        expect(() => create({ OPENAI_REVIEW_MODEL: 'unpriced-model' }).reviewModel).toThrow('bütçe hesabı');
+    });
+
+    it('prices the actual structured reviewer model and preserves the configured generation default', async () => {
+        fetchMock.mockResolvedValue({ ok: true, json: async () => ({
+            ...await completed('{"accepted":true}').json(), usage: { input_tokens: 100, output_tokens: 20 },
+        }) });
+        const service = create({ OPENAI_API_KEY: 'fixture-key', OPENAI_MODEL: 'gpt-6-luna' });
+        await service.chatStructured(prompt, {}, 'routine_before');
+        await service.chatStructured({ ...prompt, model: service.reviewModel }, {}, 'independent_review');
+        await service.chatStructured(prompt, {}, 'routine_after');
+        expect(fetchMock.mock.calls.map(([, options]) => JSON.parse(options.body).model))
+            .toEqual(['gpt-6-luna', 'gpt-6-sol', 'gpt-6-luna']);
+        const reservations = budget.reserve.mock.calls.map(([amount]) => amount as number);
+        expect(reservations[1]).toBeGreaterThan(reservations[0] * 15);
+        expect(budget.settle.mock.calls.map(([reserved, measured]) => [reserved, measured]))
+            .toEqual([[reservations[0], 25], [reservations[1], 495], [reservations[2], 25]]);
+        expect(budget.reserve.mock.invocationCallOrder[1]).toBeLessThan(fetchMock.mock.invocationCallOrder[1]);
+    });
+
+    it('uses the requested priced model for image interpretation and never falls back after its failure', async () => {
+        fetchMock.mockResolvedValue({ ok: false, status: 503 });
+        const service = create({ OPENAI_API_KEY: 'fixture-key', GROQ_API_KEY: 'fixture-fallback' });
+        await expect(service.chat({ ...prompt, model: 'gpt-6-sol', image: 'data:image/png;base64,dGVzdA==' }))
+            .resolves.toBeNull();
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ model: 'gpt-6-sol', store: false });
+        expect(budget.reserve).toHaveBeenCalledTimes(1);
+        expect(budget.settle).not.toHaveBeenCalled();
+    });
+
+    it('never sends an explicit text or structured model choice to an alternate provider', async () => {
+        fetchMock.mockResolvedValue({ ok: false, status: 503 });
+        const service = create({ OPENAI_API_KEY: 'fixture-key', GROQ_API_KEY: 'fixture-fallback' });
+        await expect(service.chat({ ...prompt, model: 'gpt-6-sol' })).resolves.toBeNull();
+        await expect(service.chatStructured({ ...prompt, model: 'gpt-6-sol' }, {}, 'review')).resolves.toBeNull();
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        expect(fetchMock.mock.calls.every(([url]) => url === 'https://api.openai.com/v1/responses')).toBe(true);
+        const withoutOpenai = create({ GROQ_API_KEY: 'fixture-fallback' });
+        await expect(withoutOpenai.chat({ ...prompt, model: 'gpt-6-sol' })).resolves.toBeNull();
+        await expect(withoutOpenai.chatStructured({ ...prompt, model: 'gpt-6-sol' }, {}, 'review')).resolves.toBeNull();
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it.each(['unpriced', '', 'gpt-6-sol-latest', 'llama-3.3-70b-versatile', null, 42])(
+        'rejects an invalid server model override %p before reservation or network activity', async model => {
+            const service = create({ OPENAI_API_KEY: 'fixture-key', GROQ_API_KEY: 'fixture-fallback' });
+            const options = { ...prompt, model: model as string };
+            await expect(service.chat(options)).rejects.toThrow('bütçe hesabı');
+            await expect(service.chatStructured(options, {}, 'review')).rejects.toThrow('bütçe hesabı');
+            await expect(service.generateImage(options)).rejects.toThrow('bütçe hesabı');
+            expect(budget.reserve).not.toHaveBeenCalled();
+            expect(fetchMock).not.toHaveBeenCalled();
+        },
+    );
+
+    it('preserves the shared budget denial for a stronger reviewer without fallback', async () => {
+        budget.reserve.mockRejectedValue(new OpenAiBudgetException('limit'));
+        const service = create({ OPENAI_API_KEY: 'fixture-key', GROQ_API_KEY: 'fixture-fallback' });
+        await expect(service.chatStructured({ ...prompt, model: service.reviewModel }, {}, 'review'))
+            .rejects.toBeInstanceOf(OpenAiBudgetException);
+        expect(fetchMock).not.toHaveBeenCalled();
     });
 
     it('does not pass forged system history to a provider', async () => {
@@ -127,10 +196,12 @@ describe('AI provider boundary', () => {
             { type: 'image_generation_call', result: png },
             { type: 'message', content: [{ type: 'output_text', text: 'Kesirler görselin hazır.' }] },
         ] }) });
-        const result = await create({ OPENAI_API_KEY: 'test', OPENAI_IMAGE_MODEL: 'gpt-image-2.5-sunburst' }).generateImage(prompt);
+        const result = await create({ OPENAI_API_KEY: 'test', OPENAI_IMAGE_MODEL: 'gpt-image-2.5-sunburst' })
+            .generateImage({ ...prompt, model: 'gpt-6-sol' });
         expect(result?.generatedImage?.dataUrl).toBe(`data:image/png;base64,${png}`);
         const body = JSON.parse(fetchMock.mock.calls[0][1].body);
         expect(body.store).toBe(false);
+        expect(body.model).toBe('gpt-6-sol');
         expect(body.max_tool_calls).toBe(1);
         expect(body.tools[0]).toMatchObject({ type: 'image_generation', model: 'gpt-image-2.5-sunburst', output_format: 'png' });
         expect(budget.reserve).toHaveBeenCalledWith(expect.any(Number));

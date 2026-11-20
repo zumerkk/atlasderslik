@@ -44,6 +44,9 @@ import { Unit, UnitSchema } from '../education/schemas/unit.schema';
 import { AtlasSavedPlan, AtlasSavedPlanSchema } from './atlas-ai.saved-plan.schema';
 import { AtlasSavedPlanService } from './atlas-ai.saved-plan.service';
 import { AtlasCurriculumModule } from './atlas-ai.curriculum.module';
+import { AiService } from '../gamification/ai.service';
+import { ATLAS_DIAGRAM_FACTORY } from './atlas-ai.output-review';
+import { createAtlasDiagramFactory } from './atlas-ai.diagrams';
 
 @Module({
   imports: [
@@ -69,7 +72,8 @@ import { AtlasCurriculumModule } from './atlas-ai.curriculum.module';
     ]),
   ],
   controllers: [AtlasAiController],
-  providers: [AtlasAiService, AtlasAiRateLimitGuard, AtlasAnalyticsService, AtlasSavedPlanService],
+  providers: [AtlasAiService, AtlasAiRateLimitGuard, AtlasAnalyticsService, AtlasSavedPlanService,
+    { provide: ATLAS_DIAGRAM_FACTORY, useFactory: createAtlasDiagramFactory, inject: [AiService] }],
   exports: [AtlasCurriculumModule],
 })
 export class AtlasAiModule {}
