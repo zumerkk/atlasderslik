@@ -3,17 +3,27 @@ services:
   - type: web
     name: atlasderslik-api
     runtime: node
+    rootDir: .
+    autoDeployTrigger: "off"
     region: frankfurt
     plan: starter
-    rootDir: apps/api
-    buildCommand: cd ../.. && npm install -g pnpm@10.2.0 && pnpm install --frozen-lockfile && pnpm --filter @repo/shared build && pnpm --filter api build
-    startCommand: node dist/main.js
+    # Shared workspace files must be visible during the build.
+    buildCommand: npm install -g pnpm@10.2.0 && pnpm install --frozen-lockfile --prod=false && pnpm --filter @repo/shared build && pnpm --filter api build && node scripts/check-render-artifact.cjs api
+    startCommand: cd apps/api && node dist/main.js
     healthCheckPath: /health
+    disk:
+      name: atlas-lesson-videos
+      mountPath: /var/data
+      sizeGB: 10
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 10000
+      - key: NODE_VERSION
+        value: "22.x"
+      - key: SKIP_INSTALL_DEPS
+        value: "true"
+      - key: TRUST_PROXY_HOPS
+        value: "1"
       - key: MONGO_URI
         sync: false  # Set manually in Render dashboard
       - key: JWT_SECRET
@@ -22,12 +32,66 @@ services:
         sync: false  # Set to your frontend Render URL after deploy
       - key: OPENAI_API_KEY
         sync: false  # AtlasAI text + image reasoning; API service only
+      - key: ATLAS_OPENAI_ENABLED
+        sync: false  # Explicit runtime switch; preserve the reviewed production activation
       - key: OPENAI_MODEL
-        value: gpt-6-astra
+        value: gpt-6-luna
+      - key: OPENAI_REVIEW_MODEL
+        value: gpt-6-sol
       - key: OPENAI_IMAGE_MODEL
-        value: gpt-image-2.5-sunburst
+        value: gpt-image-2.5-flare
       - key: ATLAS_IMAGE_GENERATION_ENABLED
         value: "true"
+      - key: OPENAI_TRANSCRIPTION_MODEL
+        value: gpt-transcribe
+      - key: ATLAS_OPENAI_BUDGET_USD
+        sync: false  # Preserve the remaining allowance after controlled activation tests
+      - key: ATLAS_VIDEO_STORAGE_DIR
+        value: /var/data/atlas-videos
+      - key: ATLAS_VIDEO_STORAGE_MOUNT
+        value: /var/data
+      - key: ATLAS_VIDEO_MAX_MINUTES
+        value: "60"
+      - key: ATLAS_VIDEO_MAX_FRAMES
+        value: "12"
+      - key: ATLAS_VIDEO_MAX_UPLOAD_MB
+        value: "256"
+      - key: ATLAS_VIDEO_STORAGE_MAX_GB
+        value: "8"
+      - key: IYZICO_API_KEY
+        sync: false
+      - key: IYZICO_SECRET_KEY
+        sync: false
+      - key: IYZICO_BASE_URL
+        sync: false
+      - key: PAYMENT_CHECKOUT_ENABLED
+        value: "false"  # Enable after merchant approval; existing callbacks remain available
+      - key: PAYMENT_CALLBACK_URL
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: MERCHANT_TITLE
+        sync: false
+      - key: MERCHANT_TAX_NUMBER
+        sync: false
+      - key: MERCHANT_TAX_OFFICE
+        sync: false
+      - key: MERCHANT_ADDRESS
+        sync: false
+      - key: MERCHANT_EMAIL
+        sync: false
+      - key: MERCHANT_PHONE
+        sync: false
+      - key: PAYMENT_TERMS_VERSION
+        value: terms-v2026-10-30
+      - key: MEMBERSHIP_TERMS_VERSION
+        value: terms-v2026-10-30
+      - key: PRIVACY_POLICY_VERSION
+        value: privacy-v2026-10-30
+      - key: SALES_AGREEMENT_VERSION
+        value: sales-v2026-10-30
+      - key: PRE_INFORMATION_VERSION
+        value: preinfo-v2026-10-30
       - key: GROQ_API_KEY
         sync: false  # Set manually in Render dashboard — never commit this
       - key: HUGGINGFACE_API_KEY
@@ -37,17 +101,20 @@ services:
   - type: web
     name: atlasderslik-web
     runtime: node
+    rootDir: .
+    autoDeployTrigger: "off"
     region: frankfurt
     plan: starter
-    rootDir: apps/web
-    buildCommand: cd ../.. && npm install -g pnpm@10.2.0 && pnpm install --frozen-lockfile && pnpm --filter @repo/shared build && pnpm --filter @repo/ui build && pnpm --filter web build && cp -r apps/web/.next/static apps/web/.next/standalone/apps/web/.next/static && cp -r apps/web/public apps/web/.next/standalone/apps/web/public
-    startCommand: node .next/standalone/apps/web/server.js
-    healthCheckPath: /
+    buildCommand: npm install -g pnpm@10.2.0 && pnpm install --frozen-lockfile --prod=false && pnpm --filter @repo/shared build && pnpm --filter @repo/ui build && pnpm --filter web build && node scripts/check-render-artifact.cjs web
+    startCommand: node apps/web/.next/standalone/apps/web/server.js
+    healthCheckPath: /login
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 10000
+      - key: NODE_VERSION
+        value: "22.x"
+      - key: SKIP_INSTALL_DEPS
+        value: "true"
       - key: HOSTNAME
         value: 0.0.0.0
       - key: NEXT_PUBLIC_API_URL

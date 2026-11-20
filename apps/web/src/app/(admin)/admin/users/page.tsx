@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Plus, Trash2, Loader2, CheckCircle, AlertCircle, Users, MoreHorizontal, Key, Shuffle, Lock, Copy, Eye, EyeOff } from "lucide-react";
+import { Plus, Trash2, Loader2, CheckCircle, AlertCircle, Users, Key, Shuffle, Lock, Copy, Eye, EyeOff } from "lucide-react";
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -19,11 +19,13 @@ import {
     DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
-import { apiGet, apiPost, apiDelete } from "@/lib/api";
+import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/api";
+import { commerceMessage } from "@/lib/commerce";
 
 interface User {
     _id: string; email: string; firstName?: string; lastName?: string;
     role: string; isActive: boolean; createdAt: string;
+    parentId?: string | { _id: string } | null;
 }
 
 export default function UsersPage() {
@@ -32,8 +34,10 @@ export default function UsersPage() {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+    const [reactivatingId, setReactivatingId] = useState<string | null>(null);
+    const reactivation = useRef<AbortController | null>(null);
 
-    const [newUser, setNewUser] = useState({ email: "", password: "", firstName: "", lastName: "", role: "STUDENT" });
+    const [newUser, setNewUser] = useState({ email: "", password: "", firstName: "", lastName: "", role: "STUDENT", grade: 5 });
 
     // Password management state
     const [passwordDialog, setPasswordDialog] = useState<"set" | "show" | null>(null);
@@ -51,6 +55,7 @@ export default function UsersPage() {
     const [assigningParent, setAssigningParent] = useState(false);
 
     useEffect(() => { fetchUsers(); }, []);
+    useEffect(() => () => reactivation.current?.abort(), []);
     useEffect(() => { if (feedback) { const t = setTimeout(() => setFeedback(null), 4000); return () => clearTimeout(t); } }, [feedback]);
 
     const fetchUsers = async () => {
@@ -65,10 +70,11 @@ export default function UsersPage() {
         e.preventDefault();
         setSubmitting(true); setFeedback(null);
         try {
-            const res = await apiPost("/users", newUser);
+            const { grade, ...identity } = newUser;
+            const res = await apiPost("/users", { ...identity, ...(newUser.role === "STUDENT" ? { grade } : {}) });
             if (res.ok) {
                 setIsDialogOpen(false);
-                setNewUser({ email: "", password: "", firstName: "", lastName: "", role: "STUDENT" });
+                setNewUser({ email: "", password: "", firstName: "", lastName: "", role: "STUDENT", grade: 5 });
                 setFeedback({ type: "success", message: "Kullanıcı başarıyla oluşturuldu!" });
                 fetchUsers();
             } else {
@@ -80,12 +86,34 @@ export default function UsersPage() {
     };
 
     const handleDeleteUser = async (id: string) => {
-        if (!confirm("Bu kullanıcıyı silmek istediğinize emin misiniz?")) return;
+        if (!confirm("Hesap pasife alınacak ve mevcut oturumları kapatılacak. Sipariş geçmişi korunur. Devam edilsin mi?")) return;
         try {
             const res = await apiDelete(`/users/${id}`);
-            if (res.ok) { setFeedback({ type: "success", message: "Kullanıcı silindi." }); fetchUsers(); }
+            if (res.ok) { setFeedback({ type: "success", message: "Hesap pasife alındı; sipariş geçmişi korundu." }); fetchUsers(); }
             else { setFeedback({ type: "error", message: "Kullanıcı silinemedi." }); }
         } catch { console.error("Failed to delete user"); }
+    };
+
+    const handleReactivateUser = async (user: User) => {
+        if (reactivation.current || user.isActive) return;
+        const controller = new AbortController();
+        reactivation.current = controller;
+        setReactivatingId(user._id);
+        setFeedback(null);
+        try {
+            const response = await apiPatch(`/users/${user._id}/status`, { isActive: true }, { signal: controller.signal, retries: 0 });
+            const value: unknown = await response.json().catch(() => null);
+            if (controller.signal.aborted) return;
+            if (!response.ok) throw new Error(commerceMessage(value, "Hesap etkinleştirilemedi."));
+            setUsers(previous => previous.map(item => item._id === user._id ? { ...item, isActive: true } : item));
+            setFeedback({ type: "success", message: "Hesap yeniden etkinleştirildi." });
+            await fetchUsers();
+        } catch (cause) {
+            if (!controller.signal.aborted) setFeedback({ type: "error", message: cause instanceof Error && cause.name !== "TypeError" ? cause.message : "Bağlantı kurulamadı. Hesap durumunu sayfayı yenileyerek kontrol edin." });
+        } finally {
+            if (reactivation.current === controller) reactivation.current = null;
+            if (!controller.signal.aborted) setReactivatingId(null);
+        }
     };
 
     // ─── Parent Matching Handlers ───────────────────────────
@@ -98,7 +126,7 @@ export default function UsersPage() {
 
     const openAssignParentDialog = (user: User) => {
         setSelectedUser(user);
-        setSelectedParentId((user as any).parentId?._id || "");
+        setSelectedParentId(typeof user.parentId === "string" ? user.parentId : user.parentId?._id || "");
         setAssignParentDialog(true);
         fetchParents();
     };
@@ -316,10 +344,10 @@ export default function UsersPage() {
                                             </DropdownMenuContent>
                                         </DropdownMenu>
 
-                                        {/* Delete */}
-                                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDeleteUser(user._id)}>
+                                        {!user.isActive && <Button variant="outline" size="sm" disabled={!!reactivatingId} aria-busy={reactivatingId === user._id} onClick={() => void handleReactivateUser(user)}>{reactivatingId === user._id && <Loader2 className="h-4 w-4 animate-spin" />}{reactivatingId === user._id ? "Etkinleştiriliyor…" : "Aktifleştir"}</Button>}
+                                        {user.isActive && <Button variant="ghost" size="sm" title="Hesabı pasife al" aria-label={`${user.firstName} ${user.lastName} hesabını pasife al`} className="text-destructive hover:text-destructive" onClick={() => handleDeleteUser(user._id)}>
                                             <Trash2 className="h-4 w-4" />
-                                        </Button>
+                                        </Button>}
                                     </div>
                                 </TableCell>
                             </TableRow>
@@ -336,6 +364,7 @@ export default function UsersPage() {
                         <DialogDescription>Kullanıcı bilgilerini girin.</DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleCreateUser} className="grid gap-4 py-4">
+                        {newUser.role === "STUDENT" && <label className="grid gap-2 text-sm font-medium">Öğrencinin sınıfı<select className="h-11 rounded-xl border px-3" value={newUser.grade} onChange={event => setNewUser(previous => ({ ...previous, grade: Number(event.target.value) }))}>{[1, 2, 3, 4, 5, 6, 7, 8].map(grade => <option key={grade} value={grade}>{grade}. sınıf</option>)}</select></label>}
                         <div className="grid gap-2">
                             <Label htmlFor="firstName">Ad</Label>
                             <Input id="firstName" value={newUser.firstName} onChange={(e) => setNewUser({ ...newUser, firstName: e.target.value })} required />

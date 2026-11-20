@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Plus, Loader2, CheckCircle, AlertCircle, Pencil, Trash2, FileText } from "lucide-react";
 import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/api";
+import { AtlasCurriculumReview } from "@/components/atlas-ai/atlas-curriculum-review";
 
 interface Subject { _id: string; name: string; }
 interface Unit { _id: string; name: string; }
@@ -32,6 +33,7 @@ export default function TopicsPage() {
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [deleteItem, setDeleteItem] = useState<Topic | null>(null);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [curriculumTopic, setCurriculumTopic] = useState<Topic | null>(null);
 
     useEffect(() => { fetchSubjects(selectedGrade); }, [selectedGrade]);
     useEffect(() => { if (selectedSubject) fetchUnits(selectedSubject); else { setUnits([]); setSelectedUnit(""); } }, [selectedSubject]);
@@ -173,6 +175,7 @@ export default function TopicsPage() {
                                 <TableCell>{t.name}</TableCell>
                                 <TableCell className="text-right">
                                     <div className="flex items-center justify-end gap-1">
+                                        <Button variant="outline" size="sm" onClick={() => setCurriculumTopic(t)}>Müfredat onayı</Button>
                                         <Button variant="ghost" size="sm" onClick={() => { setEditItem(t); setEditName(t.name); setEditDialogOpen(true); }}>
                                             <Pencil className="h-4 w-4" />
                                         </Button>
@@ -188,6 +191,7 @@ export default function TopicsPage() {
             )}
 
             {/* Dialogs */}
+            {curriculumTopic && <AtlasCurriculumReview topic={curriculumTopic} gradeLevel={selectedGrade} onClose={() => setCurriculumTopic(null)} />}
             <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader><DialogTitle>Konu Düzenle</DialogTitle><DialogDescription>Konu adını güncelleyin.</DialogDescription></DialogHeader>

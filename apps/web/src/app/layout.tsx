@@ -21,11 +21,11 @@ export const metadata: Metadata = {
   applicationName: "Atlas Derslik",
   icons: {
     icon: [
-      { url: "/atlas-icon.svg?v=atlasai-1", type: "image/svg+xml" },
-      { url: "/favicon.ico?v=atlasai-1", sizes: "16x16 32x32 48x48", type: "image/x-icon" },
+      { url: "/atlas-icon.svg?v=atlas-book-20261120", type: "image/svg+xml" },
+      { url: "/favicon.ico?v=atlas-book-20261120", sizes: "16x16 32x32 48x48 64x64", type: "image/x-icon" },
     ],
-    apple: [{ url: "/apple-touch-icon.png?v=atlasai-1", sizes: "180x180", type: "image/png" }],
-    shortcut: "/favicon.ico?v=atlasai-1",
+    apple: [{ url: "/apple-touch-icon.png?v=atlas-book-20261120", sizes: "180x180", type: "image/png" }],
+    shortcut: "/favicon.ico?v=atlas-book-20261120",
   },
   title: {
     default: "Atlas Derslik | Eğitimin Dijital Atlası",

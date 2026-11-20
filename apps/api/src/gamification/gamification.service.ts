@@ -1,4 +1,4 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { AiService } from './ai.service';
@@ -7,6 +7,10 @@ import { DailyChallenge, DailyChallengeDocument } from './schemas/daily-challeng
 import { Submission, SubmissionDocument } from '../education/schemas/submission.schema';
 import { StudentEnrollment, StudentEnrollmentDocument } from '../education/schemas/student-enrollment.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
+import { AtlasCurriculumService, AtlasCurriculumScope } from '../atlas-ai/atlas-ai.curriculum.service';
+import { createHash } from 'node:crypto';
+
+const challengeSchema = { type: 'object', additionalProperties: false, properties: { questionText: { type: 'string' }, options: { type: 'array', items: { type: 'object', additionalProperties: false, properties: { letter: { type: 'string', enum: ['A', 'B', 'C', 'D'] }, text: { type: 'string' } }, required: ['letter', 'text'] } }, correctLetter: { type: 'string', enum: ['A', 'B', 'C', 'D'] }, explanation: { type: 'string' } }, required: ['questionText', 'options', 'correctLetter', 'explanation'] };
 
 /**
  * XP economy. Everything except `STREAK_DAY` is earned from a concrete,
@@ -56,6 +60,7 @@ export class GamificationService {
         @InjectModel(StudentEnrollment.name) private enrollmentModel: Model<StudentEnrollmentDocument>,
         @InjectModel(User.name) private userModel: Model<UserDocument>,
         private readonly ai: AiService,
+        private readonly curriculum: AtlasCurriculumService,
     ) { }
 
     // ─── helpers ────────────────────────────────────────
@@ -371,41 +376,42 @@ export class GamificationService {
 
     // ─── daily challenge ────────────────────────────────
 
-    private fallbackQuestion(gradeLevel: number) {
-        return {
-            subject: 'Matematik',
-            questionText: '2⁸ × 5⁶ işleminin sonucu kaç basamaklı bir sayıdır?',
-            options: [
-                { letter: 'A', text: '6 basamaklı' },
-                { letter: 'B', text: '7 basamaklı' },
-                { letter: 'C', text: '8 basamaklı' },
-                { letter: 'D', text: '9 basamaklı' },
-            ],
-            correctLetter: 'B',
-            explanation: '2⁸ × 5⁶ = 2² × (2⁶ × 5⁶) = 4 × 10⁶ = 4.000.000 → 7 basamaklıdır.',
-            isFallback: true,
-        };
+    private challengeHash(scope: AtlasCurriculumScope) {
+        return createHash('sha256').update(JSON.stringify(scope.topics)).digest('hex');
+    }
+
+    private verifiedChallengeHash(question: any) {
+        return createHash('sha256').update(JSON.stringify([question.curriculumHash, question.subject, question.questionText, question.options.map((o: any) => [o.letter, o.text]), question.correctLetter, question.explanation, question.outcomeIds])).digest('hex');
     }
 
     /** Today's question for the student's grade, generating it once per day. */
     async getDailyChallenge(studentId: string) {
-        const enrollments = await this.enrollmentModel.find({ studentId: this.idMatch(studentId) as any })
-            .populate('gradeId', 'level').lean().exec();
-        const gradeLevel = (enrollments[0] as any)?.gradeId?.level || 8;
+        let scope: AtlasCurriculumScope;
+        try { scope = await this.curriculum.requireScope(studentId, studentId); }
+        catch (error) {
+            if (!(error instanceof BadRequestException)) throw error;
+            return { available: false, message: 'Günün sorusu için sınıfına ait resmî müfredat onayı gerekiyor.', questionText: '', subject: '', options: [], alreadyAnswered: false };
+        }
+        const gradeLevel = scope.grades[0]?.level;
+        if (!gradeLevel) throw new BadRequestException('Aktif sınıf kaydı gerekir.');
         const dateKey = this.dateKey();
-
-        let challenge = await this.challengeModel.findOne({ dateKey, gradeLevel }).lean().exec();
-        if (!challenge) challenge = await this.generateChallenge(dateKey, gradeLevel);
+        const curriculumHash = this.challengeHash(scope);
+        // Retain the existing unique index while separating approval versions
+        // and class/subject boundaries. Legacy unapproved questions cannot match.
+        const cacheKey = `${dateKey}:${curriculumHash}`;
+        let challenge = await this.challengeModel.findOne({ dateKey: cacheKey, gradeLevel, curriculumHash }).lean().exec();
+        if (!challenge) challenge = await this.generateChallenge(cacheKey, gradeLevel, scope, curriculumHash);
         if (!challenge) {
-            // AI unavailable and the racing write also failed — serve the static question.
-            challenge = { dateKey, gradeLevel, ...this.fallbackQuestion(gradeLevel) } as any;
+            return { available: false, message: 'Günün sorusu şu anda üretilemedi veya müfredat uygunluğu doğrulanamadı.', questionText: '', subject: '', options: [], alreadyAnswered: false };
         }
         const q = challenge as NonNullable<typeof challenge>;
+        if (q.curriculumHash !== curriculumHash || q.verifiedContentHash !== this.verifiedChallengeHash(q) || !q.outcomeIds?.length || q.outcomeIds.some(key => !scope.outcomes.some(o => o.id === key)) || !await this.curriculum.isCurrent(studentId, scope)) throw new ServiceUnavailableException('Günün sorusu için geçerli müfredat doğrulaması bulunamadı.');
 
         const progress = await this.getOrCreateProgress(studentId);
         const answered = progress.challengeLog.find((c) => c.date === dateKey);
 
         return {
+            available: true,
             id: (q as any)._id?.toString(),
             subject: q.subject,
             questionText: q.questionText,
@@ -421,14 +427,15 @@ export class GamificationService {
     }
 
     /** Rotates subject by day so students don't get the same subject repeatedly. */
-    private async generateChallenge(dateKey: string, gradeLevel: number) {
-        const subjects = ['Matematik', 'Fen Bilimleri', 'Türkçe', 'T.C. İnkılap Tarihi', 'İngilizce', 'Din Kültürü'];
-        const dayIndex = Math.floor(new Date(dateKey + 'T00:00:00Z').getTime() / 86400000);
-        const subject = subjects[dayIndex % subjects.length];
+    private async generateChallenge(dateKey: string, gradeLevel: number, scope: AtlasCurriculumScope, curriculumHash: string) {
+        const dayIndex = Math.floor(new Date(dateKey.slice(0, 10) + 'T00:00:00Z').getTime() / 86400000);
+        const topic = scope.topics[dayIndex % scope.topics.length];
+        const subject = topic.subject;
+        const topicScope = { ...scope, topics: [topic], outcomes: topic.outcomes, approvedSourceOutcomes: [topic] };
 
-        const parsed = await this.ai.chatJson<any>({
+        const parsed = await this.ai.chatStructured<any>({
             system:
-                'Sen Türk Milli Eğitim müfredatına hakim bir soru yazarısın. Verilen sınıf seviyesi ve ders için ' +
+                `Sen AtlasAI soru yazarısın. Yalnızca bu ONAYLI_MÜFREDAT=${JSON.stringify(topic)} için ` +
                 'MEB müfredatına uygun, tek doğru cevabı olan 4 şıklı bir çoktan seçmeli soru üret. ' +
                 'SADECE şu JSON şemasında yanıt ver: {"questionText": string, "options": [{"letter":"A","text":string}, ' +
                 '{"letter":"B","text":string}, {"letter":"C","text":string}, {"letter":"D","text":string}], ' +
@@ -437,7 +444,7 @@ export class GamificationService {
             user: `Sınıf seviyesi: ${gradeLevel}. Ders: ${subject}. Zorluk: orta. Bugünün tarihi: ${dateKey}.`,
             temperature: 0.9,
             maxTokens: 700,
-        });
+        }, challengeSchema, 'atlas_approved_daily_question');
 
         const valid =
             parsed &&
@@ -445,38 +452,42 @@ export class GamificationService {
             Array.isArray(parsed.options) &&
             parsed.options.length === 4 &&
             ['A', 'B', 'C', 'D'].includes(parsed.correctLetter) &&
-            parsed.options.every((o: any) => o?.letter && o?.text);
+            new Set(parsed.options.map((o: any) => o.letter)).size === 4 &&
+            typeof parsed.explanation === 'string' && parsed.explanation.length <= 4000 &&
+            parsed.questionText.length <= 2000 &&
+            parsed.options.every((o: any) => ['A', 'B', 'C', 'D'].includes(o?.letter) && typeof o?.text === 'string' && o.text.length > 0 && o.text.length <= 1000);
 
-        const payload = valid
-            ? {
+        if (!valid || !await this.curriculum.verifyContent(topicScope, JSON.stringify(parsed), topic.outcomes.map(o => o.id))) return null;
+
+        const payload = {
                 subject,
                 questionText: parsed.questionText,
                 options: parsed.options.map((o: any) => ({ letter: o.letter, text: String(o.text) })),
                 correctLetter: parsed.correctLetter,
                 explanation: parsed.explanation || '',
                 isFallback: false,
-            }
-            : { ...this.fallbackQuestion(gradeLevel), subject: this.fallbackQuestion(gradeLevel).subject };
-
-        if (!valid) this.logger.warn(`Daily challenge fell back to the static question (${dateKey}, grade ${gradeLevel}).`);
+                curriculumHash,
+                outcomeIds: topic.outcomes.map(o => o.id),
+            };
 
         try {
-            return (await this.challengeModel.create({ dateKey, gradeLevel, ...payload })).toObject();
+            return (await this.challengeModel.create({ dateKey, gradeLevel, ...payload, verifiedContentHash: this.verifiedChallengeHash(payload) })).toObject();
         } catch {
             // Another request generated it first — reuse theirs.
-            return this.challengeModel.findOne({ dateKey, gradeLevel }).lean().exec() as any;
+            return this.challengeModel.findOne({ dateKey, gradeLevel, curriculumHash }).lean().exec() as any;
         }
     }
 
     /** Grades the answer server-side and records it once per day. */
     async answerDailyChallenge(studentId: string, letter: string) {
-        const enrollments = await this.enrollmentModel.find({ studentId: this.idMatch(studentId) as any })
-            .populate('gradeId', 'level').lean().exec();
-        const gradeLevel = (enrollments[0] as any)?.gradeId?.level || 8;
+        if (!['A', 'B', 'C', 'D'].includes(String(letter).toUpperCase())) throw new BadRequestException('Geçerli bir seçenek gerekir.');
+        const scope = await this.curriculum.requireScope(studentId, studentId);
+        const gradeLevel = scope.grades[0]?.level;
         const dateKey = this.dateKey();
-
-        const challenge = await this.challengeModel.findOne({ dateKey, gradeLevel }).lean().exec();
+        const curriculumHash = this.challengeHash(scope);
+        const challenge = await this.challengeModel.findOne({ dateKey: `${dateKey}:${curriculumHash}`, gradeLevel, curriculumHash }).lean().exec();
         if (!challenge) throw new BadRequestException('Bugünün sorusu henüz hazır değil.');
+        if (challenge.verifiedContentHash !== this.verifiedChallengeHash(challenge) || !challenge.outcomeIds?.length || challenge.outcomeIds.some(key => !scope.outcomes.some(o => o.id === key)) || !await this.curriculum.isCurrent(studentId, scope)) throw new BadRequestException('Sorunun güncel müfredat doğrulaması geçerli değil.');
 
         const progress = await this.getOrCreateProgress(studentId);
         if (progress.challengeLog.some((c) => c.date === dateKey)) {
@@ -553,11 +564,13 @@ export class GamificationService {
 
     /** Coaching tip grounded in the student's real numbers. */
     async getCoachTip(studentId: string) {
+        const scope = await this.curriculum.requireScope(studentId, studentId);
         const [summary, weak] = await Promise.all([
             this.getXpSummary(studentId),
             this.getWeakSpots(studentId),
         ]);
 
+        weak.subjects = weak.subjects.filter(s => scope.topics.some(t => t.subject === s.subject));
         const weakest = weak.subjects[0];
         const context = weak.hasData
             ? `Çözdüğü optik test: ${summary.stats.opticCount}. Toplam doğru: ${summary.stats.totalCorrect}. ` +
@@ -566,51 +579,47 @@ export class GamificationService {
             `En zayıf ders: ${weakest?.subject} (%${weakest?.accuracy}).`
             : 'Öğrenci henüz hiç optik test çözmemiş.';
 
-        const tip = await this.ai.chat({
+        const result = await this.ai.chatStructured<{ tip: string }>({
             system:
-                'Sen Atlas Derslik platformunda görev yapan uzman bir LGS öğrenci koçusun. ' +
+                `Sen Atlas Derslik öğrenci koçusun. Yalnızca ONAYLI_MÜFREDAT=${JSON.stringify(scope.topics)} içindeki konuları öner. ` +
                 'Öğrencinin GERÇEK verilerine dayanarak kısa, somut ve motive edici TEK bir tavsiye cümlesi yaz ' +
                 '(en fazla 30 kelime, Türkçe). Hangi derse neden odaklanması gerektiğini net söyle. Uydurma veri kullanma.',
             user: context,
             temperature: 0.7,
             maxTokens: 120,
-        });
+        }, { type: 'object', additionalProperties: false, properties: { tip: { type: 'string' } }, required: ['tip'] }, 'atlas_approved_coach_tip');
+        if (!result?.tip || result.tip.length > 1000 || !await this.curriculum.verifyContent(scope, result.tip) || !await this.curriculum.isCurrent(studentId, scope)) throw new ServiceUnavailableException('Koç önerisinin müfredat uygunluğu doğrulanamadı.');
 
         return {
-            tip: tip || this.staticTip(summary, weak),
-            aiGenerated: !!tip,
+            tip: result.tip,
+            aiGenerated: true,
             context: { weakest: weakest?.subject || null, streak: summary.streak.current },
         };
     }
 
-    private staticTip(summary: any, weak: any) {
-        if (!weak.hasData) {
-            return 'Henüz optik test çözmemişsin. İlk testini çözerek kişisel analizini başlat!';
-        }
-        const w = weak.subjects[0];
-        return `${w.subject} dersinde başarın %${w.accuracy}. Bu hafta bu derse ağırlık vererek netini hızla yükseltebilirsin.`;
-    }
-
     /** Study plan built from the student's actual weak subjects. */
     async getStudyPlan(studentId: string) {
+        const scope = await this.curriculum.requireScope(studentId, studentId);
         const weak = await this.getWeakSpots(studentId);
+        weak.subjects = weak.subjects.filter(s => scope.topics.some(t => t.subject === s.subject));
         const focus = weak.hasData
             ? weak.subjects.slice(0, 2).map((s) => `${s.subject} (%${s.accuracy})`).join(' ve ')
             : 'genel tekrar';
 
-        const plan = await this.ai.chat({
+        const result = await this.ai.chatStructured<{ plan: string }>({
             system:
-                'Sen Atlas Derslik yapay zeka rehberlik servisisin. Öğrenci için bugüne özel, 3 adımlı, ' +
+                `Sen Atlas Derslik rehberlik servisisin. Yalnızca ONAYLI_MÜFREDAT=${JSON.stringify(scope.topics)} içindeki konulardan öğrenci için bugüne özel, 3 adımlı, ` +
                 'toplam 45 dakikalık somut bir çalışma planı üret. Türkçe, kısa ve madde madde yaz. ' +
                 'Format: "1) ... (süre) → 2) ... (süre) → 3) ... (süre)". Sadece planı yaz, giriş cümlesi ekleme.',
             user: `Öğrencinin en zayıf dersleri: ${focus}. Bu derslere ağırlık veren bir plan üret.`,
             temperature: 0.6,
             maxTokens: 220,
-        });
+        }, { type: 'object', additionalProperties: false, properties: { plan: { type: 'string' } }, required: ['plan'] }, 'atlas_approved_coach_plan');
+        if (!result?.plan || result.plan.length > 4000 || !await this.curriculum.verifyContent(scope, result.plan) || !await this.curriculum.isCurrent(studentId, scope)) throw new ServiceUnavailableException('Çalışma önerisinin müfredat uygunluğu doğrulanamadı.');
 
         return {
-            plan: plan || `1) ${weak.subjects[0]?.subject || 'Matematik'} 20 soru (20dk) → 2) 5dk mola → 3) Yanlış analiz + tekrar (20dk)`,
-            aiGenerated: !!plan,
+            plan: result.plan,
+            aiGenerated: true,
             focusSubjects: weak.subjects.slice(0, 2).map((s) => s.subject),
         };
     }

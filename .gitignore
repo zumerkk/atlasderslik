@@ -50,6 +50,9 @@ atlas listesi.xlsx
 
 # Local-only database, credentials, process logs and downloaded runtime
 .atlas-local/
+.atlas-media/
+tmp/pdfs/
+output/pdf/
 
 # Local assistant settings, review artifacts and private delivery documents
 .claude/

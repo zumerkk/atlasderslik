@@ -1,309 +1,64 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { Loader2, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { AuthShell } from "@/components/commerce/auth-shell";
+import { useCommerceAccount } from "@/components/commerce/use-commerce-account";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import Link from "next/link";
-import Image from "next/image";
-import { GraduationCap, ArrowRight, Eye, EyeOff, Loader2, Users, AlertCircle } from "lucide-react";
+import { apiPost } from "@/lib/api";
+import { commerceJson } from "@/lib/commerce";
+import { afterAuthentication, authPageHref, safeAuthRedirect } from "@/lib/auth-navigation";
+import { clearAuthSession, saveAuthSession } from "@/lib/auth-session";
 
-export default function RegisterPage() {
+function RegisterContent() {
     const router = useRouter();
-    const [formData, setFormData] = useState({
-        firstName: "",
-        lastName: "",
-        email: "",
-        password: "",
-        role: "STUDENT",
-        grade: 5,
-    });
+    const params = useSearchParams();
+    const intent = safeAuthRedirect(params.get("redirect") || params.get("returnTo"));
+    const { account, ready } = useCommerceAccount();
+    const [form, setForm] = useState({ firstName: "", lastName: "", email: "", password: "", confirmPassword: "", role: "PARENT" as "PARENT" | "STUDENT", grade: "5", termsAccepted: false, privacyAccepted: false });
+    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
-    const [showPassword, setShowPassword] = useState(false);
-
-    const handleRegister = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
-        setError("");
-
-        if (formData.password.length < 8) {
-            setError("Şifre en az 8 karakter olmalıdır.");
-            setLoading(false);
-            return;
-        }
-
+    const busy = useRef(false);
+    const request = useRef<AbortController | null>(null);
+    useEffect(() => () => request.current?.abort(), []);
+    const submit = async (event: React.FormEvent) => {
+        event.preventDefault(); if (busy.current) return; setError("");
+        if (form.firstName.trim().length < 2 || form.lastName.trim().length < 2) { setError("Ad ve soyad en az ikişer karakter olmalıdır."); return; }
+        if (form.password.length < 8 || !/[A-Za-z]/.test(form.password) || !/\d/.test(form.password)) { setError("En az 8 karakter, bir harf ve bir rakam içeren şifre oluşturun."); return; }
+        if (form.password !== form.confirmPassword) { setError("Şifreler eşleşmiyor."); return; }
+        if (!form.termsAccepted || !form.privacyAccepted) { setError("Üyelik koşullarını ve gizlilik bilgilendirmesini ayrı ayrı onaylayın."); return; }
+        const priorToken = localStorage.getItem("token");
+        busy.current = true; setLoading(true);
+        const controller = new AbortController(); request.current = controller;
         try {
-            const body: any = { ...formData };
-            if (formData.role !== "STUDENT") delete body.grade;
-
-            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/auth/register", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(body),
-            });
-
-            if (res.ok) {
-                router.push("/login");
-            } else {
-                const data = await res.json();
-                if (data.message?.includes("duplicate") || data.message?.includes("E11000")) {
-                    setError("Bu e-posta adresi zaten kayıtlı.");
-                } else {
-                    setError(data.message || "Kayıt başarısız.");
-                }
-            }
-        } catch (err) {
-            console.error("Register error", err);
-            setError("Sunucuya bağlanılamadı. Lütfen tekrar deneyin.");
-        } finally {
-            setLoading(false);
-        }
+            const response = await commerceJson<unknown>(await apiPost("/auth/register", { firstName: form.firstName.trim(), lastName: form.lastName.trim(), email: form.email.trim().toLowerCase(), password: form.password, role: form.role, ...(form.role === "STUDENT" ? { grade: Number(form.grade) } : {}), termsAccepted: true, privacyAccepted: true }, { skipAuth: true, retries: 0, signal: controller.signal, timeout: 45000 }), "Hesap oluşturulamadı.");
+            if (controller.signal.aborted) return;
+            if (localStorage.getItem("token") !== priorToken) throw new Error("Oturum bu sırada değişti. Yeni hesabınıza giriş yapmadan önce mevcut oturumu kontrol edin.");
+            const session = saveAuthSession(response); setForm(previous => ({ ...previous, password: "", confirmPassword: "" }));
+            router.replace(afterAuthentication(session.user.role, intent));
+        } catch (cause) { if (!controller.signal.aborted) setError(cause instanceof Error && cause.name !== "TypeError" && cause.name !== "AbortError" ? cause.message : "Bağlantı kesildi. Hesabınız oluşmuş olabilir; yeniden kayıt yapmadan giriş yapmayı deneyin."); }
+        finally { busy.current = false; if (!controller.signal.aborted) setLoading(false); }
     };
-
-    // Password strength
-    const getPasswordStrength = (pw: string) => {
-        if (!pw) return { level: 0, label: "", color: "" };
-        let score = 0;
-        if (pw.length >= 6) score++;
-        if (pw.length >= 8) score++;
-        if (/[A-Z]/.test(pw)) score++;
-        if (/[0-9]/.test(pw)) score++;
-        if (/[^A-Za-z0-9]/.test(pw)) score++;
-        if (score <= 2) return { level: score, label: "Zayıf", color: "bg-red-400" };
-        if (score <= 3) return { level: score, label: "Orta", color: "bg-yellow-400" };
-        return { level: score, label: "Güçlü", color: "bg-emerald-400" };
-    };
-
-    const strength = getPasswordStrength(formData.password);
-
-    return (
-        <div className="flex min-h-screen">
-            {/* Left Brand Panel */}
-            <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-atlas-blue via-blue-600 to-atlas-indigo">
-                <div className="absolute top-20 left-10 w-64 h-64 rounded-full bg-white/5 blur-3xl animate-float" />
-                <div className="absolute bottom-20 right-10 w-96 h-96 rounded-full bg-indigo-400/10 blur-3xl animate-float delay-300" />
-
-                <div className="relative flex flex-col items-center justify-center w-full px-12">
-                    <Image
-                        src="/assets/images/deer-logo.png"
-                        alt="Atlas Derslik Logo"
-                        width={96}
-                        height={96}
-                        className="mb-8 animate-fade-in drop-shadow-lg"
-                    />
-                    <h1 className="text-4xl font-bold text-white text-center mb-4 animate-fade-in delay-100">
-                        Atlas Derslik
-                    </h1>
-                    <p className="text-lg text-white/70 text-center max-w-md animate-fade-in delay-200">
-                        Eğitim yolculuğunuza bugün başlayın. Uzman öğretmenlerle LGS hedeflerinize ulaşın.
-                    </p>
-
-                </div>
-            </div>
-
-            {/* Right Form Panel */}
-            <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8 bg-gray-50">
-                <div className="w-full max-w-md animate-fade-in">
-                    {/* Mobile logo */}
-                    <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
-                        <Image
-                            src="/assets/images/deer-logo.png"
-                            alt="Atlas Derslik Logo"
-                            width={48}
-                            height={48}
-                            className="drop-shadow-md"
-                        />
-                        <span className="text-2xl font-bold text-gray-900">Atlas Derslik</span>
-                    </div>
-
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-                        <div className="text-center mb-8">
-                            <h2 className="text-2xl font-bold text-gray-900">Kayıt Ol</h2>
-                            <p className="text-sm text-gray-500 mt-2">
-                                Yeni bir hesap oluşturun
-                            </p>
-                        </div>
-
-                        <form onSubmit={handleRegister} className="space-y-5">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="firstName" className="text-sm font-medium text-gray-700">
-                                        Ad
-                                    </Label>
-                                    <Input
-                                        id="firstName"
-                                        placeholder="Adınız"
-                                        value={formData.firstName}
-                                        onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                                        required
-                                        className="h-11"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="lastName" className="text-sm font-medium text-gray-700">
-                                        Soyad
-                                    </Label>
-                                    <Input
-                                        id="lastName"
-                                        placeholder="Soyadınız"
-                                        value={formData.lastName}
-                                        onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                                        required
-                                        className="h-11"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="email" className="text-sm font-medium text-gray-700">
-                                    E-posta
-                                </Label>
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    placeholder="ornek@email.com"
-                                    value={formData.email}
-                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                    required
-                                    className="h-11"
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="password" className="text-sm font-medium text-gray-700">
-                                    Şifre
-                                </Label>
-                                <div className="relative">
-                                    <Input
-                                        id="password"
-                                        type={showPassword ? "text" : "password"}
-                                        value={formData.password}
-                                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                        required
-                                        className="h-11 pr-10"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                                    >
-                                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                    </button>
-                                </div>
-                                {/* Password strength */}
-                                {formData.password && (
-                                    <div className="flex items-center gap-2 mt-2">
-                                        <div className="flex-1 flex gap-1">
-                                            {[1, 2, 3, 4, 5].map((i) => (
-                                                <div
-                                                    key={i}
-                                                    className={`h-1 flex-1 rounded-full transition-colors ${i <= strength.level ? strength.color : "bg-gray-200"
-                                                        }`}
-                                                />
-                                            ))}
-                                        </div>
-                                        <span className="text-xs text-gray-500">{strength.label}</span>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="role" className="text-sm font-medium text-gray-700">
-                                    Hesap Türü
-                                </Label>
-                                <Select
-                                    value={formData.role}
-                                    onValueChange={(val) => setFormData({ ...formData, role: val })}
-                                >
-                                    <SelectTrigger id="role" className="h-11">
-                                        <SelectValue placeholder="Seçiniz" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="STUDENT">
-                                            <div className="flex items-center gap-2">
-                                                <GraduationCap className="h-4 w-4" />
-                                                Öğrenci
-                                            </div>
-                                        </SelectItem>
-                                        <SelectItem value="TEACHER">
-                                            <div className="flex items-center gap-2">
-                                                <Users className="h-4 w-4" />
-                                                Öğretmen
-                                            </div>
-                                        </SelectItem>
-                                        <SelectItem value="PARENT">
-                                            <div className="flex items-center gap-2">
-                                                <Users className="h-4 w-4" />
-                                                Veli
-                                            </div>
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            {formData.role === "STUDENT" && (
-                                <div className="space-y-2">
-                                    <Label htmlFor="grade" className="text-sm font-medium text-gray-700">
-                                        Sınıf
-                                    </Label>
-                                    <Select
-                                        value={String(formData.grade)}
-                                        onValueChange={(val) => setFormData({ ...formData, grade: Number(val) })}
-                                    >
-                                        <SelectTrigger id="grade" className="h-11">
-                                            <SelectValue placeholder="Sınıf seçin" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="5">5. Sınıf</SelectItem>
-                                            <SelectItem value="6">6. Sınıf</SelectItem>
-                                            <SelectItem value="7">7. Sınıf</SelectItem>
-                                            <SelectItem value="8">8. Sınıf</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            )}
-
-                            {error && (
-                                <div className="bg-rose-50 border border-rose-200 rounded-xl px-4 py-3 text-sm text-rose-700 flex items-center gap-2 animate-toast-in">
-                                    <AlertCircle className="h-4 w-4 shrink-0" />
-                                    <span>{error}</span>
-                                </div>
-                            )}
-
-                            <Button
-                                className="w-full h-11 bg-atlas-blue hover:bg-atlas-blue-dark text-white font-semibold shadow-sm"
-                                type="submit"
-                                disabled={loading}
-                            >
-                                {loading ? (
-                                    <>
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                        Kayıt olunuyor...
-                                    </>
-                                ) : (
-                                    <>
-                                        Kayıt Ol
-                                        <ArrowRight className="h-4 w-4" />
-                                    </>
-                                )}
-                            </Button>
-                        </form>
-
-                        <div className="mt-6 text-center text-sm text-gray-500">
-                            Zaten hesabınız var mı?{" "}
-                            <Link
-                                href="/login"
-                                className="text-atlas-blue hover:underline font-semibold"
-                            >
-                                Giriş Yap
-                            </Link>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
+    return <AuthShell title="Ücretsiz hesap oluştur" description={intent?.startsWith("/cart") ? "Paket seçiminiz korunur. Üyelik ücretsizdir; paket ödemesi sonraki adımda yapılır." : "Öğrenci veya veli hesabınızla eğitim paketlerinizi ve siparişlerinizi yönetin."}>
+        {!ready ? <Loader2 className="h-6 w-6 animate-spin" aria-label="Oturum kontrol ediliyor" /> : account ? <div className="space-y-4"><p className="text-sm">Bu tarayıcıda açık bir hesabınız var.</p><Button className="w-full" onClick={() => router.replace(afterAuthentication(account.role, intent))}>Hesabımla devam et</Button><Button className="w-full" variant="outline" onClick={clearAuthSession}>Yeni hesap için mevcut oturumu kapat</Button></div> : <>
+            <form onSubmit={submit} className="space-y-4"><fieldset disabled={loading} className="space-y-4">
+                <div className="grid sm:grid-cols-2 gap-3">{([['firstName', 'Ad'], ['lastName', 'Soyad']] as const).map(([field, label]) => <div key={field} className="space-y-2"><Label htmlFor={`register-${field}`}>{label}</Label><Input id={`register-${field}`} autoComplete={field === 'firstName' ? 'given-name' : 'family-name'} minLength={2} maxLength={80} required value={form[field]} onChange={event => setForm(previous => ({ ...previous, [field]: event.target.value }))} /></div>)}</div>
+                <div className="space-y-2"><Label htmlFor="register-email">E-posta</Label><Input id="register-email" type="email" autoComplete="email" maxLength={254} required value={form.email} onChange={event => setForm(previous => ({ ...previous, email: event.target.value }))} /></div>
+                <div className="space-y-2"><Label htmlFor="register-role">Hesap türü</Label><select id="register-role" className="h-11 w-full rounded-xl border bg-background px-3" value={form.role} onChange={event => setForm(previous => ({ ...previous, role: event.target.value as "PARENT" | "STUDENT" }))}><option value="PARENT">Veli — öğrencim için satın alacağım</option><option value="STUDENT">Öğrenci — kendi hesabımı oluşturuyorum</option></select>{form.role === "PARENT" && <p className="text-xs text-muted-foreground">Kaydın ardından sepetinizden öğrenciniz için güvenli hesap oluşturabilirsiniz.</p>}</div>
+                {form.role === "STUDENT" && <div className="space-y-2"><Label htmlFor="register-grade">Sınıf seviyesi</Label><select id="register-grade" required className="h-11 w-full rounded-xl border bg-background px-3" value={form.grade} onChange={event => setForm(previous => ({ ...previous, grade: event.target.value }))}>{Array.from({ length: 8 }, (_, index) => index + 1).map(grade => <option value={grade} key={grade}>{grade}. sınıf</option>)}</select></div>}
+                <div className="space-y-2"><Label htmlFor="register-password">Şifre</Label><div className="relative"><Input id="register-password" type={showPassword ? "text" : "password"} autoComplete="new-password" minLength={8} maxLength={128} required className="pr-11" value={form.password} onChange={event => setForm(previous => ({ ...previous, password: event.target.value }))} /><button type="button" className="absolute right-3 top-3 text-muted-foreground" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? "Şifreyi gizle" : "Şifreyi göster"} aria-pressed={showPassword}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div><p className="text-xs text-muted-foreground">En az 8 karakter, bir harf ve bir rakam.</p></div>
+                <div className="space-y-2"><Label htmlFor="register-confirm">Şifre tekrarı</Label><Input id="register-confirm" type={showPassword ? "text" : "password"} autoComplete="new-password" minLength={8} maxLength={128} required value={form.confirmPassword} onChange={event => setForm(previous => ({ ...previous, confirmPassword: event.target.value }))} /></div>
+                <label className="flex gap-3 items-start text-sm"><input type="checkbox" required className="mt-1" checked={form.termsAccepted} onChange={event => setForm(previous => ({ ...previous, termsAccepted: event.target.checked }))} /><span><Link href="/kullanim-sartlari" target="_blank" rel="noopener noreferrer" className="text-atlas-blue underline">Üyelik ve kullanım koşullarını</Link> okudum, kabul ediyorum.</span></label>
+                <label className="flex gap-3 items-start text-sm"><input type="checkbox" required className="mt-1" checked={form.privacyAccepted} onChange={event => setForm(previous => ({ ...previous, privacyAccepted: event.target.checked }))} /><span><Link href="/gizlilik-politikasi" target="_blank" rel="noopener noreferrer" className="text-atlas-blue underline">Gizlilik politikasını</Link> ve <Link href="/kvkk" target="_blank" rel="noopener noreferrer" className="text-atlas-blue underline">kişisel veri bilgilendirmesini</Link> okudum. Bu bir pazarlama izni değildir.</span></label>
+                {error && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
+                <Button type="submit" className="w-full">{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}{loading ? "Hesabınız oluşturuluyor…" : "Hesap oluştur ve devam et"}</Button>
+            </fieldset></form><p className="mt-6 text-sm text-center text-muted-foreground">Zaten hesabınız var mı? <Link href={authPageHref("login", intent)} className="text-atlas-blue font-semibold underline">Giriş yap</Link></p>
+        </>}
+    </AuthShell>;
 }
+export default function RegisterPage() { return <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>}><RegisterContent /></Suspense>; }

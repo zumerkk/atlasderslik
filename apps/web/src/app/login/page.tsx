@@ -1,225 +1,55 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { Eye, EyeOff, Loader2, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import Link from "next/link";
-import Image from "next/image";
-import { ArrowRight, Eye, EyeOff, Loader2, AlertCircle, RefreshCw, Wifi } from "lucide-react";
+import { AuthShell } from "@/components/commerce/auth-shell";
+import { useCommerceAccount } from "@/components/commerce/use-commerce-account";
+import { apiPost } from "@/lib/api";
+import { commerceJson } from "@/lib/commerce";
+import { afterAuthentication, authPageHref, safeAuthRedirect } from "@/lib/auth-navigation";
+import { clearAuthSession, saveAuthSession } from "@/lib/auth-session";
 
-export default function LoginPage() {
+function LoginContent() {
     const router = useRouter();
+    const params = useSearchParams();
+    const intent = safeAuthRedirect(params.get("redirect") || params.get("returnTo"));
+    const { account, ready } = useCommerceAccount();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
-    const [showPassword, setShowPassword] = useState(false);
-    const [isColdStart, setIsColdStart] = useState(false);
-
-    const handleLogin = useCallback(async (e?: React.FormEvent) => {
-        e?.preventDefault();
-        setLoading(true);
-        setError("");
-        setIsColdStart(false);
-
-        const timeout = 15000;
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), timeout);
-
+    const busy = useRef(false);
+    const request = useRef<AbortController | null>(null);
+    useEffect(() => () => request.current?.abort(), []);
+    const submit = async (event: React.FormEvent) => {
+        event.preventDefault(); if (busy.current) return;
+        const priorToken = localStorage.getItem("token");
+        busy.current = true; setLoading(true); setError("");
+        const controller = new AbortController(); request.current = controller;
         try {
-            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/auth/login", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, password }),
-                signal: controller.signal,
-            });
-
-            clearTimeout(timeoutId);
-
-            if (res.ok) {
-                const data = await res.json();
-                localStorage.setItem("token", data.access_token);
-                localStorage.setItem("user", JSON.stringify(data.user));
-
-                const role = data.user.role;
-                if (role === "ADMIN") router.push("/admin");
-                else if (role === "STUDENT") router.push("/student");
-                else if (role === "TEACHER") router.push("/teacher");
-                else if (role === "PARENT") router.push("/parent");
-                else router.push("/");
-            } else {
-                setError("Giriş başarısız. Lütfen bilgilerinizi kontrol edin.");
-            }
-        } catch (err: any) {
-            clearTimeout(timeoutId);
-            if (err?.name === "AbortError") {
-                setIsColdStart(true);
-                setError("Sunucu uyanıyor, lütfen birkaç saniye bekleyip tekrar deneyin.");
-            } else {
-                setIsColdStart(true);
-                setError("Sunucuya bağlanılamadı. Sunucu şu anda başlatılıyor olabilir.");
-            }
-        } finally {
-            setLoading(false);
-        }
-    }, [email, password, router]);
-
-    return (
-        <div className="flex min-h-screen">
-            {/* Left Brand Panel */}
-            <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-atlas-blue via-blue-600 to-atlas-indigo">
-                {/* Decorative blobs */}
-                <div className="absolute top-20 left-10 w-64 h-64 rounded-full bg-white/5 blur-3xl animate-float" />
-                <div className="absolute bottom-20 right-10 w-96 h-96 rounded-full bg-indigo-400/10 blur-3xl animate-float delay-300" />
-
-                <div className="relative flex flex-col items-center justify-center w-full px-12">
-                    <Image
-                        src="/assets/images/deer-logo.png"
-                        alt="Atlas Derslik Logo"
-                        width={96}
-                        height={96}
-                        className="mb-8 animate-fade-in drop-shadow-lg"
-                    />
-                    <h1 className="text-4xl font-bold text-white text-center mb-4 animate-fade-in delay-100">
-                        Atlas Derslik
-                    </h1>
-                    <p className="text-lg text-white/70 text-center max-w-md animate-fade-in delay-200">
-                        Ortaokul ve LGS hazırlığında uzman öğretmenlerle etkili öğrenme deneyimi
-                    </p>
-
-                </div>
-            </div>
-
-            {/* Right Form Panel */}
-            <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8 bg-gray-50">
-                <div className="w-full max-w-md animate-fade-in">
-                    {/* Mobile logo */}
-                    <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
-                        <Image
-                            src="/assets/images/deer-logo.png"
-                            alt="Atlas Derslik Logo"
-                            width={48}
-                            height={48}
-                            className="drop-shadow-md"
-                        />
-                        <span className="text-2xl font-bold text-gray-900">Atlas Derslik</span>
-                    </div>
-
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-                        <div className="text-center mb-8">
-                            <h2 className="text-2xl font-bold text-gray-900">Giriş Yap</h2>
-                            <p className="text-sm text-gray-500 mt-2">
-                                E-posta ve şifrenizle hesabınıza erişin
-                            </p>
-                        </div>
-
-                        {/* Reminder for users */}
-                        <div className="flex items-start gap-2.5 bg-blue-50 border border-blue-200 text-blue-700 text-xs px-4 py-3 rounded-xl mb-5">
-                            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                            <p>Lütfen size verilen <strong>e-posta adresi</strong> ve <strong>şifre</strong> ile giriş yapın. Kişisel e-posta adresinizi değil, size iletilen hesap bilgilerini kullanın.</p>
-                        </div>
-
-                        <form onSubmit={handleLogin} className="space-y-5">
-                            <div className="space-y-2">
-                                <Label htmlFor="email" className="text-sm font-medium text-gray-700">
-                                    E-posta
-                                </Label>
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    placeholder="ornek@email.com"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    required
-                                    className="h-11"
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <Label htmlFor="password" className="text-sm font-medium text-gray-700">
-                                        Şifre
-                                    </Label>
-                                    <button
-                                        type="button"
-                                        className="text-xs text-atlas-blue hover:underline font-medium"
-                                        onClick={() => alert("Şifre sıfırlama için okul yöneticinize veya destek ekibine başvurunuz.")}
-                                    >
-                                        Şifremi Unuttum
-                                    </button>
-                                </div>
-                                <div className="relative">
-                                    <Input
-                                        id="password"
-                                        type={showPassword ? "text" : "password"}
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        required
-                                        className="h-11 pr-10"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                                    >
-                                        {showPassword ? (
-                                            <EyeOff className="h-4 w-4" />
-                                        ) : (
-                                            <Eye className="h-4 w-4" />
-                                        )}
-                                    </button>
-                                </div>
-                            </div>
-
-                            {error && (
-                                <div className={`rounded-xl px-4 py-3 text-sm flex items-start gap-2 animate-toast-in ${isColdStart
-                                    ? "bg-amber-50 border border-amber-200 text-amber-700"
-                                    : "bg-rose-50 border border-rose-200 text-rose-700"
-                                    }`}>
-                                    {isColdStart ? (
-                                        <Wifi className="h-4 w-4 shrink-0 mt-0.5 animate-pulse" />
-                                    ) : (
-                                        <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                                    )}
-                                    <div className="flex-1">
-                                        <span>{error}</span>
-                                        {isColdStart && (
-                                            <button
-                                                type="button"
-                                                onClick={() => handleLogin()}
-                                                className="mt-2 flex items-center gap-1.5 text-xs font-medium text-amber-800 hover:text-amber-900"
-                                            >
-                                                <RefreshCw className="h-3 w-3" />
-                                                Tekrar Dene
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-
-                            <Button
-                                className="w-full h-11 bg-atlas-blue hover:bg-atlas-blue-dark text-white font-semibold shadow-sm"
-                                type="submit"
-                                disabled={loading}
-                            >
-                                {loading ? (
-                                    <>
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                        Giriş yapılıyor...
-                                    </>
-                                ) : (
-                                    <>
-                                        Giriş Yap
-                                        <ArrowRight className="h-4 w-4" />
-                                    </>
-                                )}
-                            </Button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
+            const response = await commerceJson<unknown>(await apiPost("/auth/login", { email: email.trim().toLowerCase(), password }, { skipAuth: true, retries: 0, timeout: 45000, signal: controller.signal }), "E-posta veya şifre doğrulanamadı.");
+            if (controller.signal.aborted) return;
+            if (localStorage.getItem("token") !== priorToken) throw new Error("Oturum bu sırada değişti. Devam etmeden sayfayı yenileyin.");
+            const session = saveAuthSession(response); setPassword("");
+            router.replace(afterAuthentication(session.user.role, intent));
+        } catch (cause) { if (!controller.signal.aborted) setError(cause instanceof Error && cause.name !== "TypeError" && cause.name !== "AbortError" ? cause.message : "Bağlantı kurulamadı. Bilgileriniz korunuyor; yeniden deneyebilirsiniz."); }
+        finally { busy.current = false; if (!controller.signal.aborted) setLoading(false); }
+    };
+    return <AuthShell title="Giriş yap" description={intent?.startsWith("/cart") ? "Paket seçiminiz korunuyor. Sepetinize devam etmek için giriş yapın." : "Hesabınızla derslerinize ve siparişlerinize ulaşın."}>
+        {!ready ? <Loader2 className="h-6 w-6 animate-spin" aria-label="Oturum kontrol ediliyor" /> : account ? <div className="space-y-4"><p className="text-sm">Bu tarayıcıda bir hesabınız açık.</p><Button className="w-full" onClick={() => router.replace(afterAuthentication(account.role, intent))}>Hesabımla devam et<ArrowRight className="h-4 w-4" /></Button><Button className="w-full" variant="outline" onClick={() => { clearAuthSession(); setPassword(""); setError(""); }}>Farklı hesapla giriş yap</Button></div> : <>
+            <form onSubmit={submit} className="space-y-5"><fieldset disabled={loading} className="space-y-5">
+                <div className="space-y-2"><Label htmlFor="login-email">E-posta</Label><Input id="login-email" type="email" autoComplete="username" maxLength={254} required value={email} onChange={event => setEmail(event.target.value)} /></div>
+                <div className="space-y-2"><div className="flex justify-between gap-2"><Label htmlFor="login-password">Şifre</Label><Link className="text-xs text-atlas-blue underline" href={`/sifremi-unuttum${intent ? `?redirect=${encodeURIComponent(intent)}` : ""}`}>Şifremi unuttum</Link></div><div className="relative"><Input id="login-password" type={showPassword ? "text" : "password"} autoComplete="current-password" required maxLength={128} value={password} onChange={event => setPassword(event.target.value)} className="pr-11" /><button type="button" className="absolute right-3 top-3 text-muted-foreground" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? "Şifreyi gizle" : "Şifreyi göster"} aria-pressed={showPassword}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div></div>
+                {error && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
+                <Button type="submit" className="w-full">{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}{loading ? "Giriş yapılıyor…" : intent?.startsWith("/cart") ? "Giriş yap ve sepete devam et" : "Giriş yap"}</Button>
+            </fieldset></form><p className="mt-6 text-sm text-center text-muted-foreground">Henüz hesabınız yok mu? <Link href={authPageHref("register", intent)} className="font-semibold text-atlas-blue underline">Ücretsiz hesap oluştur</Link></p>
+        </>}
+    </AuthShell>;
 }
+export default function LoginPage() { return <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>}><LoginContent /></Suspense>; }

@@ -1,20 +1,26 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { User, UserDocument } from './schemas/user.schema';
 import * as bcrypt from 'bcrypt';
 import { UserRole } from '@repo/shared';
 import * as crypto from 'crypto';
+import { publicUser } from './user-response';
 
 @Injectable()
 export class UsersService {
     constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) { }
 
     async create(createUserDto: any): Promise<User> {
+        const strength = this.validatePasswordStrength(createUserDto.password);
+        if (!strength.valid) throw new BadRequestException(strength.message);
+        const email = String(createUserDto.email || '').trim().toLowerCase();
+        if (await this.findOneByEmail(email)) throw new ConflictException('Bu e-posta adresi zaten kayıtlı.');
         const salt = await bcrypt.genSalt();
         const hash = await bcrypt.hash(createUserDto.password, salt);
         const createdUser = new this.userModel({
-            ...createUserDto,
+            ...Object.fromEntries(['firstName', 'lastName', 'grade', 'parentId', 'phone', 'address', 'city', 'registrationConsentAt', 'registrationTermsVersion', 'registrationPrivacyVersion', 'registrationGuardianId'].filter(key => createUserDto[key] !== undefined).map(key => [key, createUserDto[key]])),
+            email,
             passwordHash: hash,
             role: createUserDto.role || UserRole.STUDENT, // Default Role
         });
@@ -22,7 +28,9 @@ export class UsersService {
     }
 
     async findOneByEmail(email: string): Promise<UserDocument | null> {
-        return this.userModel.findOne({ email }).exec();
+        if (typeof email !== 'string' || !email.trim()) return null;
+        const escaped = email.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return this.userModel.findOne({ email: { $regex: `^${escaped}$`, $options: 'i' } }).exec();
     }
     async findAll(role?: string): Promise<User[]> {
         const filter: any = {};
@@ -40,21 +48,21 @@ export class UsersService {
 
     async update(id: string, updateUserDto: any): Promise<User | null> {
         // Prevent mass-assignment of sensitive fields
-        const sanitized = { ...updateUserDto };
-        delete sanitized.role;
-        delete sanitized.isActive;
-        delete sanitized.passwordHash;
-        delete sanitized.email; // Email changes should go through a dedicated flow
+        const sanitized: Record<string, any> = Object.fromEntries(['firstName', 'lastName', 'phone', 'address', 'city'].filter(key => updateUserDto[key] !== undefined).map(key => [key, updateUserDto[key]]));
 
-        if (sanitized.password) {
+        if (updateUserDto.password) {
+            const validation = this.validatePasswordStrength(updateUserDto.password);
+            if (!validation.valid) throw new BadRequestException(validation.message);
             const salt = await bcrypt.genSalt();
-            sanitized.passwordHash = await bcrypt.hash(sanitized.password, salt);
-            delete sanitized.password;
+            sanitized.passwordHash = await bcrypt.hash(updateUserDto.password, salt);
         }
-        return this.userModel.findByIdAndUpdate(id, sanitized, { new: true }).select('-passwordHash').populate('parentId', 'firstName lastName email').exec();
+        return this.userModel.findByIdAndUpdate(id, { $set: sanitized, ...(sanitized.passwordHash ? { $inc: { sessionVersion: 1 } } : {}) }, { returnDocument: 'after', runValidators: true }).select('-passwordHash').populate('parentId', 'firstName lastName email').exec();
     }
 
     async assignParent(studentId: string, parentId: string): Promise<User | null> {
+        if (!Types.ObjectId.isValid(studentId) || !Types.ObjectId.isValid(parentId)) throw new BadRequestException('Geçerli öğrenci ve veli seçin.');
+        const [student, parent] = await Promise.all([this.userModel.findById(studentId), this.userModel.findById(parentId)]);
+        if (!student?.isActive || student.role !== UserRole.STUDENT || !parent?.isActive || parent.role !== UserRole.PARENT) throw new BadRequestException('Aktif öğrenci ve aktif veli hesapları seçilmelidir.');
         return this.userModel.findByIdAndUpdate(
             studentId,
             { parentId: new Types.ObjectId(parentId) },
@@ -68,10 +76,11 @@ export class UsersService {
      * Validate password strength: min 8 chars, at least 1 letter and 1 digit
      */
     validatePasswordStrength(password: string): { valid: boolean; message: string } {
-        if (!password || password.length < 8) {
+        if (typeof password !== 'string' || password.length < 8) {
             return { valid: false, message: 'Şifre en az 8 karakter olmalıdır.' };
         }
-        if (!/[a-zA-Z]/.test(password)) {
+        if (Buffer.byteLength(password, 'utf8') > 72) return { valid: false, message: 'Şifre UTF-8 biçiminde en fazla 72 bayt olabilir.' };
+        if (!/\p{L}/u.test(password)) {
             return { valid: false, message: 'Şifre en az bir harf içermelidir.' };
         }
         if (!/[0-9]/.test(password)) {
@@ -113,11 +122,38 @@ export class UsersService {
         }
 
         const salt = await bcrypt.genSalt();
-        user.passwordHash = await bcrypt.hash(password, salt);
-        await user.save();
+        const updated = await this.userModel.findByIdAndUpdate(id,
+            { $set: { passwordHash: await bcrypt.hash(password, salt) }, $inc: { sessionVersion: 1 } },
+            { returnDocument: 'after' }).exec();
+        return publicUser(updated) as unknown as User;
+    }
 
-        const { passwordHash: _, ...result } = user.toObject();
-        return result as unknown as User;
+    async changeOwnPassword(id: string, currentPassword: string, newPassword: string) {
+        const validation = this.validatePasswordStrength(newPassword);
+        if (!validation.valid) throw new BadRequestException(validation.message);
+        const user = await this.userModel.findById(id);
+        if (!user?.isActive || !await bcrypt.compare(currentPassword, user.passwordHash)) return null;
+        if (currentPassword === newPassword) throw new BadRequestException('Yeni şifre mevcut şifreden farklı olmalıdır.');
+        const hash = await bcrypt.hash(newPassword, 10);
+        // CAS prevents simultaneous changes from authorizing each other with an old password.
+        return this.userModel.findOneAndUpdate({ _id: id, passwordHash: user.passwordHash, isActive: true },
+            { $set: { passwordHash: hash }, $inc: { sessionVersion: 1 } }, { returnDocument: 'after' }).exec();
+    }
+
+    async setActive(id: string, isActive: boolean, actorId: string) {
+        if (!Types.ObjectId.isValid(id)) throw new BadRequestException('Geçersiz kullanıcı.');
+        if (new Types.ObjectId(id).equals(actorId)) throw new BadRequestException('Kendi hesabınızın aktifliğini bu ekrandan değiştiremezsiniz.');
+        await this.requireAdminTarget(actorId, id);
+        const user = await this.userModel.findByIdAndUpdate(id, { $set: { isActive }, $inc: { sessionVersion: 1 } }, { returnDocument: 'after' }).exec();
+        return publicUser(user);
+    }
+
+    async requireAdminTarget(actorId: string, targetId: string) {
+        if (!Types.ObjectId.isValid(targetId)) throw new BadRequestException('Geçersiz kullanıcı.');
+        const [actor, target] = await Promise.all([this.userModel.findById(actorId), this.userModel.findById(targetId)]);
+        if (!actor?.isActive || ![UserRole.ADMIN, UserRole.SUPERADMIN].includes(actor.role as UserRole)) throw new ForbiddenException();
+        if (!target) throw new NotFoundException('Kullanıcı bulunamadı.');
+        if (target.role === UserRole.SUPERADMIN && actor.role !== UserRole.SUPERADMIN) throw new ForbiddenException('Bu yönetici hesabını yalnız üst yönetici değiştirebilir.');
     }
 
     /**

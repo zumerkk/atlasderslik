@@ -14,6 +14,25 @@ export class Video {
     @Prop({ required: true })
     videoUrl: string; // YouTube link or MP4 URL
 
+    @Prop({ enum: ['link', 'upload'], default: 'link' })
+    source: string;
+
+    // Never include private storage paths in ordinary education responses.
+    @Prop({ select: false })
+    storageKey?: string;
+
+    @Prop({ select: false })
+    sourceHash?: string;
+
+    @Prop()
+    mimeType?: string;
+
+    @Prop()
+    sizeBytes?: number;
+
+    @Prop()
+    durationSeconds?: number;
+
     @Prop()
     durationMinutes: number;
 

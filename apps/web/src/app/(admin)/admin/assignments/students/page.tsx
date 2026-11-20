@@ -17,6 +17,10 @@ interface Enrollment {
     studentId: { _id: string; firstName: string; lastName: string; email: string };
     gradeId: { _id: string; level: number; label?: string };
     enrollmentDate: string;
+    accessSource?: "manual" | "package";
+    accessGranted: boolean;
+    activePaidGrant: boolean;
+    accessEndsAt?: string | null;
 }
 
 export default function StudentEnrollmentsPage() {
@@ -75,7 +79,7 @@ export default function StudentEnrollmentsPage() {
         try {
             const res = await apiDelete(`/education/student-enrollments/${deleteItem._id}`);
             if (res.ok) { setFeedback({ type: "success", message: "Kayıt silindi!" }); setDeleteDialogOpen(false); fetchAll(); }
-            else { setFeedback({ type: "error", message: "Silme başarısız." }); }
+            else { const data = await res.json().catch(() => ({})); setFeedback({ type: "error", message: typeof data.message === "string" ? data.message : "Silme başarısız." }); }
         } catch { setFeedback({ type: "error", message: "Bir hata oluştu." }); }
         finally { setSubmitting(false); }
     };
@@ -84,7 +88,7 @@ export default function StudentEnrollmentsPage() {
 
     return (
         <div className="space-y-6 animate-fade-in">
-            <PageHeader title="Öğrenci Kayıtları" description="Öğrencileri sınıflara kaydedin.">
+            <PageHeader title="Öğrenci Kayıtları" description="Kurum kayıtlarını ve satın alınmış ders haklarını inceleyin.">
                 <Button onClick={() => setDialogOpen(true)}>
                     <Plus className="h-4 w-4" />
                     Yeni Kayıt
@@ -115,6 +119,7 @@ export default function StudentEnrollmentsPage() {
                             <TableHead>E-posta</TableHead>
                             <TableHead>Sınıf</TableHead>
                             <TableHead>Kayıt Tarihi</TableHead>
+                            <TableHead>Erişim</TableHead>
                             <TableHead className="text-right">İşlemler</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -127,8 +132,9 @@ export default function StudentEnrollmentsPage() {
                                     <Badge variant="info">{e.gradeId?.label || `${e.gradeId?.level}. Sınıf`}</Badge>
                                 </TableCell>
                                 <TableCell className="text-muted-foreground">{new Date(e.enrollmentDate).toLocaleDateString("tr-TR")}</TableCell>
+                                <TableCell><Badge variant={e.accessGranted ? "success" : "warning"}>{e.accessSource === "package" ? "Satın alma" : "Kurum kaydı"} · {e.accessGranted ? "Açık" : "Kapalı"}</Badge><p className="mt-1 text-xs text-muted-foreground">{e.accessEndsAt ? `Bitiş: ${new Date(e.accessEndsAt).toLocaleDateString("tr-TR")}` : e.accessGranted ? "Süresiz kurum veya tek seferlik paket hakkı" : "Geçerli paket hakkı bulunmuyor"}</p></TableCell>
                                 <TableCell className="text-right">
-                                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => { setDeleteItem(e); setDeleteDialogOpen(true); }}>
+                                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" disabled={e.activePaidGrant} title={e.activePaidGrant ? "Aktif satın alma hakkını Siparişler ekranından inceleyin" : "Kurum kaydını kaldır"} aria-label="Kurum kaydını kaldır" onClick={() => { setDeleteItem(e); setDeleteDialogOpen(true); }}>
                                         <Trash2 className="h-4 w-4" />
                                     </Button>
                                 </TableCell>
@@ -143,7 +149,7 @@ export default function StudentEnrollmentsPage() {
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>Yeni Öğrenci Kaydı</DialogTitle>
-                        <DialogDescription>Öğrenciyi bir sınıfa kaydedin.</DialogDescription>
+                        <DialogDescription>Bu işlem öğrenciyi sınıfa süresiz kurum hakkıyla kaydeder; ödeme oluşturmaz. Aynı sınıftaki satın alma kaydı varsa kurum kaydına dönüştürür.</DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="grid gap-2">

@@ -4,8 +4,16 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './filters/http-exception.filter';
+import { apiRuntimeConfig } from './common/api-runtime-config';
 
 async function bootstrap() {
+  let runtime: ReturnType<typeof apiRuntimeConfig>;
+  try { runtime = apiRuntimeConfig(process.env); }
+  catch (error) {
+    console.error(`[STARTUP] ${error instanceof Error ? error.message : 'Invalid API runtime configuration.'}`);
+    process.exitCode = 1;
+    return;
+  }
   const startTime = Date.now();
   console.log('[STARTUP] Starting Atlas Derslik API...');
 
@@ -16,13 +24,8 @@ async function bootstrap() {
   // Render terminates public traffic at its reverse proxy. Trust only the
   // configured number of hops so rate limits use the client IP, not the router.
   // Set 0 for a directly exposed production server; never trust all proxies.
-  if (process.env.NODE_ENV === 'production') {
-    const proxyHops = Number(process.env.TRUST_PROXY_HOPS ?? '1');
-    if (!Number.isInteger(proxyHops) || proxyHops < 0 || proxyHops > 5) {
-      throw new Error('TRUST_PROXY_HOPS must be an integer between 0 and 5.');
-    }
-    app.set('trust proxy', proxyHops);
-  }
+  app.set('trust proxy', runtime.proxyHops);
+  app.enableShutdownHooks();
   
   // Increase body size limit for base64 image uploads
   app.useBodyParser('json', { limit: '50mb' });
@@ -43,13 +46,8 @@ async function bootstrap() {
   app.useGlobalFilters(new GlobalExceptionFilter());
 
   // CORS — support www and non-www
-  const corsOrigins = process.env.CORS_ORIGIN?.split(',') || [
-    'http://localhost:3000',
-    'https://atlasderslik.com',
-    'https://www.atlasderslik.com',
-  ];
   app.enableCors({
-    origin: corsOrigins,
+    origin: runtime.origins,
     credentials: true,
   });
 

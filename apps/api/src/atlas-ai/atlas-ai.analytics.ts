@@ -12,7 +12,7 @@ import type {
   AtlasTopicInsight,
 } from '@repo/shared';
 import { User } from '../users/schemas/user.schema';
-import { StudentEnrollment } from '../education/schemas/student-enrollment.schema';
+import { activeEnrollmentAccess, StudentEnrollment } from '../education/schemas/student-enrollment.schema';
 import { TeacherAssignment } from '../education/schemas/teacher-assignment.schema';
 import { Assignment } from '../education/schemas/assignment.schema';
 import { Submission } from '../education/schemas/submission.schema';
@@ -21,7 +21,8 @@ import { Test } from '../education/schemas/test.schema';
 import { Question } from '../education/schemas/question.schema';
 import { Schedule } from '../education/schemas/schedule.schema';
 import { LiveClass } from '../education/schemas/live-class.schema';
-import { buildAtlasClassScope } from './atlas-ai.scope';
+import { activeAtlasEnrollments, buildAtlasClassScope, resolveAtlasClassAccess } from './atlas-ai.scope';
+import { Subject } from '../education/schemas/subject.schema';
 
 const STUDENT_LIMIT = 8;
 const TEST_LIMIT = 80;
@@ -151,6 +152,7 @@ export class AtlasAnalyticsService {
     @InjectModel(Question.name) private readonly questions: Model<any>,
     @InjectModel(Schedule.name) private readonly schedules: Model<any>,
     @InjectModel(LiveClass.name) private readonly liveClasses: Model<any>,
+    @InjectModel(Subject.name) private readonly subjectModel: Model<any>,
   ) {}
 
   async build(
@@ -209,6 +211,7 @@ export class AtlasAnalyticsService {
           .aggregate([
             {
               $match: {
+                $and: [activeEnrollmentAccess(now)],
                 $expr: {
                   $in: [
                     {
@@ -301,12 +304,13 @@ export class AtlasAnalyticsService {
     const studentId = idOf(student._id);
     const owner = identity('studentId', studentId);
     const window = atlasMonthWindow(now);
-    const enrollments = await this.enrollments
-      .find(owner)
-      .select('gradeId')
-      .populate('gradeId', 'level label')
+    const enrollmentRows = await this.enrollments
+      .find({ $and: [owner, activeEnrollmentAccess(now)] })
+      .select('gradeId accessSource packageGrants')
+      .populate({ path: 'gradeId', select: 'level label isActive', match: { isActive: true } })
       .lean()
       .exec();
+    const enrollments = activeAtlasEnrollments(enrollmentRows, now);
     const classes = enrollments.filter(
       (row) =>
         row.gradeId &&
@@ -314,12 +318,13 @@ export class AtlasAnalyticsService {
           teacherAccess.some((access) => access.gradeId === idOf(row.gradeId))),
     );
     const classIds = classes.map((row) => idOf(row.gradeId));
+    const classAccess = await resolveAtlasClassAccess(enrollments, this.teaching, this.subjectModel, now);
     const pairs: TeachingPair[] | undefined = teacherAccess?.flatMap(
       (access) => {
         const enrollment = classes.find(
           (row) => idOf(row.gradeId) === access.gradeId,
         );
-        return enrollment
+        return enrollment && classAccess.bindings.some(binding => binding.gradeId === access.gradeId && binding.subjectId === access.subjectId && binding.level === Number(enrollment.gradeId.level))
           ? [{ ...access, level: Number(enrollment.gradeId.level) }]
           : [];
       },
@@ -331,7 +336,9 @@ export class AtlasAnalyticsService {
       ? { $expr: atlasTeachingExpression(pairs) }
       : buildAtlasClassScope(
           classIds,
-          classes.map((row) => row.gradeId?.level),
+          classAccess.fallbackLevels,
+          classAccess.bindings,
+          classAccess.fallbackSubjects,
         );
     // All actual timetable slots block a plan. Other teachers' course names are
     // replaced with an anonymous busy label before leaving this service.
@@ -341,7 +348,9 @@ export class AtlasAnalyticsService {
     );
     const liveClassScope = buildAtlasClassScope(
       enrollments.filter((row) => row.gradeId).map((row) => idOf(row.gradeId)),
-      enrollments.map((row) => row.gradeId?.level),
+      classAccess.fallbackLevels,
+      classAccess.bindings,
+      classAccess.fallbackSubjects,
     );
     const resultAccess: any[] = pairs
       ? [

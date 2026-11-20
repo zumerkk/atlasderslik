@@ -12,6 +12,21 @@ export class User {
     @Prop({ required: true })
     passwordHash: string;
 
+    @Prop({ default: 0, min: 0 })
+    sessionVersion: number;
+
+    @Prop({ type: Date })
+    registrationConsentAt?: Date;
+
+    @Prop()
+    registrationTermsVersion?: string;
+
+    @Prop()
+    registrationPrivacyVersion?: string;
+
+    @Prop({ type: SchemaTypes.ObjectId, ref: 'User' })
+    registrationGuardianId?: Types.ObjectId;
+
     @Prop({ required: true })
     firstName: string;
 

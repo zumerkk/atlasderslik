@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { AddToCartLink } from "@/components/commerce/add-to-cart-link";
 import { PublicHeader } from "@/components/layout/public-header";
 import { PublicFooter } from "@/components/layout/public-footer";
 import { Button } from "@/components/ui/button";
@@ -16,9 +17,10 @@ import {
     AtSign,
     BookOpen,
     Loader2,
-    RefreshCw,
 } from "lucide-react";
-import { cachedApiGet } from "@/lib/api";
+import { apiGet } from "@/lib/api";
+import { commerceJson, money } from "@/lib/commerce";
+import { contactEmailHref, contactPhoneLabel, contactWhatsAppHref, usePublicContact } from "@/lib/public-contact";
 
 interface Pkg {
     _id: string; name: string; description: string; subtitle: string;
@@ -42,34 +44,22 @@ const COLORS = [
 const PERIOD_LABEL: Record<string, string> = { monthly: "/ Ay", yearly: "/ Yıl", "one-time": "Tek Sefer" };
 
 export default function PackagesPublicPage() {
+    const contact = usePublicContact();
     const [packages, setPackages] = useState<Pkg[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
 
     useEffect(() => {
-        (async () => {
+        const controller = new AbortController();
+        void (async () => {
             try {
-                // Stale-while-revalidate: show cached packages instantly, then fetch fresh
-                const cached = await cachedApiGet<Pkg[]>(
-                    "/packages/active",
-                    (freshData) => {
-                        setPackages(freshData);
-                        setLoading(false);
-                        setError(false);
-                    },
-                );
-                if (cached && cached.length > 0) {
-                    setPackages(cached);
-                    setLoading(false);
-                } else {
-                    // No cache, wait a bit then show loading
-                    setTimeout(() => setLoading((prev) => prev), 500);
-                }
-            } catch {
-                setError(true);
-                setLoading(false);
-            }
+                const data = await commerceJson<Pkg[]>(await apiGet("/packages/active", { skipAuth: true, retries: 0, timeout: 45000, signal: controller.signal }), "Paketler alınamadı.");
+                if (!Array.isArray(data)) throw new Error("Paket listesi doğrulanamadı.");
+                if (!controller.signal.aborted) { setPackages(data); setError(false); }
+            } catch { if (!controller.signal.aborted) setError(true); }
+            finally { if (!controller.signal.aborted) setLoading(false); }
         })();
+        return () => controller.abort();
     }, []);
 
     return (
@@ -123,6 +113,10 @@ export default function PackagesPublicPage() {
                                 {packages.map((pkg, idx) => {
                                     const ci = COLORS[idx % COLORS.length];
                                     const badgeStyle = BADGE_STYLES[pkg.badge] || BADGE_STYLES["En Popüler"];
+                                    const originalPrice = pkg.originalPrice ?? 0;
+                                    const hasDiscount = originalPrice > 0 && originalPrice > pkg.price;
+                                    const features = Array.isArray(pkg.features) ? pkg.features : [];
+                                    const hasFeatures = features.length > 0;
                                     return (
                                         <div key={pkg._id} className={`group relative bg-white rounded-2xl border-2 ${ci.border} shadow-md hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 flex flex-col overflow-hidden`}>
 
@@ -138,18 +132,18 @@ export default function PackagesPublicPage() {
                                                     )}
                                                 </div>
                                                 <div className="flex items-baseline gap-2 mt-3">
-                                                    {pkg.originalPrice && pkg.originalPrice > 0 && pkg.originalPrice > pkg.price && (
-                                                        <span className="text-lg font-semibold text-white/50 line-through">{pkg.originalPrice.toLocaleString("tr-TR")} TL</span>
+                                                    {hasDiscount && (
+                                                        <span className="text-lg font-semibold text-white/50 line-through">{money(originalPrice)}</span>
                                                     )}
                                                 </div>
                                                 <div className="flex items-baseline gap-1">
-                                                    <span className="text-3xl font-extrabold text-white">{pkg.price.toLocaleString("tr-TR")} TL</span>
+                                                    <span className="text-3xl font-extrabold text-white">{money(pkg.price)}</span>
                                                     <span className="text-white/70 text-sm font-medium">{PERIOD_LABEL[pkg.period] || "/ Ay"}</span>
                                                 </div>
-                                                {pkg.originalPrice && pkg.originalPrice > 0 && pkg.originalPrice > pkg.price && (
+                                                {hasDiscount && (
                                                     <div className="mt-2">
                                                         <span className="inline-block bg-white/20 backdrop-blur-sm text-white text-xs font-bold px-2.5 py-1 rounded-full">
-                                                            %{Math.round(((pkg.originalPrice - pkg.price) / pkg.originalPrice) * 100)} indirim
+                                                            %{Math.round(((originalPrice - pkg.price) / originalPrice) * 100)} indirim
                                                         </span>
                                                     </div>
                                                 )}
@@ -165,29 +159,21 @@ export default function PackagesPublicPage() {
                                             )}
 
                                             {/* Features */}
-                                            <div className="px-6 py-4 flex-1">
+                                            {hasFeatures && <div className="px-6 py-4 flex-1">
                                                 <ul className="space-y-3">
-                                                    {(pkg.features || []).map((feat, fi) => (
+                                                    {features.map((feat, fi) => (
                                                         <li key={fi} className="flex items-start gap-2.5 text-sm text-gray-600">
                                                             <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
                                                             <span className="leading-snug">{feat}</span>
                                                         </li>
                                                     ))}
                                                 </ul>
-                                            </div>
+                                            </div>}
 
                                             {/* CTA */}
-                                            <div className="px-6 pb-6">
-                                                <Button
-                                                    onClick={() => {
-                                                        const msg = encodeURIComponent(`Merhaba, "${pkg.name}" paketi hakkında bilgi almak istiyorum.`);
-                                                        window.open(`https://wa.me/905461191009?text=${msg}`, "_blank");
-                                                    }}
-                                                    className={`w-full bg-gradient-to-r ${ci.color} hover:opacity-90 text-white py-5 font-semibold shadow-md hover:shadow-lg transition-all`}
-                                                >
-                                                    Bilgi Al
-                                                    <ArrowRight className="ml-2 h-4 w-4" />
-                                                </Button>
+                                            <div className="px-6 pb-6 mt-auto">
+                                                <AddToCartLink packageId={pkg._id} className={`w-full bg-gradient-to-r ${ci.color} hover:opacity-90 text-white py-5 font-semibold shadow-md hover:shadow-lg transition-all`}>Sepete ekle<ArrowRight className="ml-2 h-4 w-4" /></AddToCartLink><Link href={`/packages/${encodeURIComponent(pkg._id)}`} className="block text-center text-sm font-medium text-atlas-blue mt-3 underline">Paket ayrıntıları</Link>
+                                                <a href={contactWhatsAppHref(contact, `Merhaba, "${pkg.name}" paketi hakkında bilgi almak istiyorum.`)} target="_blank" rel="noopener noreferrer" className="block text-center text-sm text-gray-500 underline mt-3">Satın almadan önce bilgi al</a>
                                             </div>
                                         </div>
                                     );
@@ -197,7 +183,7 @@ export default function PackagesPublicPage() {
 
                         <div className="mt-12 text-center">
                             <p className="text-sm text-gray-500 max-w-2xl mx-auto">
-                                Tüm paketler aylık ödeme ile sunulmaktadır. Dönemlik veya yıllık ödeme seçenekleri için bizimle iletişime geçin.
+                                Paket dönemi her kartta belirtilir. Satın alma tek çekimdir; otomatik yenileme yapılmaz. Güncel tutar ve öğrenciye uygunluk ödeme sayfasında yeniden doğrulanır.
                             </p>
                         </div>
                     </div>
@@ -219,22 +205,20 @@ export default function PackagesPublicPage() {
                                 </p>
 
                                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
-                                    <a href="tel:+905461191009" className="inline-flex items-center gap-2 px-6 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white font-medium hover:bg-white/20 transition-all">
-                                        <Phone className="h-4 w-4" />+90 546 119 10 09
+                                    <a href={`tel:${contact.phone}`} className="inline-flex items-center gap-2 px-6 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white font-medium hover:bg-white/20 transition-all">
+                                        <Phone className="h-4 w-4" />{contactPhoneLabel(contact.phone)}
                                     </a>
                                     <a href="https://instagram.com/atlasderslik" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-6 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white font-medium hover:bg-white/20 transition-all">
                                         <AtSign className="h-4 w-4" />@atlasderslik
                                     </a>
-                                    <a href="mailto:info@atlasderslik.com" className="inline-flex items-center gap-2 px-6 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white font-medium hover:bg-white/20 transition-all">
-                                        <Mail className="h-4 w-4" />atlasderslik.com
+                                    <a href={contactEmailHref(contact)} className="inline-flex items-center gap-2 px-6 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white font-medium hover:bg-white/20 transition-all">
+                                        <Mail className="h-4 w-4" />{contact.email}
                                     </a>
                                 </div>
 
-                                <Link href="/register">
-                                    <Button size="lg" className="bg-atlas-orange hover:bg-atlas-orange-dark text-white shadow-lg hover:shadow-xl transition-all text-base px-10 py-6 font-semibold">
-                                        <Sparkles className="mr-2 h-5 w-5" />Ücretsiz Kayıt Ol
-                                    </Button>
-                                </Link>
+                                <Button asChild size="lg" className="bg-atlas-orange hover:bg-atlas-orange-dark text-white shadow-lg hover:shadow-xl transition-all text-base px-10 py-6 font-semibold">
+                                    <a href={contactWhatsAppHref(contact, "Merhaba, Atlas Derslik paketleri ve kayıt süreci hakkında bilgi almak istiyorum.")} target="_blank" rel="noopener noreferrer"><Sparkles className="mr-2 h-5 w-5" />Ücretsiz Danışmanlık Al</a>
+                                </Button>
                             </div>
                         </div>
                     </div>

@@ -3,13 +3,15 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { PackagesService } from './packages.service';
 import { PackagesController } from './packages.controller';
 import { Package, PackageSchema } from './schemas/package.schema';
-import { Order, OrderSchema } from './schemas/order.schema';
+import { Grade, GradeSchema } from '../education/schemas/grade.schema';
+import { User, UserSchema } from '../users/schemas/user.schema';
 
 @Module({
     imports: [
         MongooseModule.forFeature([
             { name: Package.name, schema: PackageSchema },
-            { name: Order.name, schema: OrderSchema }
+            { name: Grade.name, schema: GradeSchema },
+            { name: User.name, schema: UserSchema },
         ])
     ],
     controllers: [PackagesController],

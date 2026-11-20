@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   Patch,
   Post,
   Query,
@@ -33,6 +34,12 @@ export class AtlasAiController {
   @Get('status')
   status(@Req() request: { user: { userId: string } }) {
     return this.atlas.status(request.user.userId);
+  }
+
+  @Get('budget')
+  @Header('Cache-Control', 'private, no-store')
+  budget(@Req() request: { user: { userId: string } }) {
+    return this.atlas.budgetStatus(request.user.userId);
   }
 
   @Get('insights')

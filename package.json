@@ -6,16 +6,20 @@
     "local": "node scripts/atlas-local.mjs start",
     "local:stop": "node scripts/atlas-local.mjs stop",
     "local:status": "node scripts/atlas-local.mjs status",
+    "verify:commerce": "node scripts/verify-commerce.cjs",
+    "verify:auth-navigation": "node scripts/verify-auth-navigation.cjs",
+    "verify:api-session": "node scripts/verify-api-session.cjs",
+    "audit:commerce": "node scripts/audit-commerce-catalog.cjs",
     "build": "turbo build",
     "dev": "turbo dev",
     "lint": "turbo lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\""
   },
   "devDependencies": {
-    "turbo": "latest",
+    "@types/node": "latest",
     "prettier": "latest",
-    "typescript": "latest",
-    "@types/node": "latest"
+    "turbo": "latest",
+    "typescript": "^5.9.3"
   },
   "packageManager": "pnpm@10.2.0",
   "engines": {
@@ -23,15 +27,13 @@
   },
   "pnpm": {
     "overrides": {
-      "multer@>=2.0.0 <2.3.0": "2.3.0",
       "lodash@>=4.0.0 <4.18.1": "4.18.1",
-      "qs@>=6.0.0 <6.16.0": "6.16.0",
-      "ip-address@>=10.0.0 <10.3.1": "10.3.1",
+      "qs@>=6.0.0 <6.16.1": "6.16.1",
       "nanoid@>=3.0.0 <3.3.18": "3.3.18",
       "browserslist@>=4.0.0 <4.28.7": "4.28.9",
       "baseline-browser-mapping@>=2.0.0 <2.11.0": "2.11.21",
       "@babel/core@>=7.0.0 <7.29.6": "7.29.6",
-      "body-parser@>=2.0.0 <2.3.0": "2.3.0",
+      "body-parser@>=2.0.0 <2.4.0": "2.4.0",
       "minimatch@>=3.0.0 <3.1.4": "3.1.4",
       "minimatch@>=9.0.0 <9.0.7": "9.0.7",
       "minimatch@>=10.0.0 <10.2.6": "10.2.6",
@@ -49,7 +51,20 @@
       "js-yaml@>=3.0.0 <3.15.2": "3.15.2",
       "js-yaml@>=4.0.0 <4.3.2": "4.3.2",
       "fast-uri@>=3.0.0 <3.1.6": "3.1.6",
-      "@humanfs/node@>=0.16.0 <0.16.8": "0.16.8"
-    }
+      "@humanfs/node@>=0.16.0 <0.16.8": "0.16.8",
+      "multer@>=2.0.0 <2.5.0": "2.5.0",
+      "ip-address@>=10.0.0 <10.7.4": "10.7.4",
+      "source-map-js@>=1.0.0 <1.2.2": "1.2.2",
+      "proxy-addr@>=1.1.0 <2.0.8": "2.0.8",
+      "sharp@<0.35.5": "0.35.5",
+      "postman-request>uuid": "11.1.1",
+      "katex@<0.18.2": "0.18.2"
+    },
+    "onlyBuiltDependencies": [
+      "ffmpeg-static",
+      "bcrypt",
+      "@nestjs/core",
+      "unrs-resolver"
+    ]
   }
 }

@@ -43,10 +43,15 @@ import { Topic, TopicSchema } from '../education/schemas/topic.schema';
 import { Unit, UnitSchema } from '../education/schemas/unit.schema';
 import { AtlasSavedPlan, AtlasSavedPlanSchema } from './atlas-ai.saved-plan.schema';
 import { AtlasSavedPlanService } from './atlas-ai.saved-plan.service';
+import { AtlasCurriculumModule } from './atlas-ai.curriculum.module';
+import { AiService } from '../gamification/ai.service';
+import { ATLAS_DIAGRAM_FACTORY } from './atlas-ai.output-review';
+import { createAtlasDiagramFactory } from './atlas-ai.diagrams';
 
 @Module({
   imports: [
     GamificationModule,
+    AtlasCurriculumModule,
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: StudentEnrollment.name, schema: StudentEnrollmentSchema },
@@ -67,6 +72,8 @@ import { AtlasSavedPlanService } from './atlas-ai.saved-plan.service';
     ]),
   ],
   controllers: [AtlasAiController],
-  providers: [AtlasAiService, AtlasAiRateLimitGuard, AtlasAnalyticsService, AtlasSavedPlanService],
+  providers: [AtlasAiService, AtlasAiRateLimitGuard, AtlasAnalyticsService, AtlasSavedPlanService,
+    { provide: ATLAS_DIAGRAM_FACTORY, useFactory: createAtlasDiagramFactory, inject: [AiService] }],
+  exports: [AtlasCurriculumModule],
 })
 export class AtlasAiModule {}
